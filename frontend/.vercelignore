@@ -1,0 +1,11 @@
+node_modules
+.next
+.next-prod
+.vercel
+.env.local
+.env.production
+.env
+coverage
+test
+tests
+*.log

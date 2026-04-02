@@ -1,0 +1,102 @@
+{
+  "name": "Expense Tracker - Smart Finance Manager",
+  "short_name": "ExpenseTracker",
+  "description": "Track expenses, plan budgets, manage shopping lists and control your finances with smart insights",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
+  "background_color": "#667eea",
+  "theme_color": "#3b82f6",
+  "categories": ["finance", "productivity", "utilities"],
+  "lang": "en",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-72.svg",
+      "sizes": "72x72",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-96.svg",
+      "sizes": "96x96",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-128.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-144.svg",
+      "sizes": "144x144",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-152.svg",
+      "sizes": "152x152",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-384.svg",
+      "sizes": "384x384",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg", 
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Expense",
+      "short_name": "Add Expense",
+      "description": "Quickly add a new expense",
+      "url": "/expenses?action=add",
+      "icons": [
+        {
+          "src": "/icon-96.svg",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Shopping List",
+      "short_name": "Shopping",
+      "description": "View your shopping list",
+      "url": "/shopping-list",
+      "icons": [
+        {
+          "src": "/icon-96.svg",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Expense Planning",
+      "short_name": "Planning",
+      "description": "Plan your upcoming expenses",
+      "url": "/expense-planning",
+      "icons": [
+        {
+          "src": "/icon-96.svg",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}

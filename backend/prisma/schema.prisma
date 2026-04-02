@@ -1,0 +1,331 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String            @id @default(cuid())
+  name            String
+  email           String            @unique
+  passwordHash    String
+  phone           String?
+  bio             String?
+  profileImage    String?
+  salary          Int               @default(0)
+  currency        String            @default("INR")
+  billingCycleStartDay Int          @default(1) // Day of month when billing cycle starts (1-31)
+  resetToken      String?
+  resetTokenExpiry DateTime?
+  notificationSettings Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  expenses        Expense[]
+  incomes         Income[]
+  udhar           Udhar[]
+  bankAccounts    BankAccount[]
+  smartScores     SmartScore[]
+  subscriptions       Subscription[]
+  expensePlanning     ExpensePlanning[]
+  planningCategories  PlanningCategory[]
+  shoppingList        ShoppingList[]
+  shoppingCategories  ShoppingCategory[]
+  shoppingItems       ShoppingItem[]
+  expenseCategories   ExpenseCategory[]
+  expenseBanks        ExpenseBank[]
+  monthlyBudgets      MonthlyBudget[]
+}
+
+model Expense {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date           DateTime
+  title          String
+  amount         Int
+  category       String
+  bank           String
+  paymentMode    String
+  tags           String[]
+  notes          String?
+  receiptUrl     String?
+  isRecurring    Boolean  @default(false)
+  subscriptionId String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([userId, category])
+}
+
+model Income {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  source    String
+  amount    Int
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model Udhar {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person    String
+  reason    String
+  total     Int
+  remaining Int
+  direction String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Subscription {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  amount        Int
+  interval      String
+  nextDueDate   DateTime
+  lastChargedAt DateTime
+  active        Boolean  @default(true)
+  source        String
+  expenseIds    String[]
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId, active])
+}
+
+model SmartScore {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year      Int
+  month     Int
+  score     Int
+  summary   String
+  metrics   Json
+  createdAt DateTime @default(now())
+
+  @@unique([userId, year, month])
+  @@index([userId])
+}
+
+model BankAccount {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       String
+  providerAccId  String
+  bankName       String
+  maskedAccount  String
+  status         String
+  createdAt      DateTime          @default(now())
+  transactions   BankTransaction[]
+
+  @@index([userId])
+}
+
+model BankTransaction {
+  id              String      @id @default(cuid())
+  bankAccountId   String
+  bankAccount     BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  userId          String
+  date            DateTime
+  amount          Int
+  description     String
+  type            String
+  rawMeta         Json
+  linkedExpenseId String?
+  createdAt       DateTime    @default(now())
+
+  @@index([bankAccountId, date])
+  @@index([userId, date])
+}
+
+model PlanningCategory {
+  id                  String            @id @default(cuid())
+  userId              String
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  icon                String            @default("📝")
+  color               String            @default("from-blue-500 to-cyan-600")
+  type                String            @default("general") // festival, day, month, year, duration, general
+  expectedCost        Float             @default(0)
+  realCost            Float             @default(0)
+  startDate           DateTime?
+  endDate             DateTime?
+  expiryDate          DateTime?
+  isActive            Boolean           @default(true)
+  expiryEmailSent     Boolean           @default(false)
+  expiryEmailSentAt   DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  expenses            ExpensePlanning[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([expiryDate, expiryEmailSent])
+}
+
+model ExpensePlanning {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     PlanningCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title        String
+  amount       Float
+  date         DateTime
+  description  String?
+  actualAmount Float?
+  isCompleted  Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, categoryId])
+}
+
+model ShoppingCategory {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  icon            String         @default("🛒")
+  color           String         @default("from-blue-500 to-cyan-600")
+  expectedCost    Float          @default(0)
+  realCost        Float          @default(0)
+  isActive        Boolean        @default(true)
+  expiryDate      DateTime?
+  billAttachments Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  items           ShoppingItem[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([expiryDate])
+}
+
+model ShoppingItem {
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      ShoppingCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name          String
+  expectedPrice Float
+  actualPrice   Float?
+  quantity      Int               @default(1)
+  unit          String            @default("pcs")
+  isBought      Boolean           @default(false)
+  expenseId     String?
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([userId, categoryId])
+}
+
+model ShoppingList {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  quantity       Int
+  unit           String   @default("pcs")
+  category       String
+  priority       String   @default("medium")
+  completed      Boolean  @default(false)
+  estimatedPrice Float?
+  notes          String?
+  period         String   @default("daily")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, period])
+  @@index([userId, completed])
+}
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  icon      String   @default("📁")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model ExpenseBank {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  icon      String   @default("🏦")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model MonthlyBudget {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    String
+  amount      Int
+  month       Int      // 1-12
+  year        Int
+  spent       Int      @default(0)
+  payableBank String?  // Preferred bank for this category
+  isActive    Boolean  @default(true)
+  resetDate   DateTime? // Date when budget was last reset
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  history     BudgetHistory[]
+
+  @@unique([userId, category, month, year])
+  @@index([userId])
+  @@index([userId, month, year])
+  @@index([userId, isActive])
+}
+
+model BudgetHistory {
+  id              String        @id @default(cuid())
+  budgetId        String
+  budget          MonthlyBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  userId          String
+  category        String
+  month           Int
+  year            Int
+  budgetedAmount  Int
+  spentAmount     Int
+  remainingAmount Int
+  percentage      Int
+  status          String        // 'good', 'warning', 'over'
+  createdAt       DateTime      @default(now())
+
+  @@index([userId])
+  @@index([budgetId])
+  @@index([userId, month, year])
+}

@@ -1,0 +1,6 @@
+node_modules/
+.next/
+.next-prod/
+.vercel/
+.DS_Store
+.vercel

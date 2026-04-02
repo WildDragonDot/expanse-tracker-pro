@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unregister Service Worker</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .danger {
+            background: #ef4444;
+        }
+        .danger:hover {
+            background: #dc2626;
+        }
+        .success {
+            background: #10b981;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .success-msg {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .error-msg {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Service Worker Manager</h1>
+        <p>Use this page to manage service workers and clear cache.</p>
+        
+        <div>
+            <button onclick="unregisterServiceWorker()">Unregister Service Worker</button>
+            <button onclick="clearAllCaches()" class="danger">Clear All Caches</button>
+            <button onclick="reloadPage()" class="success">Reload Page</button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div style="margin-top: 30px; padding: 15px; background: #f9fafb; border-radius: 6px;">
+            <h3>Instructions:</h3>
+            <ol>
+                <li>Click "Unregister Service Worker" to remove the service worker</li>
+                <li>Click "Clear All Caches" to delete all cached data</li>
+                <li>Click "Reload Page" to refresh</li>
+                <li>Go back to your app</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = isError ? 'error-msg' : 'success-msg';
+            status.style.display = 'block';
+        }
+
+        async function unregisterServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                    }
+                    showStatus('✅ Service worker unregistered successfully!');
+                } catch (error) {
+                    showStatus('❌ Error unregistering service worker: ' + error.message, true);
+                }
+            } else {
+                showStatus('❌ Service workers not supported in this browser', true);
+            }
+        }
+
+        async function clearAllCaches() {
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    showStatus('✅ All caches cleared successfully!');
+                } catch (error) {
+                    showStatus('❌ Error clearing caches: ' + error.message, true);
+                }
+            } else {
+                showStatus('❌ Cache API not supported in this browser', true);
+            }
+        }
+
+        function reloadPage() {
+            window.location.reload(true);
+        }
+
+        // Auto-check on load
+        window.addEventListener('load', async () => {
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                if (registrations.length > 0) {
+                    console.log('Found service workers:', registrations);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

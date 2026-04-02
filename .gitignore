@@ -1,0 +1,18 @@
+node_modules/
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+frontend/node_modules/
+frontend/.next/
+frontend/.next-prod/
+frontend/.vercel/
+
+backend/node_modules/
+backend/.next/
+
