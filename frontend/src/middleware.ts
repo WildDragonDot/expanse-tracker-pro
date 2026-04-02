@@ -70,13 +70,13 @@ function getAllowedConnectSources() {
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.BACKEND_URL ||
-    'http://localhost:3001'
+    'https://expanse-tracker-pro-1.onrender.com'
 
   const sources = new Set([
     "'self'",
     'https:',
     backendUrl,
-    'http://localhost:3001',
+    'https://expanse-tracker-pro-1.onrender.com',
     'http://127.0.0.1:3001',
     'ws://localhost:3000',
     'ws://127.0.0.1:3000',

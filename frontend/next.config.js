@@ -17,7 +17,7 @@ const nextConfig = {
     const backendUrl = (
       process.env.NEXT_PUBLIC_BACKEND_URL ||
       process.env.BACKEND_URL ||
-      'http://localhost:3001'
+      'https://expanse-tracker-pro-1.onrender.com'
     ).replace(/\/$/, '')
 
     return [

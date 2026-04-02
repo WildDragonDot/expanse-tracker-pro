@@ -40,7 +40,7 @@ export class ApiClient {
     } catch (error) {
       const devBackendHint =
         typeof window !== 'undefined' && process.env.NODE_ENV !== 'production'
-          ? ' Backend server may not be running on http://localhost:3001.'
+          ? ' Backend server may not be running on https://expanse-tracker-pro-1.onrender.com.'
           : ''
 
       throw new Error(`Unable to connect to the API.${devBackendHint}`)
