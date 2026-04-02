@@ -4,8 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "rm -rf .next && next build",
+    "build": "prisma generate && next build",
     "start": "next start -p 3001",
+    "postinstall": "prisma generate",
+    "deploy": "prisma db push && npm run start",
+    "render-build": "npm install && prisma generate && next build",
     "test": "jest --config jest.config.js --runInBand",
     "test:watch": "jest --config jest.config.js --watch",
     "db:push": "prisma db push",
