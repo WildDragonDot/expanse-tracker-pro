@@ -68,9 +68,21 @@ if (typeof setInterval !== 'undefined') {
 
 function getAllowedOrigin(request: NextRequest) {
   const requestOrigin = request.headers.get('origin')
-  const configuredOrigins = [
+  
+  // Support comma-separated origins from env
+  const envOrigins = [
     process.env.CORS_ORIGIN,
     process.env.NEXT_PUBLIC_APP_URL,
+    process.env.FRONTEND_URL,
+  ]
+    .filter(Boolean)
+    .flatMap(origin => origin?.split(',').map(o => o.trim()))
+    .filter(Boolean)
+  
+  const configuredOrigins = [
+    ...envOrigins,
+    'https://expanse-tracker-pro.vercel.app',
+    'https://expense.cpdevs.com',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
   ].filter(Boolean)
