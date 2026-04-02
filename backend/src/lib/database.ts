@@ -1,16 +1,51 @@
+/**
+ * Database Service Layer
+ * 
+ * Yeh file database operations ko handle karti hai using Prisma ORM
+ * 
+ * Main Features:
+ * - User authentication aur management
+ * - Expense tracking aur CRUD operations
+ * - Income management
+ * - Budget warnings aur notifications
+ * - Subscription detection
+ * - Financial analytics aur reports
+ * 
+ * Dependencies:
+ * - Prisma Client: Database ORM
+ * - bcryptjs: Password hashing
+ * - jsonwebtoken: JWT token generation
+ * - email.ts: Email notifications
+ * - dateUtils.ts: Date parsing utilities
+ * 
+ * Used By:
+ * - All API routes in /api folder
+ * - Authentication middleware
+ * - Analytics services
+ */
+
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { sendEmail, emailTemplates } from './email'
 import { parseAppDate } from './dateUtils'
 
+// Global Prisma instance - singleton pattern
+// Development mein hot reload ke liye global object use karte hain
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+/**
+ * Prisma Client Instance
+ * 
+ * Connection pooling ke saath configured hai to prevent "too many clients" error
+ * Development mein error aur warnings log hoti hain
+ * Production mein sirf errors log hoti hain
+ */
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-  // Connection pool configuration to prevent "too many clients" error
+  // Connection pool configuration
   datasources: {
     db: {
       url: process.env.DATABASE_URL
@@ -18,18 +53,39 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   }
 })
 
+// Development mein global object mein store karte hain hot reload ke liye
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
-  
-  // Log connection pool info in development
   console.log('🔌 Prisma Client initialized with connection pooling')
 }
 
-// JWT utilities
+// ============================================
+// JWT TOKEN UTILITIES
+// ============================================
+
+/**
+ * JWT Token Generate Karta Hai
+ * 
+ * @param userId - User ka unique ID
+ * @returns JWT token string (30 days expiry)
+ * 
+ * Used By:
+ * - createUser: Registration ke baad
+ * - authenticateUser: Login ke baad
+ */
 export function generateToken(userId: string) {
   return jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '30d' })
 }
 
+/**
+ * JWT Token Verify Karta Hai
+ * 
+ * @param token - JWT token string
+ * @returns User ID agar valid hai, null agar invalid
+ * 
+ * Used By:
+ * - auth.ts middleware: Request authentication ke liye
+ */
 export function verifyToken(token: string) {
   try {
     return jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
@@ -38,7 +94,27 @@ export function verifyToken(token: string) {
   }
 }
 
-// User services
+// ============================================
+// USER SERVICES
+// ============================================
+
+/**
+ * Naya User Create Karta Hai (Registration)
+ * 
+ * Process:
+ * 1. Check karta hai ki email already exist to nahi
+ * 2. Password ko hash karta hai (bcrypt)
+ * 3. User ko database mein save karta hai
+ * 4. Welcome email bhejta hai
+ * 5. JWT token generate karta hai
+ * 
+ * @param data - User registration data
+ * @returns User object aur JWT token
+ * @throws Error agar user already exists
+ * 
+ * Used By:
+ * - POST /api/auth/register
+ */
 export async function createUser(data: {
   name: string
   email: string
@@ -46,6 +122,7 @@ export async function createUser(data: {
   salary?: number
   billingCycleStartDay?: number
 }) {
+  // Check: Email already registered hai ya nahi
   const existingUser = await prisma.user.findUnique({
     where: { email: data.email }
   })
@@ -54,8 +131,10 @@ export async function createUser(data: {
     throw new Error('User already exists')
   }
 
+  // Password ko hash karte hain security ke liye (12 rounds)
   const passwordHash = await bcrypt.hash(data.password, 12)
   
+  // Database mein user create karte hain
   const user = await prisma.user.create({
     data: {
       name: data.name,
@@ -75,7 +154,7 @@ export async function createUser(data: {
     }
   })
 
-  // Send welcome email
+  // Welcome email bhejte hain (async, error ko log karte hain)
   try {
     await sendEmail({
       to: user.email,
@@ -85,11 +164,29 @@ export async function createUser(data: {
     console.error('Failed to send welcome email:', error)
   }
 
+  // JWT token generate karte hain
   const token = generateToken(user.id)
   return { user, token }
 }
 
+/**
+ * User Ko Authenticate Karta Hai (Login)
+ * 
+ * Process:
+ * 1. Email se user dhundta hai
+ * 2. Password verify karta hai
+ * 3. JWT token generate karta hai
+ * 
+ * @param email - User email
+ * @param password - Plain text password
+ * @returns User object (without password) aur JWT token
+ * @throws Error agar credentials invalid hain
+ * 
+ * Used By:
+ * - POST /api/auth/login
+ */
 export async function authenticateUser(email: string, password: string) {
+  // Email se user dhundte hain
   const user = await prisma.user.findUnique({
     where: { email },
     select: {
@@ -106,16 +203,29 @@ export async function authenticateUser(email: string, password: string) {
     }
   })
 
+  // User nahi mila ya password galat hai
   if (!user || !await bcrypt.compare(password, user.passwordHash)) {
     throw new Error('Invalid credentials')
   }
 
+  // Password hash ko response se remove karte hain (security)
   const { passwordHash, ...userWithoutPassword } = user
   const token = generateToken(user.id)
   
   return { user: userWithoutPassword, token }
 }
 
+/**
+ * User ID Se User Details Fetch Karta Hai
+ * 
+ * @param id - User unique ID
+ * @returns User object (without password)
+ * 
+ * Used By:
+ * - GET /api/user/profile
+ * - Budget warning emails
+ * - Monthly reports
+ */
 export async function getUserById(id: string) {
   return prisma.user.findUnique({
     where: { id },
@@ -134,6 +244,17 @@ export async function getUserById(id: string) {
   })
 }
 
+/**
+ * User Profile Update Karta Hai
+ * 
+ * @param id - User ID
+ * @param data - Update karne wale fields
+ * @returns Updated user object
+ * 
+ * Used By:
+ * - PUT /api/user/profile
+ * - POST /api/user/profile/upload (profile image ke liye)
+ */
 export async function updateUser(id: string, data: Partial<{
   name: string
   email: string
@@ -161,18 +282,39 @@ export async function updateUser(id: string, data: Partial<{
   })
 }
 
+/**
+ * User Password Update Karta Hai
+ * 
+ * Process:
+ * 1. Current password verify karta hai
+ * 2. New password hash karta hai
+ * 3. Database mein update karta hai
+ * 
+ * @param id - User ID
+ * @param currentPassword - Purana password
+ * @param newPassword - Naya password
+ * @returns Success status
+ * @throws Error agar current password galat hai
+ * 
+ * Used By:
+ * - PUT /api/user/password
+ */
 export async function updateUserPassword(id: string, currentPassword: string, newPassword: string) {
+  // User ka current password hash fetch karte hain
   const user = await prisma.user.findUnique({
     where: { id },
     select: { passwordHash: true }
   })
 
+  // Current password verify karte hain
   if (!user || !await bcrypt.compare(currentPassword, user.passwordHash)) {
     throw new Error('Current password is incorrect')
   }
 
+  // New password ko hash karte hain
   const passwordHash = await bcrypt.hash(newPassword, 12)
   
+  // Database mein update karte hain
   await prisma.user.update({
     where: { id },
     data: { passwordHash }
