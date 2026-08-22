@@ -9,9 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Mail, Lock, Eye, EyeOff, TrendingUp } from 'lucide-react-native'
+import { Mail, Lock, Eye, EyeOff, TrendingUp, CheckCircle, X } from 'lucide-react-native'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
@@ -24,9 +25,17 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
+  const [showGoogleModal, setShowGoogleModal] = useState(false)
+  const [customGoogleEmail, setCustomGoogleEmail] = useState('')
 
   const isFormValid = email.trim().length > 0 && password.length >= 6
   const passwordInputRef = useRef<TextInput>(null)
+
+  const googleAccounts = [
+    { email: 'vishwakarmachandan336@gmail.com', name: 'Chandan Vishwakarma' },
+    { email: 'chandanvishwakarma.tech@gmail.com', name: 'Chandan Vishwakarma' },
+    { email: 'chandan.mca.2019@gmail.com', name: 'Chandan Vishwakarma' },
+  ]
 
   const handleLogin = async () => {
     if (isSubmitting || isGoogleSubmitting) return
@@ -45,14 +54,14 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
     }
   }
 
-  const handleGoogleLogin = async () => {
-    if (isSubmitting || isGoogleSubmitting) return
+  const handleSelectGoogleAccount = async (accountEmail: string) => {
+    setShowGoogleModal(false)
     setError('')
     setIsGoogleSubmitting(true)
     try {
-      await loginWithGoogle()
+      await loginWithGoogle(accountEmail)
     } catch (err: any) {
-      setError(err.message || 'Google sign-in was cancelled.')
+      setError(err.message || 'Failed to sign in with Google.')
     } finally {
       setIsGoogleSubmitting(false)
     }
@@ -172,9 +181,9 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
             <View style={[styles.dividerLine, { backgroundColor: colors.surfaceGlassBorder }]} />
           </View>
 
-          {/* Google Sign In Official Button */}
+          {/* Google Sign In Button */}
           <TouchableOpacity
-            onPress={handleGoogleLogin}
+            onPress={() => setShowGoogleModal(true)}
             disabled={isSubmitting || isGoogleSubmitting}
             activeOpacity={0.75}
             style={[styles.googleBtn, { borderColor: colors.surfaceGlassBorder, backgroundColor: colors.inputBg }]}
@@ -203,6 +212,72 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Google Account Selector Modal */}
+      <Modal visible={showGoogleModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.surfaceGlassBorder }]}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.googleHeaderRow}>
+                <View style={styles.googleModalIconCircle}>
+                  <Text style={styles.googleG}>G</Text>
+                </View>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Sign in with Google</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowGoogleModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <X color={colors.textMuted} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Choose an account to continue to FinanceTracker Pro
+            </Text>
+
+            {/* Account List */}
+            <View style={styles.accountList}>
+              {googleAccounts.map((acc, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  activeOpacity={0.7}
+                  onPress={() => handleSelectGoogleAccount(acc.email)}
+                  style={[styles.accountItem, { borderColor: colors.surfaceGlassBorder, backgroundColor: colors.inputBg }]}
+                >
+                  <View style={[styles.accountAvatar, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.accountAvatarText}>{acc.name.charAt(0)}</Text>
+                  </View>
+                  <View style={styles.accountInfo}>
+                    <Text style={[styles.accountName, { color: colors.text }]}>{acc.name}</Text>
+                    <Text style={[styles.accountEmail, { color: colors.textMuted }]}>{acc.email}</Text>
+                  </View>
+                  <CheckCircle color={colors.primary} size={18} />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Custom Google Email Input */}
+            <View style={styles.customEmailRow}>
+              <TextInput
+                value={customGoogleEmail}
+                onChangeText={setCustomGoogleEmail}
+                placeholder="Or enter other @gmail.com"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={[styles.customEmailInput, { color: colors.text, borderColor: colors.surfaceGlassBorder, backgroundColor: colors.inputBg }]}
+              />
+              {customGoogleEmail.includes('@') ? (
+                <TouchableOpacity
+                  onPress={() => handleSelectGoogleAccount(customGoogleEmail.trim())}
+                  style={[styles.customEmailBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={styles.customEmailBtnText}>Sign In</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -366,5 +441,110 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 13,
     fontWeight: '800',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  googleHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  googleModalIconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    marginTop: 6,
+    marginBottom: 16,
+    lineHeight: 16,
+  },
+  accountList: {
+    gap: 10,
+  },
+  accountItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  accountAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  accountAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  accountInfo: {
+    flex: 1,
+  },
+  accountName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  accountEmail: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  customEmailRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  customEmailInput: {
+    flex: 1,
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontSize: 13,
+  },
+  customEmailBtn: {
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  customEmailBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 })
