@@ -19,7 +19,6 @@ import {
   Bell,
   X,
   Trash2,
-  Sparkles,
 } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
 import { BillOccurrence } from '../types'

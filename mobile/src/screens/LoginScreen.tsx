@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Mail, Lock, Eye, EyeOff, Sparkles, TrendingUp, ShieldCheck } from 'lucide-react-native'
+import { Mail, Lock, Eye, EyeOff, Zap, TrendingUp, ShieldCheck } from 'lucide-react-native'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
@@ -149,8 +149,8 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
             activeOpacity={0.8}
             style={[styles.demoBtn, { borderColor: 'rgba(16, 185, 129, 0.3)' }]}
           >
-            <Sparkles color="#10B981" size={14} />
-            <Text style={styles.demoBtnText}>1-Click VIP Demo Auto-Login</Text>
+            <Zap color="#10B981" size={14} />
+            <Text style={styles.demoBtnText}>1-Click Demo Auto-Login</Text>
           </TouchableOpacity>
         </View>
 

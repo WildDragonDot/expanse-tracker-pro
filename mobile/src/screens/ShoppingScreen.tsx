@@ -11,18 +11,18 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
-  ShoppingCart,
+  ShoppingBag,
   CheckCircle2,
   Circle,
   Plus,
   Trash2,
-  Sparkles,
   X,
   Package,
   DollarSign,
   Tag,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
@@ -134,7 +134,7 @@ export const ShoppingScreen = ({ navigation }: { navigation?: any }) => {
         <View style={styles.twoCardsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-              <ShoppingCart color="#3B82F6" size={16} />
+              <ShoppingBag color="#3B82F6" size={16} />
             </View>
             <Text style={[styles.statValue, { color: colors.text }]}>
               {currencySymbol}{totalEstimated.toLocaleString()}

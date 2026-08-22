@@ -11,8 +11,7 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
-  Calendar,
-  Sparkles,
+  CalendarDays,
   Plus,
   CheckCircle2,
   Circle,
@@ -26,6 +25,7 @@ import {
   Briefcase,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
@@ -182,7 +182,7 @@ export const EventPlanningScreen = ({ navigation }: { navigation?: any }) => {
         <View style={styles.twoCardsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={[styles.iconRound, { backgroundColor: 'rgba(249, 115, 22, 0.15)' }]}>
-              <Calendar color="#F97316" size={16} />
+              <CalendarDays color="#F97316" size={16} />
             </View>
             <Text style={[styles.statValue, { color: colors.text }]}>
               {currencySymbol}{totalPlannedBudget.toLocaleString()}

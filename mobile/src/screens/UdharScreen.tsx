@@ -21,6 +21,7 @@ import {
   Phone,
   Clock,
   Send,
+  HandCoins,
 } from 'lucide-react-native'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
@@ -167,7 +168,7 @@ export const UdharScreen = ({ navigation }: { navigation: any }) => {
         >
           <View style={styles.summaryHeader}>
             <Text style={styles.summaryLabel}>YOU ARE OWED</Text>
-            <ArrowDownLeft color="#FFFFFF" size={16} />
+            <HandCoins color="#FFFFFF" size={16} />
           </View>
           <Text style={styles.summaryAmount}>
             {currencySymbol}
@@ -184,7 +185,7 @@ export const UdharScreen = ({ navigation }: { navigation: any }) => {
         >
           <View style={styles.summaryHeader}>
             <Text style={styles.summaryLabel}>YOU OWE</Text>
-            <ArrowUpRight color="#FFFFFF" size={16} />
+            <HandCoins color="#FFFFFF" size={16} />
           </View>
           <Text style={styles.summaryAmount}>
             {currencySymbol}

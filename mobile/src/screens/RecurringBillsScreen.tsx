@@ -20,7 +20,7 @@ import {
   Moon,
   ChevronRight,
   ShieldAlert,
-  Sparkles,
+  BellRing,
   X,
 } from 'lucide-react-native'
 import { useAuth } from '../context/AuthContext'
@@ -276,7 +276,7 @@ export const RecurringBillsScreen = () => {
           style={[styles.noticeBanner, { borderColor: colors.surfaceGlassBorder }]}
         >
           <View style={styles.noticeIconWrap}>
-            <Sparkles color="#8B5CF6" size={20} />
+            <BellRing color="#8B5CF6" size={20} />
           </View>
           <View style={styles.noticeTextWrap}>
             <Text style={[styles.noticeTitle, { color: colors.text }]}>Autonomous Reminder Engine Active</Text>

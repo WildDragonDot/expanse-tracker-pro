@@ -25,6 +25,7 @@ import {
   CheckCircle2,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
@@ -214,11 +215,14 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           {reportData.topCategories.map((c, idx) => (
             <View key={idx} style={styles.categoryRow}>
-              <View style={styles.catInfo}>
-                <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
-                <Text style={[styles.catAmount, { color: colors.text }]}>
-                  {currencySymbol}{c.amount.toLocaleString()} ({c.percentage}%)
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <CategoryIcon name={c.name} size={14} containerSize={26} style={{ marginRight: 8 }} />
+                <View style={styles.catInfo}>
+                  <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
+                  <Text style={[styles.catAmount, { color: colors.text }]}>
+                    {currencySymbol}{c.amount.toLocaleString()} ({c.percentage}%)
+                  </Text>
+                </View>
               </View>
               <View style={[styles.track, { backgroundColor: colors.inputBg }]}>
                 <View style={[styles.fill, { width: `${c.percentage}%`, backgroundColor: '#8B5CF6' }]} />

@@ -10,11 +10,11 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
-  Sparkles,
+  ShieldCheck,
   TrendingUp,
   ShieldAlert,
   Send,
-  Bot,
+  BrainCircuit,
   User as UserIcon,
   CheckCircle,
   HelpCircle,
@@ -61,42 +61,21 @@ export const AIAdvisorScreen = () => {
 
     try {
       const res = await api.askAIChat(query).catch(() => null)
-      const aiReply =
-        res?.reply ||
-        generateSmartFinancialResponse(query, user?.currency || 'INR')
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'ai_' + Date.now(),
-          sender: 'ai',
-          text: aiReply,
-          time: 'Just now',
-        },
-      ])
+      const aiReply: ChatMessage = {
+        id: 'ai_' + Date.now(),
+        sender: 'ai',
+        text: res?.reply || `Based on your budget patterns, keeping discretionary spend within 15% gives you optimal runway while growing your emergency buffer.`,
+        time: 'Just now',
+      }
+      setMessages((prev) => [...prev, aiReply])
     } finally {
       setIsThinking(false)
     }
   }
 
-  const generateSmartFinancialResponse = (query: string, cur: string) => {
-    const q = query.toLowerCase()
-    const c = cur === 'USD' ? '$' : '₹'
-    if (q.includes('spend') || q.includes('most')) {
-      return `Based on your recent transactions, your highest spending category this month is **Food & Groceries** (${c}13,250), followed by **Housing Rent** (${c}25,000). You are saving 14% more compared to last month!`
-    }
-    if (q.includes('bill') || q.includes('due') || q.includes('next week')) {
-      return `You have 3 recurring bills due soon:\n1. **Broadband / Optical Fiber** (${c}1,199) on Aug 25\n2. **Netflix 4K** (${c}649) on Aug 28\n3. **Gym Trial** (${c}2,499) on Aug 30. Your projected balance is sufficient to cover them.`
-    }
-    if (q.includes('afford') || q.includes('20,000') || q.includes('purchase')) {
-      return `Yes! You have a disposable safe-to-spend surplus of ${c}32,000 after accounting for all upcoming bills and savings targets. A ${c}20,000 purchase will keep your health score above 80%.`
-    }
-    return `I analyzed your cashflow: You have a healthy savings rate of 69% with ${c}1,80,000 monthly inflow. If you cancel the unused gym trial before Aug 30, you will save ${c}2,499 instantly.`
-  }
-
   const quickPrompts = [
-    'Where did I spend the most this month?',
-    'What bills are due next week?',
+    'How is my monthly budget health?',
+    'What bills are due this week?',
     'Can I afford a ₹20,000 purchase?',
     'How can I optimize my savings?',
   ]
@@ -113,7 +92,7 @@ export const AIAdvisorScreen = () => {
         >
           <View style={styles.scoreHeroHeader}>
             <View style={styles.badgePill}>
-              <Sparkles color="#FFFFFF" size={12} />
+              <ShieldCheck color="#FFFFFF" size={13} />
               <Text style={styles.badgePillText}>AUTONOMOUS HEALTH SCORE</Text>
             </View>
             <Text style={styles.scoreNumber}>88<Text style={styles.scoreMax}>/100</Text></Text>
@@ -168,7 +147,7 @@ export const AIAdvisorScreen = () => {
             >
               {m.sender === 'ai' && (
                 <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-                  <Bot color="#FFFFFF" size={16} />
+                  <BrainCircuit color="#FFFFFF" size={16} />
                 </View>
               )}
               <View

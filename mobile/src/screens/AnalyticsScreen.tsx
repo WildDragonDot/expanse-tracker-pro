@@ -14,23 +14,24 @@ import {
   PieChart as PieIcon,
   BarChart2,
   Calendar,
-  Heart,
+  ShieldCheck,
   Info,
   DollarSign,
   ArrowUp,
   ArrowDown,
   ArrowUpRight,
-  ShieldCheck,
   CreditCard,
   Smartphone,
   Landmark,
   Banknote,
   Activity,
   Layers,
-  Sparkles,
+  PiggyBank,
+  Percent,
   Zap,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { CategoryDetailsModal } from '../components/CategoryDetailsModal'
 import { SvgLineChart } from '../components/charts/SvgLineChart'
 import { SvgAreaChart } from '../components/charts/SvgAreaChart'
@@ -238,7 +239,7 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
           <View style={[styles.statCardHalf, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.cardHeaderSmall}>
               <View style={[styles.iconBoxSmall, { backgroundColor: '#8B5CF6' }]}>
-                <Heart color="#FFFFFF" size={14} fill="#FFFFFF" />
+                <ShieldCheck color="#FFFFFF" size={14} />
               </View>
               <View style={styles.pillPurple}>
                 <Text style={styles.pillPurpleText}>Score</Text>
@@ -512,7 +513,7 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
               <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>Monthly savings percentage trajectory</Text>
             </View>
             <View style={[styles.chartIconBadge, { backgroundColor: '#06B6D4' }]}>
-              <Sparkles color="#FFFFFF" size={16} />
+              <PiggyBank color="#FFFFFF" size={16} />
             </View>
           </View>
 
@@ -533,6 +534,7 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
           visible={categoryModalVisible}
           onClose={() => setCategoryModalVisible(false)}
           category={selectedCategory}
+          currencySymbol={currencySymbol}
         />
       )}
     </View>

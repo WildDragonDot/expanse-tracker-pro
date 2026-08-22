@@ -9,16 +9,16 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
-  ArrowUp,
-  ArrowDown,
-  Lightbulb,
+  ArrowUpRight,
+  ArrowDownRight,
+  ShieldCheck,
   Info,
   ChevronRight,
   TrendingUp,
-  Tag,
-  Clock,
+  Wallet,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 import { CardSkeleton } from '../components/SkeletonLoader'
@@ -107,7 +107,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
             <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
               <View style={styles.cardHeaderRow}>
                 <View style={styles.greenPill}>
-                  <View style={styles.glowingDot} />
+                  <Wallet color="#10B981" size={13} style={{ marginRight: 4 }} />
                   <Text style={styles.greenPillText}>Current Balance</Text>
                 </View>
               </View>
@@ -139,7 +139,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
               >
                 <View style={styles.incomeHeader}>
                   <View style={styles.incomeIconBox}>
-                    <ArrowUp color="#10B981" size={18} strokeWidth={2.5} />
+                    <ArrowUpRight color="#10B981" size={18} strokeWidth={2.5} />
                   </View>
                   <View style={styles.pillIncome}>
                     <Text style={styles.pillIncomeText}>Income</Text>
@@ -164,7 +164,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
               >
                 <View style={styles.expenseHeader}>
                   <View style={styles.expenseIconBox}>
-                    <ArrowDown color="#F43F5E" size={18} strokeWidth={2.5} />
+                    <ArrowDownRight color="#F43F5E" size={18} strokeWidth={2.5} />
                   </View>
                   <View style={styles.pillExpense}>
                     <Text style={styles.pillExpenseText}>Expenses</Text>
@@ -190,7 +190,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
             >
               <View style={styles.healthHeader}>
                 <View style={styles.healthIconBox}>
-                  <Lightbulb color="#FFFFFF" size={20} />
+                  <ShieldCheck color="#FFFFFF" size={20} />
                 </View>
                 <View style={styles.pillHealth}>
                   <Text style={styles.pillHealthText}>Health Score</Text>
@@ -219,11 +219,14 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   onPress={() => setSelectedCategory(c)}
                   style={styles.categoryRow}
                 >
-                  <View style={styles.catInfo}>
-                    <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
-                    <Text style={[styles.catSpent, { color: colors.textSecondary }]}>
-                      {currencySymbol}{c.spent.toLocaleString()} / {currencySymbol}{c.budget.toLocaleString()}
-                    </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <CategoryIcon name={c.name} color={c.color} size={14} containerSize={26} style={{ marginRight: 8 }} />
+                    <View style={styles.catInfo}>
+                      <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
+                      <Text style={[styles.catSpent, { color: colors.textSecondary }]}>
+                        {currencySymbol}{c.spent.toLocaleString()} / {currencySymbol}{c.budget.toLocaleString()}
+                      </Text>
+                    </View>
                   </View>
                   <View style={[styles.progressTrack, { backgroundColor: colors.inputBg }]}>
                     <View style={[styles.progressBar, { width: `${c.percentage}%`, backgroundColor: c.color }]} />
@@ -247,9 +250,14 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                 onPress={() => setSelectedTx(tx)}
                 style={[styles.txItem, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
               >
-                <View style={[styles.txIcon, { backgroundColor: tx.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)' }]}>
-                  {tx.type === 'income' ? <ArrowUp color="#10B981" size={18} /> : <ArrowDown color="#F43F5E" size={18} />}
-                </View>
+                <CategoryIcon
+                  name={tx.category}
+                  color={tx.type === 'income' ? '#10B981' : '#F43F5E'}
+                  size={18}
+                  containerSize={40}
+                  containerBg={tx.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)'}
+                  style={{ marginRight: 12 }}
+                />
                 <View style={styles.txDetails}>
                   <Text style={[styles.txTitle, { color: colors.text }]}>{tx.title}</Text>
                   <Text style={[styles.txMeta, { color: colors.textSecondary }]}>{tx.category} • {tx.date}</Text>

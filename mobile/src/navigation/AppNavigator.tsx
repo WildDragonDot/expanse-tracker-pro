@@ -4,11 +4,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  Home,
-  Receipt,
-  CircleDollarSign,
+  LayoutDashboard,
+  ReceiptText,
+  PieChart,
   BarChart3,
-  Menu,
+  LayoutGrid,
 } from 'lucide-react-native'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
@@ -44,7 +44,6 @@ const MainTabs = ({ navigation }: { navigation: any }) => {
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          safeAreaInsets: { bottom: 0, top: 0, left: 0, right: 0 },
           tabBarStyle: {
             backgroundColor: '#0F1523',
             borderTopColor: 'rgba(255, 255, 255, 0.08)',
@@ -66,7 +65,7 @@ const MainTabs = ({ navigation }: { navigation: any }) => {
           name="Home"
           component={DashboardScreen}
           options={{
-            tabBarIcon: ({ color, size }) => <Home color={color} size={20} />,
+            tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={20} strokeWidth={2} />,
             tabBarLabel: 'Home',
           }}
         />
@@ -74,7 +73,7 @@ const MainTabs = ({ navigation }: { navigation: any }) => {
           name="Expenses"
           component={ExpensesScreen}
           options={{
-            tabBarIcon: ({ color, size }) => <Receipt color={color} size={20} />,
+            tabBarIcon: ({ color, size }) => <ReceiptText color={color} size={20} strokeWidth={2} />,
             tabBarLabel: 'Expenses',
           }}
         />
@@ -82,7 +81,7 @@ const MainTabs = ({ navigation }: { navigation: any }) => {
           name="Budget"
           component={MonthlyBudgetScreen}
           options={{
-            tabBarIcon: ({ color, size }) => <CircleDollarSign color={color} size={20} />,
+            tabBarIcon: ({ color, size }) => <PieChart color={color} size={20} strokeWidth={2} />,
             tabBarLabel: 'Budget',
           }}
         />
@@ -90,7 +89,7 @@ const MainTabs = ({ navigation }: { navigation: any }) => {
           name="Analytics"
           component={AnalyticsScreen}
           options={{
-            tabBarIcon: ({ color, size }) => <BarChart3 color={color} size={20} />,
+            tabBarIcon: ({ color, size }) => <BarChart3 color={color} size={20} strokeWidth={2} />,
             tabBarLabel: 'Analytics',
           }}
         />
@@ -104,7 +103,7 @@ const MainTabs = ({ navigation }: { navigation: any }) => {
             },
           }}
           options={{
-            tabBarIcon: ({ color, size }) => <Menu color={color} size={20} />,
+            tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={20} strokeWidth={2} />,
             tabBarLabel: 'More',
           }}
         />

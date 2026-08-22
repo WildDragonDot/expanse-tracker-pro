@@ -12,19 +12,19 @@ import {
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   Calendar,
-  Clock,
-  Upload,
-  Mail,
-  DollarSign,
-  ArrowDownLeft,
-  CheckCircle2,
-  PieChart,
+  History,
+  FileSpreadsheet,
+  Share2,
+  WalletCards,
+  ReceiptText,
+  PiggyBank,
+  Percent,
   Plus,
   ChevronDown,
   X,
-  Tag,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
@@ -105,13 +105,13 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
 
           <View style={styles.iconActionsRow}>
             <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)' }]}>
-              <Clock color={colors.textSecondary} size={16} />
+              <History color={colors.textSecondary} size={16} />
             </TouchableOpacity>
             <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
-              <Upload color="#8B5CF6" size={16} />
+              <FileSpreadsheet color="#8B5CF6" size={16} />
             </TouchableOpacity>
             <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
-              <Mail color="#3B82F6" size={16} />
+              <Share2 color="#3B82F6" size={16} />
             </TouchableOpacity>
           </View>
         </View>
@@ -150,7 +150,7 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
           {/* Card 1: Total Budget */}
           <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.metricIconCircleBlue}>
-              <DollarSign color="#3B82F6" size={16} />
+              <WalletCards color="#3B82F6" size={16} />
             </View>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Budget</Text>
             <Text style={[styles.metricValue, { color: colors.text }]}>
@@ -161,7 +161,7 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
           {/* Card 2: Total Spent */}
           <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.metricIconCircleRed}>
-              <ArrowDownLeft color="#F43F5E" size={16} />
+              <ReceiptText color="#F43F5E" size={16} />
             </View>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Spent</Text>
             <Text style={[styles.metricValue, { color: '#F43F5E' }]}>
@@ -174,7 +174,7 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
           {/* Card 3: Remaining */}
           <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.metricIconCircleGreen}>
-              <CheckCircle2 color="#10B981" size={16} />
+              <PiggyBank color="#10B981" size={16} />
             </View>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Remaining</Text>
             <Text style={[styles.metricValue, { color: '#10B981' }]}>
@@ -185,7 +185,7 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
           {/* Card 4: Overall Used */}
           <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.metricIconCirclePurple}>
-              <PieChart color="#8B5CF6" size={16} />
+              <Percent color="#8B5CF6" size={16} />
             </View>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Overall Used</Text>
             <Text style={[styles.metricValue, { color: colors.text }]}>{usedPercentage}%</Text>
@@ -207,11 +207,14 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
               key={c.id}
               style={[styles.catRow, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
             >
-              <View style={styles.catInfo}>
-                <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
-                <Text style={[styles.catAmounts, { color: colors.textSecondary }]}>
-                  {currencySymbol}{c.spent.toLocaleString()} / {currencySymbol}{c.budget.toLocaleString()} ({catUsed}%)
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <CategoryIcon name={c.name} color={c.color} size={14} containerSize={26} style={{ marginRight: 8 }} />
+                <View style={styles.catInfo}>
+                  <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
+                  <Text style={[styles.catAmounts, { color: colors.textSecondary }]}>
+                    {currencySymbol}{c.spent.toLocaleString()} / {currencySymbol}{c.budget.toLocaleString()} ({catUsed}%)
+                  </Text>
+                </View>
               </View>
               <View style={[styles.track, { backgroundColor: colors.inputBg }]}>
                 <View style={[styles.fill, { width: `${Math.min(100, catUsed)}%`, backgroundColor: c.color }]} />

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated, Easing, Dimensions } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { ShieldCheck, TrendingUp, Sparkles } from 'lucide-react-native'
+import { ShieldCheck, TrendingUp } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
 
 interface SplashScreenProps {
@@ -118,8 +118,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
           Finance<Text style={{ color: colors.primary }}>Tracker</Text>
         </Text>
         <View style={styles.badgeRow}>
-          <Sparkles color={colors.secondary} size={12} />
-          <Text style={[styles.badgeText, { color: colors.secondary }]}>PRO AI INTELLIGENCE</Text>
+          <ShieldCheck color={colors.secondary} size={13} strokeWidth={2.5} />
+          <Text style={[styles.badgeText, { color: colors.secondary }]}>ENTERPRISE EDITION</Text>
         </View>
         <Text style={[styles.tagline, { color: colors.textSecondary }]}>
           Automated Wealth, Cashflow & Bill Reminders

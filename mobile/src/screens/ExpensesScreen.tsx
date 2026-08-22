@@ -12,20 +12,22 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
-  ArrowDown,
-  ArrowUp,
-  DollarSign,
-  Receipt,
-  BarChart2,
+  ArrowDownRight,
+  ArrowUpRight,
+  CreditCard,
+  ReceiptText,
   TrendingUp,
   Calculator,
   Search,
-  FileText,
+  FileSpreadsheet,
   ChevronRight,
   Info,
   X,
+  PlusCircle,
+  ArrowUpCircle,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 import { TransactionSkeleton } from '../components/SkeletonLoader'
@@ -191,7 +193,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
           <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.statHeader}>
               <View style={styles.iconCircleRed}>
-                <DollarSign color="#FFFFFF" size={14} />
+                <CreditCard color="#FFFFFF" size={14} />
               </View>
               <View style={styles.pillRed}>
                 <Text style={styles.pillRedText}>Total</Text>
@@ -208,7 +210,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
           <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.statHeader}>
               <View style={styles.iconCircleBlue}>
-                <Receipt color="#FFFFFF" size={14} />
+                <ReceiptText color="#FFFFFF" size={14} />
               </View>
               <View style={styles.pillBlue}>
                 <Text style={styles.pillBlueText}>Count</Text>
@@ -225,7 +227,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
           <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.statHeader}>
               <View style={styles.iconCircleOrange}>
-                <BarChart2 color="#FFFFFF" size={14} />
+                <Calculator color="#FFFFFF" size={14} />
               </View>
               <View style={styles.pillOrange}>
                 <Text style={styles.pillOrangeText}>Avg</Text>
@@ -299,7 +301,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
             style={[styles.actionBtnLarge, { backgroundColor: '#F43F5E' }]}
           >
             <View style={styles.btnIconRound}>
-              <ArrowDown color="#FFFFFF" size={16} strokeWidth={2.5} />
+              <PlusCircle color="#FFFFFF" size={16} strokeWidth={2.5} />
             </View>
             <Text style={styles.actionBtnLargeText}>Add Expense</Text>
           </TouchableOpacity>
@@ -313,7 +315,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
             style={[styles.actionBtnLarge, { backgroundColor: '#10B981' }]}
           >
             <View style={styles.btnIconRound}>
-              <ArrowUp color="#FFFFFF" size={16} strokeWidth={2.5} />
+              <ArrowUpCircle color="#FFFFFF" size={16} strokeWidth={2.5} />
             </View>
             <Text style={styles.actionBtnLargeText}>Add Income</Text>
           </TouchableOpacity>
@@ -324,7 +326,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
             style={[styles.actionBtnLarge, { backgroundColor: '#6366F1' }]}
           >
             <View style={styles.btnIconRound}>
-              <FileText color="#FFFFFF" size={16} />
+              <FileSpreadsheet color="#FFFFFF" size={16} strokeWidth={2} />
             </View>
             <Text style={styles.actionBtnLargeText}>Reports</Text>
           </TouchableOpacity>
@@ -346,14 +348,14 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
                 onPress={() => setSelectedTx(tx)}
                 style={[styles.txCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
               >
-                <View
-                  style={[
-                    styles.txIcon,
-                    { backgroundColor: tx.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)' },
-                  ]}
-                >
-                  {tx.type === 'income' ? <ArrowUp color="#10B981" size={18} /> : <ArrowDown color="#F43F5E" size={18} />}
-                </View>
+                <CategoryIcon
+                  name={tx.category}
+                  color={tx.type === 'income' ? '#10B981' : '#F43F5E'}
+                  size={18}
+                  containerSize={40}
+                  containerBg={tx.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)'}
+                  style={{ marginRight: 12 }}
+                />
                 <View style={styles.txInfo}>
                   <Text style={[styles.txTitle, { color: colors.text }]}>{tx.title}</Text>
                   <Text style={[styles.txMeta, { color: colors.textSecondary }]}>

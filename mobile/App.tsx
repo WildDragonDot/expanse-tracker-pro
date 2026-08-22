@@ -16,10 +16,11 @@ function RootApp() {
   useEffect(() => {
     if (Platform.OS === 'android') {
       try {
-        NavigationBar.setPositionAsync('absolute').catch(() => {})
-        NavigationBar.setBackgroundColorAsync('#00000000').catch(() => {})
-        NavigationBar.setVisibilityAsync('hidden').catch(() => {})
-        NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {})
+        const navBar = NavigationBar as any
+        navBar.setPositionAsync?.('absolute')?.catch?.(() => {})
+        navBar.setBackgroundColorAsync?.('#00000000')?.catch?.(() => {})
+        navBar.setVisibilityAsync?.('hidden')?.catch?.(() => {})
+        navBar.setBehaviorAsync?.('overlay-swipe')?.catch?.(() => {})
       } catch (e) {}
     }
   }, [])

@@ -8,13 +8,13 @@ import {
   ScrollView,
 } from 'react-native'
 import {
-  Calendar,
-  ShoppingCart,
-  RefreshCw,
-  CreditCard,
-  FileText,
-  MessageSquare,
-  Settings,
+  CalendarDays,
+  ShoppingBag,
+  Repeat,
+  HandCoins,
+  FileSpreadsheet,
+  BrainCircuit,
+  SlidersHorizontal,
   X,
 } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
@@ -36,8 +36,8 @@ export const MoreFeaturesDrawer: React.FC<Props> = ({
     {
       id: 'event',
       title: 'Event Planning',
-      desc: 'Budget for festivals, trips & events',
-      icon: <Calendar color="#FFFFFF" size={20} />,
+      desc: 'Budget for festivals, trips & celebrations',
+      icon: <CalendarDays color="#FFFFFF" size={20} strokeWidth={2} />,
       iconBg: '#F97316', // Orange
       screen: 'EventPlanning',
     },
@@ -45,7 +45,7 @@ export const MoreFeaturesDrawer: React.FC<Props> = ({
       id: 'shopping',
       title: 'Shopping Lists',
       desc: 'Smart lists with estimated & actual prices',
-      icon: <ShoppingCart color="#FFFFFF" size={20} />,
+      icon: <ShoppingBag color="#FFFFFF" size={20} strokeWidth={2} />,
       iconBg: '#10B981', // Green
       screen: 'Shopping',
     },
@@ -53,7 +53,7 @@ export const MoreFeaturesDrawer: React.FC<Props> = ({
       id: 'subscriptions',
       title: 'Subscriptions',
       desc: 'Manage recurring billing and renewals',
-      icon: <RefreshCw color="#FFFFFF" size={20} />,
+      icon: <Repeat color="#FFFFFF" size={20} strokeWidth={2} />,
       iconBg: '#3B82F6', // Blue
       screen: 'Subscriptions',
     },
@@ -61,32 +61,32 @@ export const MoreFeaturesDrawer: React.FC<Props> = ({
       id: 'udhar',
       title: 'Udhar & Loans',
       desc: 'Track money you owe or are owed',
-      icon: <CreditCard color="#FFFFFF" size={20} />,
+      icon: <HandCoins color="#FFFFFF" size={20} strokeWidth={2} />,
       iconBg: '#F43F5E', // Pink/Rose
       screen: 'Udhar',
     },
     {
       id: 'reports',
       title: 'Reports & Statements',
-      desc: 'Download CSV, PDF and tax summaries',
-      icon: <FileText color="#FFFFFF" size={20} />,
+      desc: 'Download CSV, Excel and tax summaries',
+      icon: <FileSpreadsheet color="#FFFFFF" size={20} strokeWidth={2} />,
       iconBg: '#06B6D4', // Cyan
       screen: 'Reports',
     },
     {
       id: 'ai',
-      title: 'AI Advisor',
-      desc: 'Smart insights and budget advice',
-      icon: <MessageSquare color="#FFFFFF" size={20} />,
+      title: 'Financial Intelligence',
+      desc: 'Smart insights and budget advisory',
+      icon: <BrainCircuit color="#FFFFFF" size={20} strokeWidth={2} />,
       iconBg: '#8B5CF6', // Purple
       screen: 'AI Advisor',
     },
     {
       id: 'settings',
-      title: 'Settings & Profile',
-      desc: 'Currency, billing cycle, notifications',
-      icon: <Settings color="#FFFFFF" size={20} />,
-      iconBg: '#475569', // Dark Gray
+      title: 'Settings & Preferences',
+      desc: 'Currency, billing cycle, notifications & security',
+      icon: <SlidersHorizontal color="#FFFFFF" size={20} strokeWidth={2} />,
+      iconBg: '#475569', // Dark Slate
       screen: 'Settings',
     },
   ]
