@@ -12,7 +12,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   register: (data: { name: string; email: string; password: string; salary?: number; billingCycleStartDay?: number }) => Promise<void>
   loginWithGoogle: () => Promise<void>
-  loginWithDemo: () => Promise<void>
   logout: () => Promise<void>
   updateProfile: (data: Partial<User>) => Promise<void>
 }
@@ -109,30 +108,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const loginWithDemo = async () => {
-    const demoUser: User = {
-      id: 'demo_user_101',
-      name: 'Dragon (Demo VIP)',
-      email: 'wikeba2568@alexida.com',
-      salary: 125000,
-      currency: 'INR',
-      billingCycleStartDay: 1,
-      bio: 'Fintech Pro Demo Account',
-      notificationSettings: {
-        billAlerts: true,
-        budgetWarnings: true,
-        weeklyReports: true,
-        securityAlerts: true,
-      },
-    }
-    const mockToken = 'mock_jwt_demo_token_' + Date.now()
-    setToken(mockToken)
-    setUser(demoUser)
-    api.setToken(mockToken)
-    await AsyncStorage.setItem('@auth_token', mockToken)
-    await AsyncStorage.setItem('@user_data', JSON.stringify(demoUser))
-  }
-
   const logout = async () => {
     setToken(null)
     setUser(null)
@@ -158,7 +133,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         register,
         loginWithGoogle,
-        loginWithDemo,
         logout,
         updateProfile,
       }}

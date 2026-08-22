@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
 export const LoginScreen = ({ navigation }: { navigation: any }) => {
-  const { login, loginWithGoogle, loginWithDemo, loading } = useAuth()
+  const { login, loginWithGoogle, loading } = useAuth()
   const { colors } = useAppTheme()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -43,11 +43,6 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google.')
     }
-  }
-
-  const handleDemoLogin = async () => {
-    setError('')
-    await loginWithDemo()
   }
 
   return (
@@ -149,17 +144,6 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
               <Text style={styles.googleG}>G</Text>
             </View>
             <Text style={[styles.googleBtnText, { color: colors.text }]}>Continue with Google</Text>
-          </TouchableOpacity>
-
-          {/* 1-Click VIP Demo Auto Fill */}
-          <TouchableOpacity
-            onPress={handleDemoLogin}
-            disabled={loading}
-            activeOpacity={0.8}
-            style={[styles.demoBtn, { borderColor: 'rgba(16, 185, 129, 0.3)' }]}
-          >
-            <Zap color="#10B981" size={14} />
-            <Text style={styles.demoBtnText}>1-Click Demo Auto-Login</Text>
           </TouchableOpacity>
         </View>
 
@@ -306,22 +290,6 @@ const styles = StyleSheet.create({
   },
   googleBtnText: {
     fontSize: 14,
-    fontWeight: '700',
-  },
-  demoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 44,
-    borderRadius: 14,
-    borderWidth: 1,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    marginTop: 12,
-  },
-  demoBtnText: {
-    color: '#10B981',
-    fontSize: 13,
     fontWeight: '700',
   },
   footerRow: {
