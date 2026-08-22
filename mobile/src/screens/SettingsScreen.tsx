@@ -17,6 +17,7 @@ import {
   NativeScrollEvent,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import * as ImagePicker from 'expo-image-picker'
 import {
   User as UserIcon,
   Globe,
@@ -133,6 +134,61 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
   )
   const [customPhotoUrl, setCustomPhotoUrl] = useState('')
 
+  const pickImageFromGallery = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo gallery permission in Settings to select a local picture.')
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      })
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const localUri = result.assets[0].uri
+        setProfileImage(localUri)
+        await updateProfile({ profileImage: localUri })
+        setActiveModal(null)
+        Alert.alert('Photo Uploaded', 'Your local photo has been set as your profile avatar!')
+      }
+    } catch (err: any) {
+      console.warn('Gallery pick error:', err)
+      Alert.alert('Upload Error', 'Could not access gallery photo. Please try again.')
+    }
+  }
+
+  const takePhotoWithCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant camera access in Settings to take a selfie.')
+        return
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      })
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const localUri = result.assets[0].uri
+        setProfileImage(localUri)
+        await updateProfile({ profileImage: localUri })
+        setActiveModal(null)
+        Alert.alert('Camera Photo Applied', 'New camera selfie set as your profile avatar!')
+      }
+    } catch (err: any) {
+      console.warn('Camera error:', err)
+      Alert.alert('Camera Error', 'Could not open camera. Please try again.')
+    }
+  }
+
   // 3D Coverflow Animation Refs
   const scrollX = useRef(new Animated.Value(0)).current
   const calendarFlatListRef = useRef<FlatList>(null)
@@ -209,14 +265,10 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
       <HeaderBar title="Preferences" />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* 1. Ultra-Luxurious VIP Hero Card with Photo Change trigger */}
-        <TouchableOpacity
-          activeOpacity={0.92}
-          onPress={() => setActiveModal('profile')}
-          style={styles.heroCardWrapper}
-        >
+        {/* 1. Ultra-Luxurious VIP Hero Card */}
+        <View style={styles.heroCardWrapper}>
           <LinearGradient
-            colors={['#1E1B4B', '#312E81', '#4338CA']}
+            colors={['#0F172A', '#1E293B', '#0F172A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroGradient}
@@ -231,10 +283,11 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
                 <Text style={styles.vipBadgeText}>DIAMOND TIER VIP</Text>
               </View>
               <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={() => setActiveModal('photo_picker')}
                 style={styles.editPill}
               >
-                <Camera color="#A5B4FC" size={12} />
+                <Camera color="#06B6D4" size={12} />
                 <Text style={styles.editPillText}>Change Photo</Text>
               </TouchableOpacity>
             </View>
@@ -250,7 +303,7 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
                   <Image source={{ uri: profileImage }} style={styles.avatarImage} />
                 ) : (
                   <LinearGradient
-                    colors={['#8B5CF6', '#EC4899']}
+                    colors={['#06B6D4', '#2563EB']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.avatarGradient}
@@ -267,32 +320,40 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
                 <View style={styles.statusDot} />
               </TouchableOpacity>
 
-              <View style={styles.heroMeta}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setActiveModal('profile')}
+                style={styles.heroMeta}
+              >
                 <Text style={styles.userName}>{editName}</Text>
                 <Text style={styles.userEmail}>{editEmail}</Text>
                 <Text style={styles.userBio}>{editBio}</Text>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* In-Card Live Metrics Strip */}
-            <View style={styles.metricsStrip}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setActiveModal('profile')}
+              style={styles.metricsStrip}
+            >
               <View style={styles.metricItem}>
-                <Text style={styles.metricVal}>₹4,700</Text>
+                <Text style={[styles.metricVal, { color: '#10B981' }]}>₹4,700</Text>
                 <Text style={styles.metricLbl}>Net Savings</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.metricItem}>
-                <Text style={styles.metricVal}>70%</Text>
+                <Text style={[styles.metricVal, { color: '#06B6D4' }]}>70%</Text>
                 <Text style={styles.metricLbl}>Health Score</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.metricItem}>
-                <Text style={styles.metricVal}>Day {billingDay}</Text>
+                <Text style={[styles.metricVal, { color: '#38BDF8' }]}>Day {billingDay}</Text>
                 <Text style={styles.metricLbl}>Cycle Start</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           </LinearGradient>
-        </TouchableOpacity>
+        </View>
 
         {/* 2. Quick Action Toggle Cards (2x2 Grid) */}
         <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>QUICK CONTROLS</Text>
@@ -580,20 +641,63 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* MODAL 1: Photo & Avatar Picker Modal */}
+      {/* MODAL 1: Photo & Avatar Picker Modal with Local Gallery / Camera Upload */}
       <Modal visible={activeModal === 'photo_picker'} animationType="slide" transparent onRequestClose={() => setActiveModal(null)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setActiveModal(null)} />
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Choose Profile Avatar</Text>
+              <View>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Choose Profile Avatar</Text>
+                <Text style={[styles.toggleDesc, { color: colors.textMuted, marginTop: 2 }]}>
+                  Upload local photos from your device or select curated VIP avatars
+                </Text>
+              </View>
               <TouchableOpacity onPress={() => setActiveModal(null)} style={styles.closeBtn}>
                 <X color={colors.text} size={18} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.toggleDesc, { color: colors.textMuted, marginBottom: 14 }]}>
-              Select from VIP avatar collection or paste a custom image URL:
+            {/* Local Device Upload Actions (Hero Cards) */}
+            <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 4, marginBottom: 8 }]}>
+              UPLOAD FROM YOUR DEVICE
+            </Text>
+
+            <View style={styles.localUploadGrid}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={pickImageFromGallery}
+                style={[styles.localUploadBtn, { backgroundColor: 'rgba(6, 182, 212, 0.12)', borderColor: 'rgba(6, 182, 212, 0.35)' }]}
+              >
+                <View style={[styles.localUploadIconBox, { backgroundColor: '#06B6D4' }]}>
+                  <ImageIcon color="#FFFFFF" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.localUploadTitle, { color: colors.text }]}>Choose from Gallery</Text>
+                  <Text style={[styles.localUploadSub, { color: colors.textMuted }]}>Select local photos from your phone</Text>
+                </View>
+                <ChevronRight color="#06B6D4" size={18} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={takePhotoWithCamera}
+                style={[styles.localUploadBtn, { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.35)' }]}
+              >
+                <View style={[styles.localUploadIconBox, { backgroundColor: '#10B981' }]}>
+                  <Camera color="#FFFFFF" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.localUploadTitle, { color: colors.text }]}>Take New Photo</Text>
+                  <Text style={[styles.localUploadSub, { color: colors.textMuted }]}>Capture live selfie with camera</Text>
+                </View>
+                <ChevronRight color="#10B981" size={18} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Curated Preset Avatars */}
+            <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 14, marginBottom: 8 }]}>
+              OR SELECT CURATED PRESET
             </Text>
 
             {/* Avatar Preset Grid */}
@@ -615,7 +719,7 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
                         <Check color="#FFFFFF" size={10} strokeWidth={3} />
                       </View>
                     )}
-                    <Text style={[styles.avatarOptionLbl, { color: isSelected ? '#8B5CF6' : colors.textMuted }]}>
+                    <Text style={[styles.avatarOptionLbl, { color: isSelected ? '#06B6D4' : colors.textMuted }]}>
                       {av.label}
                     </Text>
                   </TouchableOpacity>
@@ -623,39 +727,14 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
               })}
             </View>
 
-            <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 12 }]}>Custom Image Web URL</Text>
-            <View style={styles.addCatRow}>
-              <TextInput
-                style={[styles.addCatInput, { color: colors.text, borderColor: colors.surfaceGlassBorder }]}
-                placeholder="https://example.com/avatar.jpg"
-                placeholderTextColor={colors.textMuted}
-                value={customPhotoUrl}
-                onChangeText={setCustomPhotoUrl}
-              />
-              <TouchableOpacity
-                onPress={() => {
-                  if (customPhotoUrl.trim()) {
-                    setProfileImage(customPhotoUrl.trim())
-                    updateProfile({ profileImage: customPhotoUrl.trim() })
-                    setCustomPhotoUrl('')
-                    setActiveModal(null)
-                    Alert.alert('Avatar Updated', 'Custom profile photo applied successfully!')
-                  }
-                }}
-                style={styles.addCatBtn}
-              >
-                <Check color="#FFFFFF" size={16} />
-              </TouchableOpacity>
-            </View>
-
             <TouchableOpacity
-              style={styles.modalActionBtn}
+              style={[styles.modalActionBtn, { backgroundColor: '#06B6D4', marginTop: 14 }]}
               onPress={() => {
                 setActiveModal(null)
-                Alert.alert('Avatar Saved', 'Your new profile avatar is active across all screens!')
+                Alert.alert('Avatar Active', 'Your profile picture is updated across all screens!')
               }}
             >
-              <Text style={styles.modalActionBtnText}>Apply Selected Photo</Text>
+              <Text style={styles.modalActionBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1301,9 +1380,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#4338CA',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
+    shadowColor: '#06B6D4',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
     shadowRadius: 18,
     elevation: 10,
   },
@@ -1311,7 +1390,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(6, 182, 212, 0.35)',
   },
   heroAura: {
     position: 'absolute',
@@ -1320,7 +1399,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(139, 92, 246, 0.3)',
+    backgroundColor: 'rgba(6, 182, 212, 0.12)',
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -1332,12 +1411,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
   },
   vipBadgeText: {
     color: '#F59E0B',
@@ -1349,15 +1428,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(6, 182, 212, 0.12)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 182, 212, 0.25)',
   },
   editPillText: {
-    color: '#E0E7FF',
+    color: '#38BDF8',
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   heroBody: {
     flexDirection: 'row',
@@ -1373,7 +1454,7 @@ const styles = StyleSheet.create({
     height: 66,
     borderRadius: 24,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(6, 182, 212, 0.6)',
   },
   avatarGradient: {
     width: 66,
@@ -1382,7 +1463,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(6, 182, 212, 0.6)',
   },
   avatarInitials: {
     fontSize: 24,
@@ -1396,11 +1477,11 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#06B6D4',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#1E1B4B',
+    borderColor: '#0F172A',
   },
   statusDot: {
     position: 'absolute',
@@ -1411,7 +1492,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: '#10B981',
     borderWidth: 2.5,
-    borderColor: '#1E1B4B',
+    borderColor: '#0F172A',
   },
   heroMeta: {
     flex: 1,
@@ -1419,29 +1500,30 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#F8FAFC',
     letterSpacing: -0.3,
   },
   userEmail: {
     fontSize: 12,
-    color: '#C7D2FE',
+    color: '#94A3B8',
     marginTop: 1,
   },
   userBio: {
     fontSize: 11,
-    color: '#A5B4FC',
+    color: '#38BDF8',
     marginTop: 4,
+    fontWeight: '600',
   },
   metricsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(6, 182, 212, 0.2)',
   },
   metricItem: {
     alignItems: 'center',
@@ -1449,17 +1531,17 @@ const styles = StyleSheet.create({
   metricVal: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#FFFFFF',
   },
   metricLbl: {
     fontSize: 10,
-    color: '#A5B4FC',
+    color: '#94A3B8',
     marginTop: 2,
+    fontWeight: '600',
   },
   metricDivider: {
     width: 1,
     height: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   sectionHeading: {
     fontSize: 11,
@@ -1667,6 +1749,33 @@ const styles = StyleSheet.create({
   },
   toggleDesc: {
     fontSize: 11,
+    marginTop: 2,
+  },
+  localUploadGrid: {
+    gap: 10,
+    marginBottom: 8,
+  },
+  localUploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+  },
+  localUploadIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  localUploadTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  localUploadSub: {
+    fontSize: 10,
     marginTop: 2,
   },
   avatarGrid: {
