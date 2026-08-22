@@ -26,6 +26,8 @@ import {
   Smartphone,
   Bell,
   X,
+  Sparkles,
+  Activity,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -337,18 +339,29 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
               </View>
             )}
 
-            {/* 4. Health Score Card */}
+            {/* 4. Rich Financial Health Score Card */}
             <View
-              style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
+              style={[
+                styles.healthCardContainer,
+                { backgroundColor: colors.surfaceGlass, borderColor: 'rgba(139, 92, 246, 0.3)' },
+              ]}
             >
+              {/* Top Header */}
               <View style={styles.healthHeader}>
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() => navigation.navigate('AI Advisor')}
-                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                  style={styles.healthTitleRow}
                 >
                   <View style={styles.healthIconBox}>
-                    <ShieldCheck color="#FFFFFF" size={20} />
+                    <ShieldCheck color="#8B5CF6" size={18} />
+                  </View>
+                  <View>
+                    <Text style={[styles.healthCardMainTitle, { color: colors.text }]}>Financial Health Score</Text>
+                    <View style={styles.healthAiBadgeRow}>
+                      <Sparkles color="#8B5CF6" size={10} style={{ marginRight: 3 }} />
+                      <Text style={styles.healthAiBadgeText}>Autonomous AI Diagnostics</Text>
+                    </View>
                   </View>
                 </TouchableOpacity>
 
@@ -358,25 +371,138 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   onPress={() =>
                     setActiveTooltip({
                       title: 'Financial Health Score',
-                      description: 'A comprehensive 0-100 score that evaluates your spending control, savings growth, debt balance, and recurring bills discipline.',
-                      details: 'Score > 70% indicates excellent financial resilience and prudent budget management.',
-                      accentColor: '#3B82F6',
+                      description: 'A comprehensive 0-100 score that evaluates your spending discipline, savings velocity, debt obligations, and emergency fund buffer.',
+                      details: 'Score > 70% indicates healthy financial security and balanced expenditure.',
+                      accentColor: '#8B5CF6',
                     })
                   }
                   style={styles.pillHealth}
                 >
-                  <Text style={styles.pillHealthText}>Health Score</Text>
-                  <Info color="rgba(59, 130, 246, 0.9)" size={12} />
+                  <Text style={styles.pillHealthText}>Info</Text>
+                  <Info color="rgba(139, 92, 246, 0.9)" size={11} />
                 </TouchableOpacity>
               </View>
 
+              {/* Big Score Hero + Status Pill */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('AI Advisor')}
+                style={styles.healthScoreHeroRow}
+              >
+                <View style={styles.healthScoreLeft}>
+                  <Text style={[styles.healthScoreBig, { color: colors.text }]}>
+                    {summary.healthScore}
+                    <Text style={[styles.healthScoreMax, { color: colors.textMuted }]}>/100</Text>
+                  </Text>
+                </View>
+
+                <View style={styles.healthStatusBadge}>
+                  <View style={styles.healthStatusDot} />
+                  <Text style={styles.healthStatusText}>
+                    {summary.healthScore >= 80 ? 'EXCELLENT' : summary.healthScore >= 65 ? 'OPTIMAL' : 'ATTENTION'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* 4-Segment Modern Fintech Gauge */}
+              <View style={styles.healthGaugeContainer}>
+                <View style={styles.gaugeSegmentsRow}>
+                  {/* Segment 1: 0-40 (Needs Work - Red) */}
+                  <View style={[styles.gaugeSegment, { backgroundColor: colors.inputBg }]}>
+                    <LinearGradient
+                      colors={['#DC2626', '#EF4444']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.gaugeFill, { width: `${Math.min(100, (summary.healthScore / 40) * 100)}%` }]}
+                    />
+                  </View>
+
+                  {/* Segment 2: 40-65 (Fair - Orange/Amber) */}
+                  <View style={[styles.gaugeSegment, { backgroundColor: colors.inputBg }]}>
+                    {summary.healthScore > 40 && (
+                      <LinearGradient
+                        colors={['#F97316', '#F59E0B']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((summary.healthScore - 40) / 25) * 100))}%` }]}
+                      />
+                    )}
+                  </View>
+
+                  {/* Segment 3: 65-85 (Optimal - Yellow/Lime Green) */}
+                  <View style={[styles.gaugeSegment, { backgroundColor: colors.inputBg }]}>
+                    {summary.healthScore > 65 && (
+                      <LinearGradient
+                        colors={['#F59E0B', '#EAB308', '#84CC16']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((summary.healthScore - 65) / 20) * 100))}%` }]}
+                      />
+                    )}
+                  </View>
+
+                  {/* Segment 4: 85-100 (Excellent - Bright Green) */}
+                  <View style={[styles.gaugeSegment, { backgroundColor: colors.inputBg }]}>
+                    {summary.healthScore > 85 && (
+                      <LinearGradient
+                        colors={['#84CC16', '#10B981']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((summary.healthScore - 85) / 15) * 100))}%` }]}
+                      />
+                    )}
+                  </View>
+                </View>
+
+                {/* Scale Rating Labels Underneath */}
+                <View style={styles.gaugeLabelsRow}>
+                  <Text style={[styles.gaugeLabelText, { color: summary.healthScore < 40 ? '#EF4444' : colors.textMuted }]}>Needs Work</Text>
+                  <Text style={[styles.gaugeLabelText, { color: summary.healthScore >= 40 && summary.healthScore < 65 ? '#F59E0B' : colors.textMuted }]}>Fair</Text>
+                  <Text style={[styles.gaugeLabelText, { color: summary.healthScore >= 65 && summary.healthScore < 85 ? '#84CC16' : colors.textMuted, fontWeight: summary.healthScore >= 65 && summary.healthScore < 85 ? '800' : '600' }]}>
+                    ● Optimal
+                  </Text>
+                  <Text style={[styles.gaugeLabelText, { color: summary.healthScore >= 85 ? '#10B981' : colors.textMuted }]}>Excellent</Text>
+                </View>
+              </View>
+
+              {/* 3 Sub-Metrics Micro Badges */}
+              <View style={styles.healthSubMetricsRow}>
+                <View style={[styles.healthSubMetricPill, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                  <TrendingUp color="#10B981" size={12} />
+                  <View style={{ marginLeft: 6 }}>
+                    <Text style={styles.healthSubMetricLabel}>Savings Rate</Text>
+                    <Text style={[styles.healthSubMetricVal, { color: '#10B981' }]}>38%</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.healthSubMetricPill, { backgroundColor: 'rgba(6, 182, 212, 0.12)' }]}>
+                  <CheckCircle2 color="#06B6D4" size={12} />
+                  <View style={{ marginLeft: 6 }}>
+                    <Text style={styles.healthSubMetricLabel}>Bills On-Time</Text>
+                    <Text style={[styles.healthSubMetricVal, { color: '#06B6D4' }]}>100%</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.healthSubMetricPill, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
+                  <Activity color="#8B5CF6" size={12} />
+                  <View style={{ marginLeft: 6 }}>
+                    <Text style={styles.healthSubMetricLabel}>Budget Burn</Text>
+                    <Text style={[styles.healthSubMetricVal, { color: '#8B5CF6' }]}>Safe</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* AI Copilot Callout Bar */}
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => navigation.navigate('AI Advisor')}
+                style={[styles.healthCopilotBar, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
               >
-                <Text style={[styles.healthScoreText, { color: colors.text }]}>
-                  {summary.healthScore}% <Text style={styles.healthSub}>Financial Health</Text>
+                <Sparkles color="#8B5CF6" size={13} style={{ marginRight: 6 }} />
+                <Text numberOfLines={1} style={[styles.healthCopilotText, { color: colors.textSecondary }]}>
+                  Income is steady & spending is 14% below limit.
                 </Text>
+                <ChevronRight color="#8B5CF6" size={14} style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
             </View>
 
@@ -770,32 +896,161 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  healthCardContainer: {
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
   healthHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+  },
+  healthTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
   },
   healthIconBox: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 12,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  healthCardMainTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  healthAiBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  healthAiBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8B5CF6',
   },
   pillHealth: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
+    borderRadius: 10,
+  },
+  pillHealthText: { color: '#8B5CF6', fontSize: 10, fontWeight: '800' },
+  healthScoreHeroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 10,
+  },
+  healthScoreLeft: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  healthScoreBig: {
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  healthScoreMax: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  healthStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 6,
+  },
+  healthStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  healthStatusText: {
+    color: '#10B981',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  healthGaugeContainer: {
+    marginBottom: 14,
+  },
+  gaugeSegmentsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    height: 8,
+    marginBottom: 6,
+  },
+  gaugeSegment: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  gaugeFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  gaugeLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  gaugeLabelText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  healthSubMetricsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  healthSubMetricPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 12,
   },
-  pillHealthText: { color: '#8B5CF6', fontSize: 11, fontWeight: '800' },
-  healthScoreText: { fontSize: 24, fontWeight: '900' },
-  healthSub: { fontSize: 13, fontWeight: '600', opacity: 0.8 },
+  healthSubMetricLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  healthSubMetricVal: {
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+  healthCopilotBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  healthCopilotText: {
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

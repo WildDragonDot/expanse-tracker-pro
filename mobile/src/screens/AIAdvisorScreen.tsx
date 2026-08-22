@@ -83,36 +83,68 @@ export const AIAdvisorScreen = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Financial Health Score Hero Widget */}
+        {/* Financial Health Score Midnight Cyber Glass Hero Widget */}
         <LinearGradient
-          colors={colors.primaryGradient}
+          colors={['#0F172A', '#1E293B']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.scoreHero}
+          style={[styles.scoreHero, { borderColor: 'rgba(6, 182, 212, 0.35)', borderWidth: 1 }]}
         >
           <View style={styles.scoreHeroHeader}>
-            <View style={styles.badgePill}>
-              <ShieldCheck color="#FFFFFF" size={13} />
-              <Text style={styles.badgePillText}>AUTONOMOUS HEALTH SCORE</Text>
+            <View style={[styles.badgePill, { backgroundColor: 'rgba(6, 182, 212, 0.15)', borderColor: 'rgba(6, 182, 212, 0.3)', borderWidth: 1 }]}>
+              <ShieldCheck color="#06B6D4" size={13} />
+              <Text style={[styles.badgePillText, { color: '#06B6D4' }]}>AUTONOMOUS HEALTH SCORE</Text>
             </View>
-            <Text style={styles.scoreNumber}>88<Text style={styles.scoreMax}>/100</Text></Text>
+
+            <View style={styles.scoreStatusBadge}>
+              <View style={styles.scoreStatusDot} />
+              <Text style={styles.scoreStatusText}>EXCELLENT</Text>
+            </View>
           </View>
-          <Text style={styles.scoreDesc}>
-            Status: <Text style={{ fontWeight: '900' }}>EXCELLENT</Text> • Income stability is high, bills are paid on time, and discretionary burn rate is 14% below budget limits.
+
+          <View style={styles.scoreNumberRow}>
+            <Text style={styles.scoreNumber}>
+              88<Text style={styles.scoreMax}>/100</Text>
+            </Text>
+            <Text style={[styles.scoreScoreSub, { color: colors.textSecondary }]}>Top 5% Financial Discipline</Text>
+          </View>
+
+          <Text style={[styles.scoreDesc, { color: colors.textSecondary }]}>
+            Income stability is high, bills are paid on time, and discretionary burn rate is <Text style={{ color: '#10B981', fontWeight: '800' }}>14% below budget limits</Text>.
           </Text>
 
-          {/* Metric Pillars */}
+          {/* 4-Segment Gauge */}
+          <View style={styles.gaugeSegmentsRow}>
+            {/* Segment 1: Red */}
+            <View style={[styles.gaugeSegment, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+              <LinearGradient colors={['#DC2626', '#EF4444']} style={[styles.gaugeFill, { width: '100%' }]} />
+            </View>
+            {/* Segment 2: Orange */}
+            <View style={[styles.gaugeSegment, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+              <LinearGradient colors={['#F97316', '#F59E0B']} style={[styles.gaugeFill, { width: '100%' }]} />
+            </View>
+            {/* Segment 3: Yellow */}
+            <View style={[styles.gaugeSegment, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+              <LinearGradient colors={['#F59E0B', '#84CC16']} style={[styles.gaugeFill, { width: '100%' }]} />
+            </View>
+            {/* Segment 4: Emerald (Active 88%) */}
+            <View style={[styles.gaugeSegment, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+              <LinearGradient colors={['#84CC16', '#10B981']} style={[styles.gaugeFill, { width: '60%' }]} />
+            </View>
+          </View>
+
+          {/* Metric Pillars 3 Glass Badges */}
           <View style={styles.pillarsGrid}>
-            <View style={styles.pillarItem}>
-              <Text style={styles.pillarValue}>69%</Text>
+            <View style={[styles.pillarItem, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+              <Text style={[styles.pillarValue, { color: '#10B981' }]}>69%</Text>
               <Text style={styles.pillarLabel}>Savings Rate</Text>
             </View>
-            <View style={styles.pillarItem}>
-              <Text style={styles.pillarValue}>100%</Text>
+            <View style={[styles.pillarItem, { backgroundColor: 'rgba(6, 182, 212, 0.1)' }]}>
+              <Text style={[styles.pillarValue, { color: '#06B6D4' }]}>100%</Text>
               <Text style={styles.pillarLabel}>Bill Compliance</Text>
             </View>
-            <View style={styles.pillarItem}>
-              <Text style={styles.pillarValue}>Low</Text>
+            <View style={[styles.pillarItem, { backgroundColor: 'rgba(56, 189, 248, 0.1)' }]}>
+              <Text style={[styles.pillarValue, { color: '#38BDF8' }]}>Low</Text>
               <Text style={styles.pillarLabel}>Debt Ratio</Text>
             </View>
           </View>
@@ -129,7 +161,7 @@ export const AIAdvisorScreen = () => {
               }}
               style={[styles.quickPromptChip, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
             >
-              <HelpCircle color={colors.primary} size={13} />
+              <HelpCircle color="#06B6D4" size={13} />
               <Text style={[styles.quickPromptText, { color: colors.textSecondary }]}>{item}</Text>
             </TouchableOpacity>
           ))}
@@ -146,7 +178,7 @@ export const AIAdvisorScreen = () => {
               ]}
             >
               {m.sender === 'ai' && (
-                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                <View style={[styles.avatar, { backgroundColor: '#06B6D4' }]}>
                   <BrainCircuit color="#FFFFFF" size={16} />
                 </View>
               )}
@@ -154,7 +186,7 @@ export const AIAdvisorScreen = () => {
                 style={[
                   styles.bubble,
                   m.sender === 'user'
-                    ? [styles.userBubble, { backgroundColor: colors.primary }]
+                    ? [styles.userBubble, { backgroundColor: '#2563EB' }]
                     : [styles.aiBubble, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }],
                 ]}
               >
@@ -172,7 +204,7 @@ export const AIAdvisorScreen = () => {
 
           {isThinking && (
             <View style={styles.thinkingRow}>
-              <ActivityIndicator color={colors.primary} size="small" />
+              <ActivityIndicator color="#06B6D4" size="small" />
               <Text style={[styles.thinkingText, { color: colors.textSecondary }]}>Copilot is analyzing financial ledger...</Text>
             </View>
           )}
@@ -191,7 +223,7 @@ export const AIAdvisorScreen = () => {
         <TouchableOpacity
           onPress={handleSend}
           disabled={!prompt.trim() || isThinking}
-          style={[styles.sendBtn, { backgroundColor: colors.primary, opacity: !prompt.trim() ? 0.6 : 1 }]}
+          style={[styles.sendBtn, { backgroundColor: '#06B6D4', opacity: !prompt.trim() ? 0.6 : 1 }]}
         >
           <Send color="#FFFFFF" size={18} />
         </TouchableOpacity>
@@ -204,12 +236,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 20 },
   scoreHero: {
-    padding: 20,
+    padding: 18,
     borderRadius: 24,
     marginBottom: 20,
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
+    shadowColor: '#06B6D4',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 8,
   },
@@ -217,30 +249,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
   badgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
-  badgePillText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
-  scoreNumber: { color: '#FFFFFF', fontSize: 32, fontWeight: '900' },
-  scoreMax: { fontSize: 16, fontWeight: '500', opacity: 0.7 },
-  scoreDesc: { color: '#FFFFFF', fontSize: 12, lineHeight: 18, marginTop: 8, opacity: 0.9 },
+  badgePillText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  scoreStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 5,
+  },
+  scoreStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  scoreStatusText: {
+    color: '#10B981',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  scoreNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 6,
+  },
+  scoreNumber: { color: '#F8FAFC', fontSize: 36, fontWeight: '900', letterSpacing: -0.5 },
+  scoreMax: { fontSize: 16, fontWeight: '600', opacity: 0.6 },
+  scoreScoreSub: { fontSize: 12, fontWeight: '600' },
+  scoreDesc: { fontSize: 12, lineHeight: 18, marginBottom: 14 },
+  gaugeSegmentsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    height: 6,
+    marginBottom: 14,
+  },
+  gaugeSegment: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  gaugeFill: {
+    height: 6,
+    borderRadius: 3,
+  },
   pillarsGrid: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderRadius: 14,
-    padding: 10,
-    marginTop: 14,
+    gap: 8,
   },
-  pillarItem: { flex: 1, alignItems: 'center' },
-  pillarValue: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
-  pillarLabel: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 10, marginTop: 2 },
+  pillarItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  pillarValue: { fontSize: 15, fontWeight: '900' },
+  pillarLabel: { color: 'rgba(255, 255, 255, 0.65)', fontSize: 10, marginTop: 2, fontWeight: '600' },
   sectionTitle: { fontSize: 14, fontWeight: '800', marginBottom: 8 },
   quickPromptsScroll: { marginBottom: 16 },
   quickPromptChip: {
