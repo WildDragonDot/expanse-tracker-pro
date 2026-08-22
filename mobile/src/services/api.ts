@@ -12,8 +12,8 @@ import {
   User,
 } from '../types'
 
-// Production AWS EC2 Server
-const DEFAULT_API_URL = 'http://44.195.0.15:3001'
+// Production Live Domain with HTTPS SSL
+const DEFAULT_API_URL = 'https://expensetracker.chandandev.online'
 
 export class MobileApiClient {
   private baseUrl: string = DEFAULT_API_URL

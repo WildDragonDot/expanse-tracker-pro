@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
 import { getFinancialSummary, getExpenses, getIncomes } from '@/lib/database'
 import { prisma } from '@/lib/database'
+import { GeminiService } from '@/lib/gemini'
 
 // Force dynamic rendering - requires authentication
 export const dynamic = 'force-dynamic'
@@ -152,21 +153,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       trends: monthlyTrends
     }
 
-    // Use OpenAI if API key is available
-    if (process.env.OPENAI_API_KEY) {
-      try {
-        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
-            messages: [
-              {
-                role: 'system',
-                content: `You are an expert financial assistant for ${financialContext.user.name}'s personal finance app. You have access to their COMPLETE financial data and can answer ANY question with 100% accuracy.
+    const systemPrompt = `You are an expert financial assistant for ${financialContext.user.name}'s personal finance app. You have access to their COMPLETE financial data and can answer ANY question with 100% accuracy.
 
 USER PROFILE:
 - Name: ${financialContext.user.name}
@@ -221,7 +208,7 @@ ${financialContext.trends.map((t: any) => `- ${t.month}: Income ₹${t.income.to
 
 INSTRUCTIONS:
 1. Answer ALL questions with EXACT data from above
-2. Be conversational, friendly, and encouraging
+2. Be conversational, friendly, concise, and encouraging
 3. Use Indian Rupee (₹) format consistently
 4. Provide actionable insights and personalized advice
 5. If asked about trends, compare current month with previous months
@@ -230,11 +217,33 @@ INSTRUCTIONS:
 8. Always be accurate - never make up numbers
 9. If data is not available, clearly state that
 10. Suggest ways to improve financial health based on actual patterns`
-              },
-              {
-                role: 'user',
-                content: query
-              }
+
+    // 1. Primary: Gemini AI with Multi-Key Rotation & Auto-Fallback
+    const geminiResult = await GeminiService.generateFinancialAdvice(systemPrompt, query)
+    if (geminiResult) {
+      return NextResponse.json({
+        response: geminiResult.response,
+        timestamp: new Date().toISOString(),
+        source: 'gemini',
+        model: geminiResult.modelUsed,
+        keyIndex: geminiResult.keyIndexUsed,
+      })
+    }
+
+    // 2. Secondary: OpenAI (if configured)
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: query }
             ],
             max_tokens: 500,
             temperature: 0.7,
@@ -253,7 +262,6 @@ INSTRUCTIONS:
         }
       } catch (openaiError) {
         console.error('OpenAI API error:', openaiError)
-        // Fall back to rule-based responses
       }
     }
 
