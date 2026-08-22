@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as AuthSession from 'expo-auth-session'
 import * as WebBrowser from 'expo-web-browser'
 import { Platform } from 'react-native'
 
@@ -42,7 +43,7 @@ export class NotificationService {
 
 /**
  * Google Sign-In Service
- * Authenticates with official Firebase Identity Toolkit & Google OAuth
+ * Authenticates directly with Google OAuth 2.0 and retrieves user profile
  */
 export class GoogleAuthService {
   public static async signInWithGoogle(): Promise<{
@@ -52,85 +53,42 @@ export class GoogleAuthService {
     photoUrl?: string
   }> {
     try {
-      const continueUri = `https://${FirebaseConfig.authDomain}/__/auth/handler`
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'financetracker-pro',
+      })
 
-      // 1. Request official Firebase Auth URL authorized for this project
-      const authUriRes = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${FirebaseConfig.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            providerId: 'google.com',
-            continueUri: continueUri,
-          }),
-        }
-      )
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(FirebaseConfig.googleClientId)}` +
+        `&response_type=token` +
+        `&scope=${encodeURIComponent('openid email profile')}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&prompt=select_account`
 
-      const authUriData = await authUriRes.json()
-      if (!authUriData || !authUriData.authUri) {
-        throw new Error('Failed to initialize Google authentication URL.')
-      }
-
-      const authUrl = authUriData.authUri
-      const sessionId = authUriData.sessionId
-
-      // 2. Open Google Auth in WebBrowser
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, continueUri)
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri)
 
       if (result.type === 'success' && result.url) {
         const url = result.url
-
-        // Extract id_token or access_token if present in redirect
-        const idTokenMatch = url.match(/[?#&]id_token=([^&]+)/)
-        const idToken = idTokenMatch ? decodeURIComponent(idTokenMatch[1]) : null
-
-        const tokenMatch = url.match(/[?#&]access_token=([^&]+)/)
+        const tokenMatch =
+          url.match(/[?#&]access_token=([^&]+)/) ||
+          url.match(/[?#&]id_token=([^&]+)/)
         const accessToken = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null
 
         if (accessToken) {
-          try {
-            const userRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            })
-            if (userRes.ok) {
-              const userInfo = await userRes.json()
-              if (userInfo && userInfo.email) {
-                return {
-                  name: userInfo.name || userInfo.email.split('@')[0],
-                  email: userInfo.email,
-                  idToken: accessToken,
-                  photoUrl: userInfo.picture,
-                }
+          const userRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+
+          if (userRes.ok) {
+            const userInfo = await userRes.json()
+            if (userInfo && userInfo.email) {
+              return {
+                name: userInfo.name || userInfo.email.split('@')[0],
+                email: userInfo.email,
+                idToken: accessToken,
+                photoUrl: userInfo.picture,
               }
             }
-          } catch {
-            // continue to signInWithIdp
-          }
-        }
-
-        // 3. Finalize authentication with Firebase Identity Provider
-        const idpRes = await fetch(
-          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${FirebaseConfig.apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              requestUri: url,
-              sessionId: sessionId,
-              returnSecureToken: true,
-              returnIdpCredential: true,
-            }),
-          }
-        )
-
-        const idpData = await idpRes.json()
-        if (idpData && idpData.email) {
-          return {
-            name: idpData.displayName || idpData.email.split('@')[0],
-            email: idpData.email,
-            idToken: idpData.idToken || `firebase_idp_${Date.now()}`,
-            photoUrl: idpData.photoUrl,
           }
         }
       }
