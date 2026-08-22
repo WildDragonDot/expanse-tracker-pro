@@ -166,7 +166,7 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
           </View>
 
           {/* Register Button */}
-          <TouchableOpacity onPress={handleRegister} disabled={loading} activeOpacity={0.85} style={styles.submitBtn}>
+          <TouchableOpacity onPress={handleRegister} disabled={loading} activeOpacity={0.8} style={styles.submitBtn}>
             <LinearGradient
               colors={colors.secondaryGradient}
               start={{ x: 0, y: 0 }}
@@ -181,12 +181,19 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
             </LinearGradient>
           </TouchableOpacity>
 
+          {/* Clean Divider */}
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: colors.surfaceGlassBorder }]} />
+            <Text style={[styles.dividerText, { color: colors.textMuted }]}>OR</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.surfaceGlassBorder }]} />
+          </View>
+
           {/* Google Sign Up Official Button */}
           <TouchableOpacity
             onPress={handleGoogleSignup}
             disabled={loading}
-            activeOpacity={0.8}
-            style={[styles.googleBtn, { borderColor: colors.inputBorder }]}
+            activeOpacity={0.75}
+            style={[styles.googleBtn, { borderColor: colors.surfaceGlassBorder, backgroundColor: colors.inputBg }]}
           >
             <View style={styles.googleIconCircle}>
               <Text style={styles.googleG}>G</Text>
@@ -305,6 +312,21 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 13,
     fontWeight: '800',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginHorizontal: 12,
+    letterSpacing: 1,
   },
   googleBtn: {
     flexDirection: 'row',

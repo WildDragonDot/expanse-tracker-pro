@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -11,37 +11,49 @@ import {
   ScrollView,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Mail, Lock, Eye, EyeOff, Zap, TrendingUp, ShieldCheck } from 'lucide-react-native'
+import { Mail, Lock, Eye, EyeOff, TrendingUp } from 'lucide-react-native'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
 export const LoginScreen = ({ navigation }: { navigation: any }) => {
-  const { login, loginWithGoogle, loading } = useAuth()
+  const { login, loginWithGoogle, loading: authLoading } = useAuth()
   const { colors } = useAppTheme()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
+
+  const passwordInputRef = useRef<TextInput>(null)
 
   const handleLogin = async () => {
+    if (isSubmitting || isGoogleSubmitting) return
     if (!email || !password) {
       setError('Please fill in your email and password.')
       return
     }
     setError('')
+    setIsSubmitting(true)
     try {
       await login(email.trim(), password)
     } catch (err: any) {
       setError(err.message || 'Invalid email or password.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   const handleGoogleLogin = async () => {
+    if (isSubmitting || isGoogleSubmitting) return
     setError('')
+    setIsGoogleSubmitting(true)
     try {
       await loginWithGoogle()
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google.')
+    } finally {
+      setIsGoogleSubmitting(false)
     }
   }
 
@@ -74,7 +86,7 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
           </View>
         ) : null}
 
-        {/* Frosted Glass Login Card */}
+        {/* Login Card */}
         <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           {/* Email Input */}
           <View style={styles.inputGroup}>
@@ -88,6 +100,9 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
+                blurOnSubmit={false}
                 style={[styles.input, { color: colors.text }]}
               />
             </View>
@@ -97,35 +112,49 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
           <View style={styles.inputGroup}>
             <View style={styles.passwordLabelRow}>
               <Text style={[styles.label, { color: colors.textSecondary }]}>PASSWORD</Text>
-              <TouchableOpacity onPress={() => setError('Password reset link sent if registered.')}>
+              <TouchableOpacity
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={() => setError('Password reset instructions sent to your email if registered.')}
+              >
                 <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot?</Text>
               </TouchableOpacity>
             </View>
             <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
               <Lock color={colors.textMuted} size={18} />
               <TextInput
+                ref={passwordInputRef}
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
                 placeholderTextColor={colors.textMuted}
                 secureTextEntry={!showPassword}
+                returnKeyType="go"
+                onSubmitEditing={handleLogin}
                 style={[styles.input, { color: colors.text }]}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <TouchableOpacity
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={() => setShowPassword(!showPassword)}
+              >
                 {showPassword ? <EyeOff color={colors.textMuted} size={18} /> : <Eye color={colors.textMuted} size={18} />}
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Sign In Primary Button */}
-          <TouchableOpacity onPress={handleLogin} disabled={loading} activeOpacity={0.85} style={styles.submitBtn}>
+          <TouchableOpacity
+            onPress={handleLogin}
+            disabled={isSubmitting || isGoogleSubmitting}
+            activeOpacity={0.8}
+            style={styles.submitBtn}
+          >
             <LinearGradient
               colors={colors.primaryGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientBtn}
             >
-              {loading ? (
+              {isSubmitting ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <Text style={styles.submitBtnText}>Sign In →</Text>
@@ -133,24 +162,40 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
             </LinearGradient>
           </TouchableOpacity>
 
+          {/* Clean Divider */}
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: colors.surfaceGlassBorder }]} />
+            <Text style={[styles.dividerText, { color: colors.textMuted }]}>OR</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.surfaceGlassBorder }]} />
+          </View>
+
           {/* Google Sign In Official Button */}
           <TouchableOpacity
             onPress={handleGoogleLogin}
-            disabled={loading}
-            activeOpacity={0.8}
-            style={[styles.googleBtn, { borderColor: colors.inputBorder }]}
+            disabled={isSubmitting || isGoogleSubmitting}
+            activeOpacity={0.75}
+            style={[styles.googleBtn, { borderColor: colors.surfaceGlassBorder, backgroundColor: colors.inputBg }]}
           >
-            <View style={styles.googleIconCircle}>
-              <Text style={styles.googleG}>G</Text>
-            </View>
-            <Text style={[styles.googleBtnText, { color: colors.text }]}>Continue with Google</Text>
+            {isGoogleSubmitting ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : (
+              <>
+                <View style={styles.googleIconCircle}>
+                  <Text style={styles.googleG}>G</Text>
+                </View>
+                <Text style={[styles.googleBtnText, { color: colors.text }]}>Continue with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
         {/* Footer Link to Register */}
         <View style={styles.footerRow}>
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+          <TouchableOpacity
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={() => navigation.navigate('Register')}
+          >
             <Text style={[styles.registerLink, { color: colors.primary }]}>Sign up free</Text>
           </TouchableOpacity>
         </View>
@@ -180,13 +225,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
     elevation: 8,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '900',
     letterSpacing: -0.5,
   },
@@ -194,6 +239,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
     textAlign: 'center',
+    lineHeight: 18,
     paddingHorizontal: 16,
   },
   errorBanner: {
@@ -203,7 +249,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -221,15 +267,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   passwordLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
   forgotText: {
     fontSize: 11,
@@ -264,6 +311,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginHorizontal: 12,
+    letterSpacing: 1,
+  },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,8 +333,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 14,
     borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    marginTop: 12,
   },
   googleIconCircle: {
     width: 22,
