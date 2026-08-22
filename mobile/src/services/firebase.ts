@@ -68,7 +68,9 @@ export class GoogleAuthService {
 
       if (result.type === 'success' && result.url) {
         const url = result.url
-        const tokenMatch = url.match(/access_token=([^&]+)/)
+        const tokenMatch =
+          url.match(/[?#&]access_token=([^&]+)/) ||
+          url.match(/[?#&]id_token=([^&]+)/)
         const accessToken = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null
 
         if (accessToken) {
@@ -98,7 +100,7 @@ export class GoogleAuthService {
         throw new Error('Google Sign-In was cancelled.')
       }
 
-      throw new Error('Google Sign-In failed or was incomplete.')
+      throw new Error('Google Sign-In failed or was incomplete. Ensure Google provider is enabled in Firebase Console.')
     } catch (err: any) {
       if (err.message && err.message.includes('cancel')) {
         throw new Error('Google Sign-In was cancelled.')
