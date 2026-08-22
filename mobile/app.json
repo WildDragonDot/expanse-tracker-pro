@@ -6,9 +6,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0B0F19",
+    "backgroundColor": "#070A13",
     "splash": {
-      "backgroundColor": "#0B0F19",
+      "backgroundColor": "#070A13",
       "resizeMode": "contain"
     },
     "ios": {
@@ -18,7 +18,7 @@
     "android": {
       "package": "com.financetracker.pro",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0F19",
+        "backgroundColor": "#070A13",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
