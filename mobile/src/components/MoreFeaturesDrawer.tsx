@@ -15,6 +15,7 @@ import {
   FileSpreadsheet,
   BrainCircuit,
   SlidersHorizontal,
+  BellRing,
   X,
 } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
@@ -51,9 +52,9 @@ export const MoreFeaturesDrawer: React.FC<Props> = ({
     },
     {
       id: 'subscriptions',
-      title: 'Subscriptions',
-      desc: 'Manage recurring billing and renewals',
-      icon: <Repeat color="#FFFFFF" size={20} strokeWidth={2} />,
+      title: 'Bills & Reminders',
+      desc: 'Recurring payments, auto-debits, email & app alerts',
+      icon: <BellRing color="#FFFFFF" size={20} strokeWidth={2} />,
       iconBg: '#3B82F6', // Blue
       screen: 'Subscriptions',
     },

@@ -6,6 +6,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Modal,
+  Alert,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
@@ -16,6 +18,14 @@ import {
   ChevronRight,
   TrendingUp,
   Wallet,
+  BellRing,
+  Clock,
+  CheckCircle2,
+  Moon,
+  Mail,
+  Smartphone,
+  Bell,
+  X,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -24,6 +34,7 @@ import { useAppTheme } from '../context/ThemeContext'
 import { CardSkeleton } from '../components/SkeletonLoader'
 import { TransactionDetailsModal, TransactionItem } from '../components/TransactionDetailsModal'
 import { CategoryDetailsModal, CategoryDetailsItem } from '../components/CategoryDetailsModal'
+import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
 import { api } from '../services/api'
 
 export const DashboardScreen = ({ navigation }: { navigation: any }) => {
@@ -32,9 +43,23 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Modals
+  // Modals & Tooltips
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<CategoryDetailsItem | null>(null)
+  const [showUrgentPopup, setShowUrgentPopup] = useState(false)
+  const [activeTooltip, setActiveTooltip] = useState<TooltipData | null>(null)
+
+  // Upcoming Bill Reminder State
+  const [upcomingBill, setUpcomingBill] = useState({
+    id: 'occ_1',
+    title: 'Broadband / Optical Fiber',
+    amount: 1199,
+    category: 'Utilities',
+    dueDate: '2026-08-25',
+    daysLeft: 3,
+    notes: 'High priority multi-channel alert (In-App, Push, Email)',
+    isPaid: false,
+  })
 
   const [summary, setSummary] = useState({
     currentBalance: 4700,
@@ -58,6 +83,17 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
     { name: 'Bills & Utilities', spent: 1199, budget: 2000, percentage: 60, color: '#06B6D4' },
     { name: 'Travel & Commute', spent: 900, budget: 1500, percentage: 60, color: '#F59E0B' },
   ])
+
+  const handlePayBill = () => {
+    Alert.alert('Payment Recorded ✅', `Marked ${currencySymbol}${upcomingBill.amount} for ${upcomingBill.title} as paid.`)
+    setUpcomingBill((prev) => ({ ...prev, isPaid: true }))
+    setShowUrgentPopup(false)
+  }
+
+  const handleSnoozeBill = () => {
+    Alert.alert('Reminder Snoozed 💤', `Next alert will notify in 3 days.`)
+    setShowUrgentPopup(false)
+  }
 
   const loadData = async () => {
     try {
@@ -106,10 +142,23 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
             {/* 1. Current Balance Card (Exact image 1 style) */}
             <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
               <View style={styles.cardHeaderRow}>
-                <View style={styles.greenPill}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={() =>
+                    setActiveTooltip({
+                      title: 'Current Balance',
+                      description: 'The real-time total of all available liquid funds across cash, bank, and mobile wallets.',
+                      details: 'Calculated by deducting logged expenses from all registered earnings and credits.',
+                      accentColor: '#10B981',
+                    })
+                  }
+                  style={styles.greenPill}
+                >
                   <Wallet color="#10B981" size={13} style={{ marginRight: 4 }} />
                   <Text style={styles.greenPillText}>Current Balance</Text>
-                </View>
+                  <Info color="#10B981" size={10} style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
               </View>
 
               <Text style={[styles.cardSubText, { color: colors.textSecondary }]}>
@@ -141,10 +190,22 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   <View style={styles.incomeIconBox}>
                     <ArrowUpRight color="#10B981" size={18} strokeWidth={2.5} />
                   </View>
-                  <View style={styles.pillIncome}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() =>
+                      setActiveTooltip({
+                        title: 'Monthly Income',
+                        description: 'Total revenue and money credited during the current calendar month.',
+                        details: 'Includes salary, freelance invoices, business earnings, interest, and investments.',
+                        accentColor: '#10B981',
+                      })
+                    }
+                    style={styles.pillIncome}
+                  >
                     <Text style={styles.pillIncomeText}>Income</Text>
-                    <Info color="rgba(16, 185, 129, 0.7)" size={10} />
-                  </View>
+                    <Info color="rgba(16, 185, 129, 0.9)" size={10} />
+                  </TouchableOpacity>
                 </View>
 
                 <Text style={styles.incomeAmount}>
@@ -166,10 +227,22 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   <View style={styles.expenseIconBox}>
                     <ArrowDownRight color="#F43F5E" size={18} strokeWidth={2.5} />
                   </View>
-                  <View style={styles.pillExpense}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() =>
+                      setActiveTooltip({
+                        title: 'Monthly Expenses',
+                        description: 'Total money spent across all categories and recurring subscriptions this month.',
+                        details: 'Sum of all debit transactions, autopays, food, rent, and shopping.',
+                        accentColor: '#F43F5E',
+                      })
+                    }
+                    style={styles.pillExpense}
+                  >
                     <Text style={styles.pillExpenseText}>Expenses</Text>
-                    <Info color="rgba(244, 63, 94, 0.7)" size={10} />
-                  </View>
+                    <Info color="rgba(244, 63, 94, 0.9)" size={10} />
+                  </TouchableOpacity>
                 </View>
 
                 <Text style={styles.expenseAmount}>
@@ -182,26 +255,130 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
               </TouchableOpacity>
             </View>
 
+            {/* 3. Upcoming Bill Reminder Alert Banner / Widget */}
+            {!upcomingBill.isPaid && (
+              <View
+                style={[
+                  styles.reminderAlertCard,
+                  { backgroundColor: colors.surfaceGlass, borderColor: 'rgba(6, 182, 212, 0.35)' },
+                ]}
+              >
+                <View style={styles.reminderCardTop}>
+                  <View style={styles.reminderLeftRow}>
+                    <CategoryIcon
+                      name={upcomingBill.title}
+                      iconKey={upcomingBill.category}
+                      color="#06B6D4"
+                      size={20}
+                      containerSize={42}
+                      containerBg="rgba(6, 182, 212, 0.15)"
+                      style={{ marginRight: 10 }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text numberOfLines={1} style={[styles.reminderCardTitle, { color: colors.text }]}>
+                        {upcomingBill.title}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <View style={styles.dueSoonPill}>
+                          <Text style={styles.dueSoonText}>{upcomingBill.daysLeft}d left</Text>
+                        </View>
+                        <Text style={[styles.reminderCardSub, { color: colors.textSecondary, marginTop: 0 }]}>
+                          {currencySymbol}{upcomingBill.amount.toLocaleString()} • Due {upcomingBill.dueDate}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('Subscriptions')}
+                    style={styles.manageLinkBtn}
+                  >
+                    <Text style={[styles.manageLinkText, { color: '#38BDF8' }]}>Manage</Text>
+                    <ChevronRight color="#38BDF8" size={14} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Reminder Channel Badges */}
+                <View style={styles.reminderChannelsList}>
+                  <View style={[styles.channelBadge, { backgroundColor: 'rgba(6, 182, 212, 0.12)' }]}>
+                    <Smartphone color="#06B6D4" size={10} />
+                    <Text style={[styles.channelBadgeText, { color: '#06B6D4' }]}>In-App Popup</Text>
+                  </View>
+                  <View style={[styles.channelBadge, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
+                    <Bell color="#3B82F6" size={10} />
+                    <Text style={[styles.channelBadgeText, { color: '#3B82F6' }]}>Push</Text>
+                  </View>
+                  <View style={[styles.channelBadge, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                    <Mail color="#10B981" size={10} />
+                    <Text style={[styles.channelBadgeText, { color: '#10B981' }]}>Email Alert</Text>
+                  </View>
+                </View>
+
+                {/* Actions */}
+                <View style={styles.reminderActionsRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={handlePayBill}
+                    style={[styles.reminderPayBtn, { backgroundColor: '#10B981' }]}
+                  >
+                    <CheckCircle2 color="#FFFFFF" size={14} />
+                    <Text style={styles.reminderPayBtnText}>1-Click Mark Paid</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={handleSnoozeBill}
+                    style={[styles.reminderSnoozeBtn, { borderColor: colors.surfaceGlassBorder }]}
+                  >
+                    <Moon color={colors.textSecondary} size={14} />
+                    <Text style={[styles.reminderSnoozeBtnText, { color: colors.textSecondary }]}>Snooze 3d</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* 4. Health Score Card */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('AI Advisor')}
+            <View
               style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
             >
               <View style={styles.healthHeader}>
-                <View style={styles.healthIconBox}>
-                  <ShieldCheck color="#FFFFFF" size={20} />
-                </View>
-                <View style={styles.pillHealth}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('AI Advisor')}
+                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                >
+                  <View style={styles.healthIconBox}>
+                    <ShieldCheck color="#FFFFFF" size={20} />
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() =>
+                    setActiveTooltip({
+                      title: 'Financial Health Score',
+                      description: 'A comprehensive 0-100 score that evaluates your spending control, savings growth, debt balance, and recurring bills discipline.',
+                      details: 'Score > 70% indicates excellent financial resilience and prudent budget management.',
+                      accentColor: '#3B82F6',
+                    })
+                  }
+                  style={styles.pillHealth}
+                >
                   <Text style={styles.pillHealthText}>Health Score</Text>
-                  <Info color="rgba(139, 92, 246, 0.7)" size={12} />
-                </View>
+                  <Info color="rgba(59, 130, 246, 0.9)" size={12} />
+                </TouchableOpacity>
               </View>
 
-              <Text style={[styles.healthScoreText, { color: colors.text }]}>
-                {summary.healthScore}% <Text style={styles.healthSub}>Financial Health</Text>
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('AI Advisor')}
+              >
+                <Text style={[styles.healthScoreText, { color: colors.text }]}>
+                  {summary.healthScore}% <Text style={styles.healthSub}>Financial Health</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* 5. Category Budget Breakdown */}
             <View style={styles.sectionHeader}>
@@ -286,6 +463,72 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
         category={selectedCategory}
         currencySymbol={currencySymbol}
         onClose={() => setSelectedCategory(null)}
+      />
+
+      {/* Urgent Payment Due In-App Popup Modal */}
+      <Modal visible={showUrgentPopup} transparent animationType="fade">
+        <View style={styles.popupOverlay}>
+          <View style={[styles.popupCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.popupIconCircle}>
+              <BellRing color="#8B5CF6" size={28} />
+            </View>
+            <Text style={[styles.popupTitle, { color: colors.text }]}>Upcoming Payment Reminder</Text>
+            <Text style={[styles.popupSub, { color: colors.textSecondary }]}>
+              "{upcomingBill.title}" is due in <Text style={{ color: '#F43F5E', fontWeight: '800' }}>{upcomingBill.daysLeft} days</Text> ({upcomingBill.dueDate}).
+            </Text>
+
+            <View style={[styles.popupAmountBox, { backgroundColor: colors.inputBg }]}>
+              <Text style={[styles.popupAmountText, { color: colors.text }]}>
+                {currencySymbol}{upcomingBill.amount.toLocaleString()}
+              </Text>
+              <Text style={[styles.popupCategoryText, { color: colors.textMuted }]}>{upcomingBill.category} • Multi-Channel Alert Active</Text>
+            </View>
+
+            <View style={styles.popupChannelsRow}>
+              <View style={[styles.channelBadge, { backgroundColor: 'rgba(6, 182, 212, 0.12)' }]}>
+                <Smartphone color="#06B6D4" size={11} />
+                <Text style={[styles.channelBadgeText, { color: '#06B6D4' }]}>In-App</Text>
+              </View>
+              <View style={[styles.channelBadge, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
+                <Bell color="#8B5CF6" size={11} />
+                <Text style={[styles.channelBadgeText, { color: '#8B5CF6' }]}>Push</Text>
+              </View>
+              <View style={[styles.channelBadge, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                <Mail color="#10B981" size={11} />
+                <Text style={[styles.channelBadgeText, { color: '#10B981' }]}>Email Alert</Text>
+              </View>
+            </View>
+
+            <View style={styles.popupActions}>
+              <TouchableOpacity
+                style={[styles.popupActionBtn, { backgroundColor: '#10B981' }]}
+                onPress={handlePayBill}
+              >
+                <CheckCircle2 color="#FFFFFF" size={16} />
+                <Text style={styles.popupActionBtnText}>1-Click Mark Paid</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.popupSecondaryBtn, { borderColor: colors.inputBorder }]}
+                onPress={handleSnoozeBill}
+              >
+                <Moon color={colors.textSecondary} size={16} />
+                <Text style={[styles.popupSecondaryBtnText, { color: colors.textSecondary }]}>Snooze 3 Days</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity onPress={() => setShowUrgentPopup(false)} style={styles.popupCloseBtn}>
+              <Text style={[styles.popupCloseText, { color: colors.textMuted }]}>Remind Me Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reusable Interactive Info Tooltip Modal */}
+      <InfoTooltipModal
+        visible={!!activeTooltip}
+        tooltip={activeTooltip}
+        onClose={() => setActiveTooltip(null)}
       />
     </View>
   )
@@ -425,6 +668,108 @@ const styles = StyleSheet.create({
   pillExpenseText: { color: '#F43F5E', fontSize: 11, fontWeight: '800' },
   expenseAmount: { color: '#F43F5E', fontSize: 26, fontWeight: '900', marginBottom: 4 },
   growthTextRed: { fontSize: 11 },
+  reminderAlertCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
+  reminderCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  reminderLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  reminderIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reminderCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  dueSoonPill: {
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  dueSoonText: {
+    color: '#F43F5E',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  reminderCardSub: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  manageLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  manageLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  reminderChannelsList: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 12,
+  },
+  channelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  channelBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  reminderActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  reminderPayBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  reminderPayBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  reminderSnoozeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 6,
+  },
+  reminderSnoozeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   healthHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -490,4 +835,99 @@ const styles = StyleSheet.create({
   txTitle: { fontSize: 13, fontWeight: '700' },
   txMeta: { fontSize: 11, marginTop: 2 },
   txAmount: { fontSize: 14, fontWeight: '800' },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  popupCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+  },
+  popupIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  popupTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  popupSub: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  popupAmountBox: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  popupAmountText: {
+    fontSize: 28,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  popupCategoryText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  popupChannelsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 20,
+  },
+  popupActions: {
+    width: '100%',
+    gap: 10,
+    marginBottom: 12,
+  },
+  popupActionBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
+  },
+  popupActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  popupSecondaryBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 8,
+  },
+  popupSecondaryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  popupCloseBtn: {
+    paddingVertical: 8,
+  },
+  popupCloseText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
 })

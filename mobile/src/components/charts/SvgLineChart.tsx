@@ -183,13 +183,34 @@ export const SvgLineChart = ({
                   fill={s.color}
                   stroke={isSelected ? '#FFFFFF' : '#0F1523'}
                   strokeWidth={isSelected ? 2 : 1.5}
-                  onPress={() => handlePointPress(idx)}
                 />
               ))}
             </G>
           )
         })}
       </Svg>
+
+      {/* Native Touch Overlay for 100% Reliable Android/iOS Taps */}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute',
+          left: paddingLeft,
+          top: paddingTop,
+          width: chartWidth,
+          height: chartHeight,
+          flexDirection: 'row',
+        }}
+      >
+        {labels.map((_, idx) => (
+          <TouchableOpacity
+            key={`touch-line-node-${idx}`}
+            activeOpacity={0.7}
+            onPress={() => handlePointPress(idx)}
+            style={{ width: chartWidth / labels.length, height: chartHeight }}
+          />
+        ))}
+      </View>
 
       {/* Y Axis Labels (Left Column) */}
       {showYAxis && (

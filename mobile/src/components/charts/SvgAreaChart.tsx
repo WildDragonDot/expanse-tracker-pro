@@ -137,14 +137,6 @@ export const SvgAreaChart = ({
           const isSelected = activeIdx === idx
           return (
             <G key={`dot-group-${idx}`}>
-              <Rect
-                x={getX(idx) - 18}
-                y={paddingTop}
-                width={36}
-                height={chartHeight}
-                fill="transparent"
-                onPress={() => handlePointPress(idx)}
-              />
               <Circle
                 cx={getX(idx)}
                 cy={getY(val)}
@@ -152,12 +144,33 @@ export const SvgAreaChart = ({
                 fill={color}
                 stroke={isSelected ? '#FFFFFF' : '#0F1523'}
                 strokeWidth={isSelected ? 2 : 1.5}
-                onPress={() => handlePointPress(idx)}
               />
             </G>
           )
         })}
       </Svg>
+
+      {/* Native Touch Overlay for 100% Reliable Android/iOS Taps */}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute',
+          left: paddingLeft,
+          top: paddingTop,
+          width: chartWidth,
+          height: chartHeight,
+          flexDirection: 'row',
+        }}
+      >
+        {values.map((_, idx) => (
+          <TouchableOpacity
+            key={`touch-node-${idx}`}
+            activeOpacity={0.7}
+            onPress={() => handlePointPress(idx)}
+            style={{ width: chartWidth / values.length, height: chartHeight }}
+          />
+        ))}
+      </View>
 
       {/* Y Axis Labels (Left Column) */}
       {showYAxis && (

@@ -10,7 +10,6 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
-  Calendar,
   Clock,
   CheckCircle2,
   Moon,
@@ -21,6 +20,7 @@ import {
   Trash2,
 } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
+import { CategoryIcon } from './CategoryIcon'
 import { BillOccurrence } from '../types'
 
 interface Props {
@@ -55,15 +55,15 @@ export const BillDetailsModal: React.FC<Props> = ({
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
           {/* Header Gradient */}
           <LinearGradient
-            colors={isPaid ? ['#10B981', '#059669'] : ['#8B5CF6', '#6366F1']}
+            colors={isPaid ? ['#059669', '#10B981'] : isSnoozed ? ['#D97706', '#F59E0B'] : ['#1E3A8A', '#2563EB']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
           >
             <View style={styles.headerTop}>
               <View style={styles.badgePill}>
-                <Clock color="#FFFFFF" size={12} />
-                <Text style={styles.badgePillText}>{bill.status} SCHEDULE</Text>
+                <CategoryIcon name={bill.title} iconKey={bill.category} color="#FFFFFF" size={14} />
+                <Text style={styles.badgePillText}>{bill.status} • {bill.category.toUpperCase()}</Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
                 <X color="#FFFFFF" size={18} />

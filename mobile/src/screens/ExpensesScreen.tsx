@@ -30,8 +30,9 @@ import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
-import { TransactionSkeleton } from '../components/SkeletonLoader'
+import { CardSkeleton, TransactionSkeleton } from '../components/SkeletonLoader'
 import { TransactionDetailsModal, TransactionItem } from '../components/TransactionDetailsModal'
+import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
 import { Expense, Income } from '../types'
 import { api } from '../services/api'
 
@@ -42,6 +43,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null)
+  const [activeTooltip, setActiveTooltip] = useState<TooltipData | null>(null)
 
   const [expenses, setExpenses] = useState<Expense[]>([
     { id: 'e1', userId: 'u1', title: 'Whole Foods Grocery', amount: 4850, category: 'Food', bank: 'HDFC Bank', paymentMode: 'UPI', date: '2026-08-20', notes: 'Weekly organic basket' },
@@ -81,8 +83,9 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
     if (route?.params?.openModal) {
       setModalType(route.params.openModal === 'income' ? 'income' : 'expense')
       setModalVisible(true)
+      navigation?.setParams({ openModal: undefined })
     }
-  }, [route?.params])
+  }, [route?.params?.openModal])
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -195,10 +198,22 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
               <View style={styles.iconCircleRed}>
                 <CreditCard color="#FFFFFF" size={14} />
               </View>
-              <View style={styles.pillRed}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() =>
+                  setActiveTooltip({
+                    title: 'Total Expenditure',
+                    description: 'Cumulative total of all debit expenses recorded in this period across all bank accounts and cash.',
+                    details: 'Excludes incoming credits and transfers between your own accounts.',
+                    accentColor: '#F43F5E',
+                  })
+                }
+                style={styles.pillRed}
+              >
                 <Text style={styles.pillRedText}>Total</Text>
-                <Info color="rgba(244, 63, 94, 0.7)" size={10} />
-              </View>
+                <Info color="rgba(244, 63, 94, 0.9)" size={10} />
+              </TouchableOpacity>
             </View>
             <Text style={[styles.statValue, { color: '#F43F5E' }]}>
               {currencySymbol}{totalSpent.toLocaleString()}
@@ -212,10 +227,22 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
               <View style={styles.iconCircleBlue}>
                 <ReceiptText color="#FFFFFF" size={14} />
               </View>
-              <View style={styles.pillBlue}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() =>
+                  setActiveTooltip({
+                    title: 'Transaction Volume',
+                    description: 'Total number of transactions completed and logged in the current ledger timeframe.',
+                    details: 'Helps evaluate spending frequency and micro-transactions patterns.',
+                    accentColor: '#3B82F6',
+                  })
+                }
+                style={styles.pillBlue}
+              >
                 <Text style={styles.pillBlueText}>Count</Text>
-                <Info color="rgba(59, 130, 246, 0.7)" size={10} />
-              </View>
+                <Info color="rgba(59, 130, 246, 0.9)" size={10} />
+              </TouchableOpacity>
             </View>
             <Text style={[styles.statValue, { color: '#3B82F6' }]}>{txCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Transactions</Text>
@@ -229,10 +256,22 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
               <View style={styles.iconCircleOrange}>
                 <Calculator color="#FFFFFF" size={14} />
               </View>
-              <View style={styles.pillOrange}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() =>
+                  setActiveTooltip({
+                    title: 'Average Expense Value',
+                    description: 'The average amount spent per transaction during this period.',
+                    details: 'Formula: Total Spend / Number of Debit Transactions.',
+                    accentColor: '#F59E0B',
+                  })
+                }
+                style={styles.pillOrange}
+              >
                 <Text style={styles.pillOrangeText}>Avg</Text>
-                <Info color="rgba(245, 158, 11, 0.7)" size={10} />
-              </View>
+                <Info color="rgba(245, 158, 11, 0.9)" size={10} />
+              </TouchableOpacity>
             </View>
             <Text style={[styles.statValue, { color: '#F59E0B' }]}>
               {currencySymbol}{avgSpent.toLocaleString()}
@@ -246,10 +285,22 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
               <View style={styles.iconCirclePink}>
                 <TrendingUp color="#FFFFFF" size={14} />
               </View>
-              <View style={styles.pillPink}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() =>
+                  setActiveTooltip({
+                    title: 'Highest Single Expense',
+                    description: 'The maximum single transaction amount recorded in the current active period.',
+                    details: 'Highlights large one-off purchases or annual subscription payments.',
+                    accentColor: '#F43F5E',
+                  })
+                }
+                style={styles.pillPink}
+              >
                 <Text style={styles.pillPinkText}>Peak</Text>
-                <Info color="rgba(244, 63, 94, 0.7)" size={10} />
-              </View>
+                <Info color="rgba(244, 63, 94, 0.9)" size={10} />
+              </TouchableOpacity>
             </View>
             <Text style={[styles.statValue, { color: '#F43F5E' }]}>
               {currencySymbol}{peakSpent.toLocaleString()}
@@ -444,6 +495,13 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
           </View>
         </View>
       </Modal>
+
+      {/* Info Tooltip Modal */}
+      <InfoTooltipModal
+        visible={!!activeTooltip}
+        tooltip={activeTooltip}
+        onClose={() => setActiveTooltip(null)}
+      />
     </View>
   )
 }

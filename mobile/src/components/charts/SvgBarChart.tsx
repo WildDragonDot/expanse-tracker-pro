@@ -150,6 +150,28 @@ export const SvgBarChart = ({
         })}
       </Svg>
 
+      {/* Native Touch Overlay for 100% Reliable Android/iOS Taps */}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute',
+          left: paddingLeft,
+          top: paddingTop,
+          width: chartWidth,
+          height: chartHeight,
+          flexDirection: 'row',
+        }}
+      >
+        {data.map((_, groupIdx) => (
+          <TouchableOpacity
+            key={`touch-group-${groupIdx}`}
+            activeOpacity={0.7}
+            onPress={() => handleGroupClick(groupIdx)}
+            style={{ width: groupWidth, height: chartHeight }}
+          />
+        ))}
+      </View>
+
       {/* Y Axis Labels */}
       {showYAxis && (
         <View style={[styles.yAxisContainer, { left: 4, top: paddingTop - 8, height: chartHeight + 16 }]}>
