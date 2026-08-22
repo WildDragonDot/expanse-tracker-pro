@@ -51,8 +51,8 @@ export class ApiClient {
         throw new Error('API server error. Make sure both frontend (3000) and backend (3001) dev servers are running.')
       }
 
-      // Handle 401 Unauthorized - auto logout
-      if (response.status === 401) {
+      // Handle 401 Unauthorized - auto logout for protected routes (not auth endpoints)
+      if (response.status === 401 && !endpoint.startsWith('/auth/')) {
         this.clearToken()
         if (typeof window !== 'undefined') {
           localStorage.removeItem('user')
@@ -66,7 +66,7 @@ export class ApiClient {
       }
       
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(error.error || 'Request failed')
+      throw new Error(error.error || error.message || 'Request failed')
     }
 
     return response.json()

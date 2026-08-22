@@ -24,7 +24,7 @@ function LoginContent() {
 
     try {
       await login(email, password)
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'Invalid email or password. Please try again.')

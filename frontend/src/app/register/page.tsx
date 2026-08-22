@@ -74,7 +74,7 @@ function RegisterContent() {
       const data = await response.json()
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     } catch (err: any) {
       console.error('Registration error:', err)
       setError(err.message || 'Registration failed. Please try again.')
