@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { View, TouchableOpacity } from 'react-native'
+import { View, TouchableOpacity, Platform } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   Home,
   Receipt,
@@ -24,6 +25,8 @@ import { AIAdvisorScreen } from '../screens/AIAdvisorScreen'
 import { SettingsScreen } from '../screens/SettingsScreen'
 import { UdharScreen } from '../screens/UdharScreen'
 import { ShoppingScreen } from '../screens/ShoppingScreen'
+import { ReportsScreen } from '../screens/ReportsScreen'
+import { EventPlanningScreen } from '../screens/EventPlanningScreen'
 import { MoreFeaturesDrawer } from '../components/MoreFeaturesDrawer'
 
 const Tab = createBottomTabNavigator()
@@ -41,14 +44,15 @@ const MainTabs = ({ navigation }: { navigation: any }) => {
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
+          safeAreaInsets: { bottom: 0, top: 0, left: 0, right: 0 },
           tabBarStyle: {
             backgroundColor: '#0F1523',
             borderTopColor: 'rgba(255, 255, 255, 0.08)',
             borderTopWidth: 1,
-            height: 62,
-            paddingBottom: 8,
+            height: 60,
+            paddingBottom: 6,
             paddingTop: 6,
-            elevation: 0,
+            elevation: 8,
           },
           tabBarActiveTintColor: '#8B5CF6',
           tabBarInactiveTintColor: '#64748B',
@@ -174,6 +178,28 @@ export const AppNavigator = () => {
             options={{
               headerShown: true,
               title: 'AI Financial Advisor',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            }}
+          />
+          <Stack.Screen
+            name="EventPlanning"
+            component={EventPlanningScreen}
+            options={{
+              headerShown: true,
+              title: 'Event & Trip Planning',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            }}
+          />
+          <Stack.Screen
+            name="Reports"
+            component={ReportsScreen}
+            options={{
+              headerShown: true,
+              title: 'Reports & Statements',
               headerStyle: { backgroundColor: colors.background },
               headerTintColor: colors.text,
               headerTitleStyle: { fontWeight: '800', fontSize: 16 },

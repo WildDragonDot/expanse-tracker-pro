@@ -320,7 +320,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
 
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => navigation?.navigate('Analytics')}
+            onPress={() => navigation?.navigate('Reports')}
             style={[styles.actionBtnLarge, { backgroundColor: '#6366F1' }]}
           >
             <View style={styles.btnIconRound}>

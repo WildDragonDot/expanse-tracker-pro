@@ -36,21 +36,24 @@ interface Props {
 export const CategoryDetailsModal: React.FC<Props> = ({
   visible,
   category,
-  currencySymbol,
+  currencySymbol = '₹',
   onClose,
 }) => {
   const { colors } = useAppTheme()
 
   if (!category) return null
 
-  const remaining = Math.max(0, category.budget - category.spent)
-  const isOverBudget = category.spent > category.budget
+  const spentAmount = (category as any).spent ?? (category as any).amount ?? 0
+  const budgetAmount = (category as any).budget ?? 0
+  const percentageVal = (category as any).percentage ?? Math.round((spentAmount / (budgetAmount || 1)) * 100)
+  const remaining = Math.max(0, budgetAmount - spentAmount)
+  const isOverBudget = spentAmount > budgetAmount
 
   // Sample transactions for category
   const categoryTransactions = [
-    { id: 'ct1', title: `${category.name} - Store Purchase`, amount: Math.round(category.spent * 0.45), date: '2026-08-18' },
-    { id: 'ct2', title: `${category.name} - Online Payment`, amount: Math.round(category.spent * 0.35), date: '2026-08-12' },
-    { id: 'ct3', title: `${category.name} - Subscription / Recurring`, amount: Math.round(category.spent * 0.20), date: '2026-08-05' },
+    { id: 'ct1', title: `${category.name} - Store Purchase`, amount: Math.round(spentAmount * 0.45), date: '2026-08-18' },
+    { id: 'ct2', title: `${category.name} - Online Payment`, amount: Math.round(spentAmount * 0.35), date: '2026-08-12' },
+    { id: 'ct3', title: `${category.name} - Subscription / Recurring`, amount: Math.round(spentAmount * 0.20), date: '2026-08-05' },
   ]
 
   return (
@@ -59,7 +62,7 @@ export const CategoryDetailsModal: React.FC<Props> = ({
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
           {/* Header */}
           <LinearGradient
-            colors={[category.color, '#6366F1']}
+            colors={[category.color || '#8B5CF6', '#6366F1']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
@@ -76,18 +79,18 @@ export const CategoryDetailsModal: React.FC<Props> = ({
 
             <Text style={styles.catName}>{category.name}</Text>
             <Text style={styles.catSpent}>
-              {currencySymbol}{category.spent.toLocaleString()}
-              <Text style={styles.catBudget}> of {currencySymbol}{category.budget.toLocaleString()} Budget</Text>
+              {currencySymbol || '₹'}{spentAmount.toLocaleString()}
+              <Text style={styles.catBudget}> of {currencySymbol || '₹'}{budgetAmount.toLocaleString()} Budget</Text>
             </Text>
 
             {/* Gauge */}
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${Math.min(100, category.percentage)}%`, backgroundColor: '#FFFFFF' }]} />
+              <View style={[styles.progressFill, { width: `${Math.min(100, percentageVal)}%`, backgroundColor: '#FFFFFF' }]} />
             </View>
             <View style={styles.progressLabelRow}>
-              <Text style={styles.progressLabelText}>{category.percentage}% Utilized</Text>
+              <Text style={styles.progressLabelText}>{percentageVal}% Utilized</Text>
               <Text style={styles.progressLabelText}>
-                {isOverBudget ? 'Over Budget' : `${currencySymbol}${remaining.toLocaleString()} Remaining`}
+                {isOverBudget ? 'Over Budget' : `${currencySymbol || '₹'}${remaining.toLocaleString()} Remaining`}
               </Text>
             </View>
           </LinearGradient>

@@ -71,7 +71,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 
     const fallbackTimer = setTimeout(() => {
       onFinish?.()
-    }, 2200)
+    }, 1000)
 
     return () => clearTimeout(fallbackTimer)
   }, [])
@@ -82,7 +82,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   })
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: colors.background, opacity: fadeAnim }]}>
+    <Animated.View
+      onTouchStart={() => onFinish?.()}
+      style={[styles.container, { backgroundColor: colors.background, opacity: fadeAnim }]}
+    >
       {/* Background Ambient Aura */}
       <Animated.View
         style={[

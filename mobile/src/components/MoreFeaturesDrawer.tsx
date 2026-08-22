@@ -12,6 +12,7 @@ import {
   ShoppingCart,
   RefreshCw,
   CreditCard,
+  FileText,
   MessageSquare,
   Settings,
   X,
@@ -38,7 +39,7 @@ export const MoreFeaturesDrawer: React.FC<Props> = ({
       desc: 'Budget for festivals, trips & events',
       icon: <Calendar color="#FFFFFF" size={20} />,
       iconBg: '#F97316', // Orange
-      screen: 'Shopping', // Maps to planning/shopping
+      screen: 'EventPlanning',
     },
     {
       id: 'shopping',
@@ -63,6 +64,14 @@ export const MoreFeaturesDrawer: React.FC<Props> = ({
       icon: <CreditCard color="#FFFFFF" size={20} />,
       iconBg: '#F43F5E', // Pink/Rose
       screen: 'Udhar',
+    },
+    {
+      id: 'reports',
+      title: 'Reports & Statements',
+      desc: 'Download CSV, PDF and tax summaries',
+      icon: <FileText color="#FFFFFF" size={20} />,
+      iconBg: '#06B6D4', // Cyan
+      screen: 'Reports',
     },
     {
       id: 'ai',
