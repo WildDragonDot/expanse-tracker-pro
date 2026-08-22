@@ -396,12 +396,12 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   onPress={() => setSelectedCategory(c)}
                   style={styles.categoryRow}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                    <CategoryIcon name={c.name} color={c.color} size={14} containerSize={26} style={{ marginRight: 8 }} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <CategoryIcon name={c.name} color={c.color} size={14} containerSize={28} style={{ marginRight: 10 }} />
                     <View style={styles.catInfo}>
                       <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
                       <Text style={[styles.catSpent, { color: colors.textSecondary }]}>
-                        {currencySymbol}{c.spent.toLocaleString()} / {currencySymbol}{c.budget.toLocaleString()}
+                        {currencySymbol}{c.spent.toLocaleString()} <Text style={{ fontSize: 10, color: colors.textMuted }}>/ {currencySymbol}{c.budget.toLocaleString()}</Text>
                       </Text>
                     </View>
                   </View>
@@ -805,14 +805,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 14, fontWeight: '800' },
   seeAllText: { fontSize: 12, fontWeight: '700' },
-  categoryRow: { marginBottom: 12 },
+  categoryRow: { marginBottom: 14 },
   catInfo: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
   },
-  catName: { fontSize: 11, fontWeight: '700' },
-  catSpent: { fontSize: 11, fontWeight: '700' },
+  catName: { fontSize: 13, fontWeight: '700' },
+  catSpent: { fontSize: 12, fontWeight: '800' },
   progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
   progressBar: { height: 6, borderRadius: 3 },
   txItem: {

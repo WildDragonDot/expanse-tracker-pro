@@ -404,12 +404,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   catInfo: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6,
   },
-  catName: { fontSize: 12, fontWeight: '700' },
-  catAmounts: { fontSize: 11, fontWeight: '600' },
+  catName: { fontSize: 13, fontWeight: '700' },
+  catAmounts: { fontSize: 11, fontWeight: '700' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
