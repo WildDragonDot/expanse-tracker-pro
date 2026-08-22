@@ -93,7 +93,7 @@ export const SvgDonutChart = ({
           <View style={[styles.tooltipDot, { backgroundColor: selectedSlice.color }]} />
           <Text style={styles.tooltipTitle}>{selectedSlice.name}:</Text>
           <Text style={[styles.tooltipVal, { color: selectedSlice.color }]}>
-            {currencySymbol}{selectedSlice.value.toLocaleString()} ({activePercent}%)
+            {currencySymbol}{(selectedSlice.value ?? 0).toLocaleString()} ({activePercent}%)
           </Text>
         </View>
       )}
@@ -133,7 +133,7 @@ export const SvgDonutChart = ({
           {selectedSlice ? (
             <>
               <Text style={[styles.centerText, { color: selectedSlice.color }]}>
-                {currencySymbol}{selectedSlice.value.toLocaleString()}
+                {currencySymbol}{(selectedSlice.value ?? 0).toLocaleString()}
               </Text>
               <Text style={styles.centerSubText}>{activePercent}% Share</Text>
             </>

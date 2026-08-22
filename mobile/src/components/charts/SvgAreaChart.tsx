@@ -83,7 +83,7 @@ export const SvgAreaChart = ({
         <View style={[styles.tooltipAbsolute, { borderColor: color }]}>
           <Text style={styles.tooltipTitle}>{labels[activeIdx]}:</Text>
           <Text style={[styles.tooltipVal, { color }]}>
-            {currencySymbol}{values[activeIdx].toLocaleString()}
+            {currencySymbol}{(values[activeIdx] ?? 0).toLocaleString()}
           </Text>
         </View>
       )}

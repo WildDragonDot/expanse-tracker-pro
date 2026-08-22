@@ -103,7 +103,7 @@ export const SvgLineChart = ({
                 <Text style={styles.tooltipLabel}>{s.key}:</Text>
                 <Text style={[styles.tooltipVal, { color: s.color }]}>
                   {yAxisSuffix === '%' ? '' : currencySymbol}
-                  {s.values[activeIdx].toLocaleString()}
+                  {(s.values[activeIdx] ?? 0).toLocaleString()}
                   {yAxisSuffix}
                 </Text>
               </View>

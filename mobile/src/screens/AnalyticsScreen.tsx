@@ -327,10 +327,10 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
                 </View>
                 <View style={styles.categoryRight}>
                   <Text style={[styles.categoryAmount, { color: colors.text }]}>
-                    {currencySymbol}{cat.amount.toLocaleString()}
+                    {currencySymbol}{(cat.amount || 0).toLocaleString()}
                   </Text>
                   <Text style={[styles.categoryLimit, { color: colors.textMuted }]}>
-                    Limit: {currencySymbol}{cat.budget.toLocaleString()}
+                    Limit: {currencySymbol}{(cat.budget || 0).toLocaleString()}
                   </Text>
                 </View>
               </TouchableOpacity>

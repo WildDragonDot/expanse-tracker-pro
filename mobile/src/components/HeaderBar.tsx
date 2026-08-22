@@ -1,5 +1,6 @@
 import React from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TrendingUp, Sun, Moon } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -15,13 +16,22 @@ export const HeaderBar: React.FC<Props> = ({
   subtitle = 'FinanceTracker Pro',
   onProfilePress,
 }) => {
+  const insets = useSafeAreaInsets()
   const { colors, theme, toggleTheme } = useAppTheme()
   const { user } = useAuth()
 
   const isDark = theme === 'dark'
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingTop: 12,
+        },
+      ]}
+    >
       <View style={styles.left}>
         <View style={styles.logoCircle}>
           <TrendingUp color="#FFFFFF" size={18} strokeWidth={2.5} />

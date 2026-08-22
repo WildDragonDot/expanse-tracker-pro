@@ -36,6 +36,7 @@ const Stack = createNativeStackNavigator()
 const DummyScreen = () => <View />
 
 const MainTabs = ({ navigation }: { navigation: any }) => {
+  const insets = useSafeAreaInsets()
   const { colors } = useAppTheme()
   const [drawerVisible, setDrawerVisible] = useState(false)
 
@@ -48,7 +49,7 @@ const MainTabs = ({ navigation }: { navigation: any }) => {
             backgroundColor: '#0F1523',
             borderTopColor: 'rgba(255, 255, 255, 0.08)',
             borderTopWidth: 1,
-            height: 60,
+            height: 58,
             paddingBottom: 6,
             paddingTop: 6,
             elevation: 8,

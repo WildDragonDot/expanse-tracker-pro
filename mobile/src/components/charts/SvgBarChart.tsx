@@ -78,7 +78,7 @@ export const SvgBarChart = ({
               <View key={v.key} style={styles.tooltipItem}>
                 <View style={[styles.tooltipDot, { backgroundColor: v.color }]} />
                 <Text style={[styles.tooltipVal, { color: v.color }]}>
-                  {currencySymbol}{v.value.toLocaleString()}
+                  {currencySymbol}{(v.value ?? 0).toLocaleString()}
                 </Text>
               </View>
             ))}

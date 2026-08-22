@@ -123,7 +123,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
 
               <View style={styles.balanceCenter}>
                 <Text style={styles.balanceAmountCyan}>
-                  {currencySymbol}{summary.currentBalance.toLocaleString()}
+                  {currencySymbol}{(summary.currentBalance || 0).toLocaleString()}
                 </Text>
                 <Text style={styles.availableFundsGreen}>Available Funds ↑</Text>
               </View>
@@ -148,7 +148,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                 </View>
 
                 <Text style={styles.incomeAmount}>
-                  {currencySymbol}{summary.monthlyIncome.toLocaleString()}
+                  {currencySymbol}{(summary.monthlyIncome || 0).toLocaleString()}
                 </Text>
 
                 <Text style={[styles.growthTextGreen, { color: colors.textSecondary }]}>
@@ -173,7 +173,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                 </View>
 
                 <Text style={styles.expenseAmount}>
-                  {currencySymbol}{summary.monthlyExpense.toLocaleString()}
+                  {currencySymbol}{(summary.monthlyExpense || 0).toLocaleString()}
                 </Text>
 
                 <Text style={[styles.growthTextRed, { color: colors.textSecondary }]}>
@@ -182,7 +182,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
               </TouchableOpacity>
             </View>
 
-            {/* 4. Health Score Card (Exact image 1 style) */}
+            {/* 4. Health Score Card */}
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => navigation.navigate('AI Advisor')}
@@ -265,7 +265,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                 <Text style={[styles.txAmount, { color: tx.type === 'income' ? '#10B981' : colors.text }]}>
                   {tx.type === 'income' ? '+' : '-'}
                   {currencySymbol}
-                  {tx.amount.toLocaleString()}
+                  {(tx.amount || 0).toLocaleString()}
                 </Text>
               </TouchableOpacity>
             ))}
