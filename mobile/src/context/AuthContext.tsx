@@ -11,7 +11,7 @@ interface AuthContextType {
   fcmToken: string | null
   login: (email: string, password: string) => Promise<void>
   register: (data: { name: string; email: string; password: string; salary?: number; billingCycleStartDay?: number }) => Promise<void>
-  loginWithGoogle: () => Promise<void>
+  loginWithGoogle: (email?: string) => Promise<void>
   logout: () => Promise<void>
   updateProfile: (data: Partial<User>) => Promise<void>
 }
@@ -77,10 +77,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (selectedEmail?: string) => {
     setLoading(true)
     try {
-      const googleUser = await GoogleAuthService.signInWithGoogle()
+      const googleUser = await GoogleAuthService.signInWithGoogle(selectedEmail)
       const googleAuthUser: User = {
         id: 'google_usr_' + Date.now(),
         name: googleUser.name,
