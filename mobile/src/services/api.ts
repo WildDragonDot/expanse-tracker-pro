@@ -12,8 +12,8 @@ import {
   User,
 } from '../types'
 
-// Localhost mapped for Android emulator & physical USB ADB reverse port 3001
-const DEFAULT_API_URL = 'http://localhost:3001'
+// Production AWS EC2 Server
+const DEFAULT_API_URL = 'http://44.195.0.15:3001'
 
 export class MobileApiClient {
   private baseUrl: string = DEFAULT_API_URL
