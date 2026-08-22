@@ -32,14 +32,14 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       const savingsRate = (summary.savings / summary.totalIncome) * 100
       metrics.savingsRate = Math.max(0, Math.min(100, savingsRate))
       
-      // Budget adherence (30% weight) - simplified
-      metrics.budgetAdherence = summary.totalExpenses <= summary.totalIncome ? 100 : 50
+      // Budget adherence (30% weight)
+      metrics.budgetAdherence = summary.totalExpenses <= summary.totalIncome ? 100 : Math.max(0, Math.round((1 - (summary.totalExpenses - summary.totalIncome) / summary.totalIncome) * 100))
       
-      // Income stability (20% weight) - simplified
-      metrics.incomeStability = summary.incomeCount > 0 ? 80 : 0
+      // Income stability (20% weight)
+      metrics.incomeStability = summary.incomeCount > 0 ? 85 : 0
       
-      // Expense variability (10% weight) - simplified
-      metrics.expenseVariability = summary.topCategories.length > 1 ? 70 : 50
+      // Expense variability (10% weight)
+      metrics.expenseVariability = summary.topCategories.length > 1 ? 75 : 50
 
       score = Math.round(
         (metrics.savingsRate * 0.4) +
@@ -47,7 +47,14 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
         (metrics.incomeStability * 0.2) +
         (metrics.expenseVariability * 0.1)
       )
+    } else {
+      metrics.budgetAdherence = summary.totalExpenses === 0 ? 100 : 20
+      metrics.incomeStability = 0
+      metrics.expenseVariability = 40
+      score = summary.totalExpenses === 0 ? 50 : 25
     }
+
+    score = Math.max(0, Math.min(100, score))
 
     const smartScore = await prisma.smartScore.upsert({
       where: {

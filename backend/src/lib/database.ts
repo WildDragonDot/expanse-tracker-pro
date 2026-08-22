@@ -669,8 +669,8 @@ async function checkBudgetWarnings(userId: string, category: string, newExpenseA
 
 // Analytics services
 export async function getFinancialSummary(userId: string, year: number, month: number) {
-  const startDate = new Date(year, month - 1, 1)
-  const endDate = new Date(year, month, 0)
+  const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0)
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999)
 
   const [expenses, incomes] = await Promise.all([
     prisma.expense.findMany({
@@ -687,13 +687,15 @@ export async function getFinancialSummary(userId: string, year: number, month: n
     })
   ])
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
-  const totalIncome = incomes.reduce((sum, inc) => sum + inc.amount, 0)
+  const totalExpenses = expenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0)
+  const totalIncome = incomes.reduce((sum, inc) => sum + (Number(inc.amount) || 0), 0)
   const savings = totalIncome - totalExpenses
+  const savingsRate = totalIncome > 0 ? Math.round((Math.max(0, savings) / totalIncome) * 100) : 0
 
   // Category breakdown
   const categoryBreakdown = expenses.reduce((acc, exp) => {
-    acc[exp.category] = (acc[exp.category] || 0) + exp.amount
+    const cat = exp.category || 'General'
+    acc[cat] = (acc[cat] || 0) + (Number(exp.amount) || 0)
     return acc
   }, {} as Record<string, number>)
 
@@ -706,6 +708,7 @@ export async function getFinancialSummary(userId: string, year: number, month: n
     totalExpenses,
     totalIncome,
     savings,
+    savingsRate,
     topCategories,
     expenseCount: expenses.length,
     incomeCount: incomes.length,

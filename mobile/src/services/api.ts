@@ -62,7 +62,7 @@ export class MobileApiClient {
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 6000)
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
 
       const response = await fetch(`${this.baseUrl}/api${endpoint}`, {
         ...options,
@@ -74,11 +74,14 @@ export class MobileApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`)
+        throw new Error(errorData.error || errorData.message || `Request failed with status ${response.status}`)
       }
 
       return await response.json()
     } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        throw new Error('Connection timed out. Please check your network.')
+      }
       throw err
     }
   }

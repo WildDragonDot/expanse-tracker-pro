@@ -1,19 +1,22 @@
 // Improved Financial Health Score Calculation
 export function calculateFinancialHealthScore(
-  expenses: any[], 
-  incomes: any[]
+  expenses: any[] = [], 
+  incomes: any[] = []
 ): number {
-  const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0)
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const safeIncomes = Array.isArray(incomes) ? incomes : []
+  const safeExpenses = Array.isArray(expenses) ? expenses : []
+
+  const totalIncome = safeIncomes.reduce((sum, i) => sum + (Number(i.amount) || 0), 0)
+  const totalExpenses = safeExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
   
-  // If no data, return low score
-  if (totalIncome === 0 && totalExpenses === 0) return 25
-  if (totalIncome === 0 && totalExpenses > 0) return 10 // Only expenses, no income - critical
+  // If no data, return baseline score
+  if (totalIncome === 0 && totalExpenses === 0) return 50
+  if (totalIncome === 0 && totalExpenses > 0) return 15 // Only expenses, no income - critical
   
   let score = 0
   
   // 1. SAVINGS RATE SCORE (0-45 points) - Most Important
-  const savingsRate = (totalIncome - totalExpenses) / totalIncome
+  const savingsRate = totalIncome > 0 ? (totalIncome - totalExpenses) / totalIncome : 0
   if (savingsRate >= 0.5) score += 45        // Exceptional: 50%+ savings
   else if (savingsRate >= 0.3) score += 40   // Excellent: 30-49% savings
   else if (savingsRate >= 0.2) score += 32   // Very Good: 20-29% savings  
@@ -24,7 +27,7 @@ export function calculateFinancialHealthScore(
   else score -= 5                            // Severe overspending (penalty)
   
   // 2. INCOME STABILITY SCORE (0-20 points)
-  const incomeCount = incomes.length
+  const incomeCount = safeIncomes.length
   if (incomeCount >= 12) score += 20         // Monthly income for a year
   else if (incomeCount >= 6) score += 16     // Regular income (6+ months)
   else if (incomeCount >= 3) score += 10     // Some income records
@@ -32,7 +35,7 @@ export function calculateFinancialHealthScore(
   else score += 0                            // No income records
   
   // 3. EXPENSE TRACKING CONSISTENCY (0-15 points)
-  const expenseCount = expenses.length
+  const expenseCount = safeExpenses.length
   if (expenseCount >= 50) score += 15        // Very active tracking
   else if (expenseCount >= 30) score += 12   // Good tracking
   else if (expenseCount >= 15) score += 8    // Regular tracking
@@ -40,19 +43,17 @@ export function calculateFinancialHealthScore(
   else score += 0                            // Minimal tracking
   
   // 4. DYNAMIC BUDGET ADHERENCE (0-15 points)
-  // Calculate dynamic budgets based on user's average spending
   const categorySpending: Record<string, number> = {}
-  expenses.forEach(e => {
-    categorySpending[e.category] = (categorySpending[e.category] || 0) + e.amount
+  safeExpenses.forEach(e => {
+    const cat = e.category || 'General'
+    categorySpending[cat] = (categorySpending[cat] || 0) + (Number(e.amount) || 0)
   })
   
-  // Recommended budget: 30% of income per major category
-  const recommendedCategoryBudget = totalIncome * 0.3
+  const recommendedCategoryBudget = totalIncome > 0 ? totalIncome * 0.3 : 1
   let budgetScore = 0
   let categoriesChecked = 0
   
   Object.entries(categorySpending).forEach(([category, spent]) => {
-    // Major spending categories
     if (['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Healthcare', 'Education'].includes(category)) {
       categoriesChecked++
       const ratio = spent / recommendedCategoryBudget
@@ -64,18 +65,17 @@ export function calculateFinancialHealthScore(
     }
   })
   
-  // Normalize budget score to max 15 points
   if (categoriesChecked > 0) {
     score += Math.min(15, Math.max(0, budgetScore))
   }
   
   // 5. SPENDING DIVERSITY & BALANCE (0-10 points)
-  const uniqueCategories = new Set(expenses.map(e => e.category)).size
-  const totalCategoriesScore = Math.min(5, uniqueCategories) // Max 5 points for diversity
+  const uniqueCategories = new Set(safeExpenses.map(e => e.category || 'General')).size
+  const totalCategoriesScore = Math.min(5, uniqueCategories)
   
-  // Check if spending is balanced (no single category dominates)
-  const maxCategorySpending = Math.max(...Object.values(categorySpending))
-  const spendingBalance = maxCategorySpending / totalExpenses
+  const spendingValues = Object.values(categorySpending)
+  const maxCategorySpending = spendingValues.length > 0 ? Math.max(...spendingValues) : 0
+  const spendingBalance = totalExpenses > 0 ? maxCategorySpending / totalExpenses : 0
   let balanceScore = 0
   
   if (spendingBalance <= 0.3) balanceScore = 5      // Well balanced
@@ -87,17 +87,18 @@ export function calculateFinancialHealthScore(
   score += totalCategoriesScore + balanceScore
   
   // 6. BONUS: Emergency Fund Indicator (0-5 points)
-  // If savings rate is consistently positive, add bonus
-  if (savingsRate > 0 && incomeCount >= 3) {
+  if (savingsRate > 0 && incomeCount >= 3 && totalExpenses > 0) {
     const avgMonthlySavings = (totalIncome - totalExpenses) / Math.max(1, incomeCount)
-    const emergencyFundMonths = avgMonthlySavings / (totalExpenses / Math.max(1, expenseCount))
+    const avgMonthlyExpenses = totalExpenses / Math.max(1, expenseCount)
+    const emergencyFundMonths = avgMonthlyExpenses > 0 ? avgMonthlySavings / avgMonthlyExpenses : 0
     
-    if (emergencyFundMonths >= 6) score += 5      // 6+ months emergency fund
-    else if (emergencyFundMonths >= 3) score += 3 // 3-6 months
-    else if (emergencyFundMonths >= 1) score += 1 // 1-3 months
+    if (emergencyFundMonths >= 6) score += 5
+    else if (emergencyFundMonths >= 3) score += 3
+    else if (emergencyFundMonths >= 1) score += 1
   }
   
   // Final score: 0-100 range
+  return Math.min(100, Math.max(0, Math.round(score)))
   return Math.min(100, Math.max(0, Math.round(score)))
 }
 
