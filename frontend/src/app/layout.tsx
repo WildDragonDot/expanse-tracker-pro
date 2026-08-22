@@ -9,6 +9,7 @@ import ExpiryCheckerInitializer from '@/components/ExpiryCheckerInitializer'
 import Analytics from '@/components/Analytics'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import PWALoader from '@/components/PWALoader'
+import OfflineIndicator from '@/components/OfflineIndicator'
 import { siteConfig, generateWebAppStructuredData, generateOrganizationStructuredData } from '@/lib/seo'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
@@ -213,6 +214,7 @@ export default function RootLayout({
               <AuthProvider>
                 <DataProvider>
                   <ExpiryCheckerInitializer />
+                  <OfflineIndicator />
                   <div className="min-h-screen transition-colors duration-300" suppressHydrationWarning>
                     {children}
                   </div>
