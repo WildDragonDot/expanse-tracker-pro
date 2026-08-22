@@ -77,10 +77,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const loginWithGoogle = async (selectedEmail?: string) => {
+  const loginWithGoogle = async () => {
     setLoading(true)
     try {
-      const googleUser = await GoogleAuthService.signInWithGoogle(selectedEmail)
+      const googleUser = await GoogleAuthService.signInWithGoogle()
       const googleAuthUser: User = {
         id: 'google_usr_' + Date.now(),
         name: googleUser.name,
