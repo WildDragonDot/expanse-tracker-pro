@@ -18,11 +18,18 @@
     },
     "android": {
       "package": "com.gsvinfotech.expensetracker",
+      "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#070A13",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
+      "permissions": [
+        "INTERNET",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "POST_NOTIFICATIONS"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "androidStatusBar": {
