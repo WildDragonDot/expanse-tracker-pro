@@ -1,0 +1,670 @@
+import React, { useEffect, useState } from 'react'
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  RefreshControl,
+  Alert,
+} from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import {
+  ArrowDown,
+  ArrowUp,
+  DollarSign,
+  Receipt,
+  BarChart2,
+  TrendingUp,
+  Calculator,
+  Search,
+  FileText,
+  ChevronRight,
+  Info,
+  X,
+} from 'lucide-react-native'
+import { HeaderBar } from '../components/HeaderBar'
+import { useAuth } from '../context/AuthContext'
+import { useAppTheme } from '../context/ThemeContext'
+import { TransactionSkeleton } from '../components/SkeletonLoader'
+import { TransactionDetailsModal, TransactionItem } from '../components/TransactionDetailsModal'
+import { Expense, Income } from '../types'
+import { api } from '../services/api'
+
+export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?: any }) => {
+  const { user } = useAuth()
+  const { colors } = useAppTheme()
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null)
+
+  const [expenses, setExpenses] = useState<Expense[]>([
+    { id: 'e1', userId: 'u1', title: 'Whole Foods Grocery', amount: 4850, category: 'Food', bank: 'HDFC Bank', paymentMode: 'UPI', date: '2026-08-20', notes: 'Weekly organic basket' },
+    { id: 'e2', userId: 'u1', title: 'Uber Prime Ride', amount: 620, category: 'Travel', bank: 'ICICI Bank', paymentMode: 'Credit Card', date: '2026-08-19', notes: 'Airport commute' },
+    { id: 'e3', userId: 'u1', title: 'Cloudflare Workers Hosting', amount: 410, category: 'Utilities', bank: 'SBI', paymentMode: 'Debit Card', date: '2026-08-18', notes: 'Production server hosting' },
+    { id: 'e4', userId: 'u1', title: 'House Maintenance', amount: 3500, category: 'Rent', bank: 'HDFC Bank', paymentMode: 'NetBanking', date: '2026-08-05', notes: 'Monthly building maintenance' },
+  ])
+
+  const [incomes, setIncomes] = useState<Income[]>([
+    { id: 'i1', userId: 'u1', source: 'Monthly Primary Salary', amount: 15100, date: '2026-08-01', notes: 'Corporate monthly payout' },
+  ])
+
+  // Modal State
+  const [modalVisible, setModalVisible] = useState(false)
+  const [modalType, setModalType] = useState<'expense' | 'income'>('expense')
+  const [formTitle, setFormTitle] = useState('')
+  const [formAmount, setFormAmount] = useState('')
+  const [formCategory, setFormCategory] = useState('Food')
+  const [formBank, setFormBank] = useState('HDFC Bank')
+  const [formNotes, setFormNotes] = useState('')
+
+  const loadData = async () => {
+    try {
+      const expList = await api.getExpenses().catch(() => null)
+      if (expList && expList.length) setExpenses(expList)
+
+      const incList = await api.getIncomes().catch(() => null)
+      if (incList && incList.length) setIncomes(incList)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    if (route?.params?.openModal) {
+      setModalType(route.params.openModal === 'income' ? 'income' : 'expense')
+      setModalVisible(true)
+    }
+  }, [route?.params])
+
+  const onRefresh = () => {
+    setRefreshing(true)
+    loadData()
+  }
+
+  const handleSaveTransaction = async () => {
+    if (!formTitle || !formAmount) {
+      Alert.alert('Required', 'Please enter transaction title and amount.')
+      return
+    }
+
+    const amountNum = parseFloat(formAmount)
+    const today = new Date().toISOString().split('T')[0]
+
+    if (modalType === 'expense') {
+      const newExp: Expense = {
+        id: 'e_' + Date.now(),
+        userId: user?.id || 'u1',
+        title: formTitle.trim(),
+        amount: amountNum,
+        category: formCategory,
+        bank: formBank,
+        paymentMode: 'UPI',
+        date: today,
+        notes: formNotes.trim(),
+      }
+      setExpenses((prev) => [newExp, ...prev])
+      await api.createExpense(newExp).catch(() => null)
+    } else {
+      const newInc: Income = {
+        id: 'i_' + Date.now(),
+        userId: user?.id || 'u1',
+        source: formTitle.trim(),
+        amount: amountNum,
+        date: today,
+        notes: formNotes.trim(),
+      }
+      setIncomes((prev) => [newInc, ...prev])
+      await api.createIncome(newInc).catch(() => null)
+    }
+
+    setModalVisible(false)
+    setFormTitle('')
+    setFormAmount('')
+    setFormNotes('')
+  }
+
+  const handleDelete = (id: string) => {
+    setExpenses((prev) => prev.filter((item) => item.id !== id))
+    setIncomes((prev) => prev.filter((item) => item.id !== id))
+    api.deleteExpense(id).catch(() => null)
+  }
+
+  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'
+
+  // Combine and sort
+  const allTransactions: TransactionItem[] = [
+    ...expenses.map((e) => ({
+      id: e.id,
+      title: e.title,
+      amount: e.amount,
+      category: e.category,
+      bank: e.bank,
+      paymentMode: e.paymentMode,
+      date: e.date,
+      type: 'expense' as const,
+      notes: e.notes,
+    })),
+    ...incomes.map((i) => ({
+      id: i.id,
+      title: i.source,
+      amount: i.amount,
+      category: 'Income',
+      bank: 'Primary Salary Account',
+      paymentMode: 'Bank Transfer / IMPS',
+      date: i.date,
+      type: 'income' as const,
+      notes: i.notes,
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const filteredTransactions = searchQuery
+    ? allTransactions.filter(
+        (t) =>
+          t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (t.bank && t.bank.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : allTransactions
+
+  const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const txCount = allTransactions.length
+  const avgSpent = expenses.length > 0 ? Math.round(totalSpent / expenses.length) : 0
+  const peakSpent = expenses.length > 0 ? Math.max(...expenses.map((e) => e.amount)) : 0
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <HeaderBar title="Expenses & Income" onProfilePress={() => navigation?.navigate('Settings')} />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        {/* 1. 4 Stat Cards in 2 Rows of 2 (Exact 2 per row layout) */}
+        <View style={styles.twoCardsRow}>
+          {/* Card 1: Total Spent */}
+          <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.statHeader}>
+              <View style={styles.iconCircleRed}>
+                <DollarSign color="#FFFFFF" size={14} />
+              </View>
+              <View style={styles.pillRed}>
+                <Text style={styles.pillRedText}>Total</Text>
+                <Info color="rgba(244, 63, 94, 0.7)" size={10} />
+              </View>
+            </View>
+            <Text style={[styles.statValue, { color: '#F43F5E' }]}>
+              {currencySymbol}{totalSpent.toLocaleString()}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Spent</Text>
+          </View>
+
+          {/* Card 2: Count */}
+          <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.statHeader}>
+              <View style={styles.iconCircleBlue}>
+                <Receipt color="#FFFFFF" size={14} />
+              </View>
+              <View style={styles.pillBlue}>
+                <Text style={styles.pillBlueText}>Count</Text>
+                <Info color="rgba(59, 130, 246, 0.7)" size={10} />
+              </View>
+            </View>
+            <Text style={[styles.statValue, { color: '#3B82F6' }]}>{txCount}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Transactions</Text>
+          </View>
+        </View>
+
+        <View style={styles.twoCardsRow}>
+          {/* Card 3: Avg */}
+          <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.statHeader}>
+              <View style={styles.iconCircleOrange}>
+                <BarChart2 color="#FFFFFF" size={14} />
+              </View>
+              <View style={styles.pillOrange}>
+                <Text style={styles.pillOrangeText}>Avg</Text>
+                <Info color="rgba(245, 158, 11, 0.7)" size={10} />
+              </View>
+            </View>
+            <Text style={[styles.statValue, { color: '#F59E0B' }]}>
+              {currencySymbol}{avgSpent.toLocaleString()}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Average</Text>
+          </View>
+
+          {/* Card 4: Peak */}
+          <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.statHeader}>
+              <View style={styles.iconCirclePink}>
+                <TrendingUp color="#FFFFFF" size={14} />
+              </View>
+              <View style={styles.pillPink}>
+                <Text style={styles.pillPinkText}>Peak</Text>
+                <Info color="rgba(244, 63, 94, 0.7)" size={10} />
+              </View>
+            </View>
+            <Text style={[styles.statValue, { color: '#F43F5E' }]}>
+              {currencySymbol}{peakSpent.toLocaleString()}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Highest</Text>
+          </View>
+        </View>
+
+        {/* 2. Monthly Budget Banner (Exact image 2 style) */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => navigation?.navigate('Budget')}
+          style={[styles.budgetBanner, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
+        >
+          <View style={styles.bannerLeft}>
+            <View style={styles.calcIconCircle}>
+              <Calculator color="#FFFFFF" size={18} />
+            </View>
+            <View>
+              <Text style={[styles.bannerTitle, { color: colors.text }]}>Monthly Budget</Text>
+              <Text style={[styles.bannerSub, { color: colors.textSecondary }]}>
+                Set & track category-wise budgets
+              </Text>
+            </View>
+          </View>
+          <ChevronRight color={colors.textSecondary} size={18} />
+        </TouchableOpacity>
+
+        {/* 3. Search Bar (Exact image 2 style) */}
+        <View style={[styles.searchBar, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+          <Search color={colors.textSecondary} size={16} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search across title, category, bank, tags"
+            placeholderTextColor={colors.textMuted}
+            style={[styles.searchInput, { color: colors.text }]}
+          />
+        </View>
+
+        {/* 4. 3 Action Buttons in a Row (Exact image 2 style) */}
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              setModalType('expense')
+              setModalVisible(true)
+            }}
+            style={[styles.actionBtnLarge, { backgroundColor: '#F43F5E' }]}
+          >
+            <View style={styles.btnIconRound}>
+              <ArrowDown color="#FFFFFF" size={16} strokeWidth={2.5} />
+            </View>
+            <Text style={styles.actionBtnLargeText}>Add Expense</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              setModalType('income')
+              setModalVisible(true)
+            }}
+            style={[styles.actionBtnLarge, { backgroundColor: '#10B981' }]}
+          >
+            <View style={styles.btnIconRound}>
+              <ArrowUp color="#FFFFFF" size={16} strokeWidth={2.5} />
+            </View>
+            <Text style={styles.actionBtnLargeText}>Add Income</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => navigation?.navigate('Analytics')}
+            style={[styles.actionBtnLarge, { backgroundColor: '#6366F1' }]}
+          >
+            <View style={styles.btnIconRound}>
+              <FileText color="#FFFFFF" size={16} />
+            </View>
+            <Text style={styles.actionBtnLargeText}>Reports</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 5. Transactions List */}
+        <View style={styles.txList}>
+          {loading ? (
+            <>
+              <TransactionSkeleton />
+              <TransactionSkeleton />
+              <TransactionSkeleton />
+            </>
+          ) : (
+            filteredTransactions.map((tx) => (
+              <TouchableOpacity
+                key={tx.id}
+                activeOpacity={0.75}
+                onPress={() => setSelectedTx(tx)}
+                style={[styles.txCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
+              >
+                <View
+                  style={[
+                    styles.txIcon,
+                    { backgroundColor: tx.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)' },
+                  ]}
+                >
+                  {tx.type === 'income' ? <ArrowUp color="#10B981" size={18} /> : <ArrowDown color="#F43F5E" size={18} />}
+                </View>
+                <View style={styles.txInfo}>
+                  <Text style={[styles.txTitle, { color: colors.text }]}>{tx.title}</Text>
+                  <Text style={[styles.txMeta, { color: colors.textSecondary }]}>
+                    {tx.category} • {tx.date} • {tx.bank}
+                  </Text>
+                </View>
+                <View style={styles.amountWrap}>
+                  <Text style={[styles.txAmount, { color: tx.type === 'income' ? '#10B981' : colors.text }]}>
+                    {tx.type === 'income' ? '+' : '-'}
+                    {currencySymbol}
+                    {tx.amount.toLocaleString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Transaction Details Modal */}
+      <TransactionDetailsModal
+        visible={!!selectedTx}
+        transaction={selectedTx}
+        currencySymbol={currencySymbol}
+        onClose={() => setSelectedTx(null)}
+        onDelete={handleDelete}
+      />
+
+      {/* Add Modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {modalType === 'expense' ? 'Log New Expense' : 'Log New Income'}
+              </Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <X color={colors.textSecondary} size={22} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalInputGroup}>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                {modalType === 'expense' ? 'MERCHANT / DESCRIPTION' : 'INCOME SOURCE'}
+              </Text>
+              <TextInput
+                value={formTitle}
+                onChangeText={setFormTitle}
+                placeholder={modalType === 'expense' ? 'e.g. Grocery, Flight, Dinner' : 'e.g. Salary, Client Payout'}
+                placeholderTextColor={colors.textMuted}
+                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+              />
+            </View>
+
+            <View style={styles.modalInputGroup}>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>AMOUNT ({currencySymbol})</Text>
+              <TextInput
+                value={formAmount}
+                onChangeText={setFormAmount}
+                placeholder="2,500"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+              />
+            </View>
+
+            <View style={styles.modalInputGroup}>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>NOTES</Text>
+              <TextInput
+                value={formNotes}
+                onChangeText={setFormNotes}
+                placeholder="Optional notes or description"
+                placeholderTextColor={colors.textMuted}
+                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+              />
+            </View>
+
+            <TouchableOpacity onPress={handleSaveTransaction} style={styles.modalSubmitBtn}>
+              <LinearGradient
+                colors={modalType === 'expense' ? colors.primaryGradient : colors.secondaryGradient}
+                style={styles.modalGradientBtn}
+              >
+                <Text style={styles.modalSubmitText}>Save Transaction to Ledger</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 80 },
+  twoCardsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  statCard: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  statHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  iconCircleRed: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F43F5E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pillRed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  pillRedText: { color: '#F43F5E', fontSize: 10, fontWeight: '800' },
+  iconCircleBlue: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pillBlue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  pillBlueText: { color: '#3B82F6', fontSize: 10, fontWeight: '800' },
+  iconCircleOrange: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F59E0B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pillOrange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  pillOrangeText: { color: '#F59E0B', fontSize: 10, fontWeight: '800' },
+  iconCirclePink: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#EC4899',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pillPink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  pillPinkText: { color: '#EC4899', fontSize: 10, fontWeight: '800' },
+  statValue: { fontSize: 18, fontWeight: '900', marginBottom: 2 },
+  statLabel: { fontSize: 11, fontWeight: '600' },
+  budgetBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  bannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  calcIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#6366F1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bannerTitle: { fontSize: 14, fontWeight: '800' },
+  bannerSub: { fontSize: 11, marginTop: 2 },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+    gap: 8,
+  },
+  searchInput: { flex: 1, fontSize: 12, fontWeight: '500' },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  actionBtnLarge: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  btnIconRound: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnLargeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  txList: {},
+  txCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  txIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  txInfo: { flex: 1 },
+  txTitle: { fontSize: 13, fontWeight: '700' },
+  txMeta: { fontSize: 11, marginTop: 2 },
+  amountWrap: { alignItems: 'flex-end' },
+  txAmount: { fontSize: 14, fontWeight: '800' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    padding: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '900' },
+  modalInputGroup: { marginBottom: 14 },
+  modalLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, marginBottom: 6 },
+  modalInput: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalSubmitBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  modalGradientBtn: {
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+})

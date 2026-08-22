@@ -14,7 +14,11 @@
     "db:generate": "cd backend && npm run db:generate",
     "db:push": "cd backend && npm run db:push",
     "db:studio": "cd backend && npm run db:studio",
-    "setup": "cd backend && node setup-database.js"
+    "setup": "cd backend && node setup-database.js",
+    "mobile": "cd mobile && npx expo start",
+    "mobile:web": "cd mobile && npx expo start --web",
+    "mobile:android": "cd mobile && npx expo start --android",
+    "mobile:ios": "cd mobile && npx expo start --ios"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
