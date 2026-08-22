@@ -43,7 +43,7 @@ export class NotificationService {
 
 /**
  * Google Sign-In Service
- * Authenticates with Google OAuth and retrieves real user credentials.
+ * Authenticates with Google OAuth and retrieves real user credentials only.
  */
 export class GoogleAuthService {
   public static async signInWithGoogle(): Promise<{
@@ -74,7 +74,6 @@ export class GoogleAuthService {
         const accessToken = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null
 
         if (accessToken) {
-          // Fetch authenticated user profile from Google's official userinfo API
           const userRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
             headers: { Authorization: `Bearer ${accessToken}` },
           })
@@ -97,23 +96,12 @@ export class GoogleAuthService {
         throw new Error('Google Sign-In was cancelled.')
       }
 
-      // Safe Google Verified Profile Fallback for device environments
-      return {
-        name: 'Chandan Vishwakarma',
-        email: 'chandan.dev@gmail.com',
-        idToken: `google_verified_token_${Date.now()}`,
-        photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      }
+      throw new Error('Google Sign-In was not completed. Please try again.')
     } catch (err: any) {
       if (err.message && err.message.includes('cancel')) {
         throw new Error('Google Sign-In was cancelled.')
       }
-      return {
-        name: 'Chandan Vishwakarma',
-        email: 'chandan.dev@gmail.com',
-        idToken: `google_verified_token_${Date.now()}`,
-        photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      }
+      throw new Error(err.message || 'Google Sign-In failed.')
     }
   }
 }
