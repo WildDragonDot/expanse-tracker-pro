@@ -39,6 +39,7 @@ import { SvgDonutChart } from '../components/charts/SvgDonutChart'
 import { SvgBarChart } from '../components/charts/SvgBarChart'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
+import { AnalyticsSkeleton } from '../components/SkeletonLoader'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CHART_WIDTH = SCREEN_WIDTH - 64

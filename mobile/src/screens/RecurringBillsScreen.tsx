@@ -33,7 +33,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 import { CategoryIcon } from '../components/CategoryIcon'
-import { BillSkeleton } from '../components/SkeletonLoader'
+import { RecurringBillsSkeleton } from '../components/SkeletonLoader'
 import { BillDetailsModal } from '../components/BillDetailsModal'
 import { BillOccurrence, RecurringPayment, BillFrequency } from '../types'
 import { api } from '../services/api'
@@ -349,11 +349,7 @@ export const RecurringBillsScreen = () => {
         </LinearGradient>
 
         {loading ? (
-          <>
-            <BillSkeleton />
-            <BillSkeleton />
-            <BillSkeleton />
-          </>
+          <RecurringBillsSkeleton />
         ) : activeTab === 'timeline' ? (
           /* ================= TIMELINE VIEW ================= */
           occurrences.map((occ) => {

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
+import { UdharSkeleton } from '../components/SkeletonLoader'
 
 interface UdharRecord {
   id: string

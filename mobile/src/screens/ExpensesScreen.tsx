@@ -30,7 +30,7 @@ import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
-import { CardSkeleton, TransactionSkeleton } from '../components/SkeletonLoader'
+import { ExpensesSkeleton, TransactionSkeleton } from '../components/SkeletonLoader'
 import { TransactionDetailsModal, TransactionItem } from '../components/TransactionDetailsModal'
 import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
 import { Expense, Income } from '../types'
@@ -190,8 +190,12 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* 1. 4 Stat Cards in 2 Rows of 2 (Exact 2 per row layout) */}
-        <View style={styles.twoCardsRow}>
+        {loading ? (
+          <ExpensesSkeleton />
+        ) : (
+          <>
+            {/* 1. 4 Stat Cards in 2 Rows of 2 (Exact 2 per row layout) */}
+            <View style={styles.twoCardsRow}>
           {/* Card 1: Total Spent */}
           <View style={[styles.statCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.statHeader}>
@@ -424,6 +428,8 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
             ))
           )}
         </View>
+        </>
+      )}
       </ScrollView>
 
       {/* Transaction Details Modal */}

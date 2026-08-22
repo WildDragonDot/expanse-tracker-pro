@@ -28,6 +28,7 @@ import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
+import { ReportsSkeleton } from '../components/SkeletonLoader'
 
 export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
   const { user } = useAuth()

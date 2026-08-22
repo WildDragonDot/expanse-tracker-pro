@@ -27,6 +27,7 @@ import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
+import { MonthlyBudgetSkeleton } from '../components/SkeletonLoader'
 
 interface BudgetCategory {
   id: string

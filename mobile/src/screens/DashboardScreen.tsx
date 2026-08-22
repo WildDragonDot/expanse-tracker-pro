@@ -33,7 +33,7 @@ import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
-import { CardSkeleton } from '../components/SkeletonLoader'
+import { DashboardSkeleton } from '../components/SkeletonLoader'
 import { TransactionDetailsModal, TransactionItem } from '../components/TransactionDetailsModal'
 import { CategoryDetailsModal, CategoryDetailsItem } from '../components/CategoryDetailsModal'
 import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
@@ -134,11 +134,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         {loading ? (
-          <>
-            <CardSkeleton />
-            <CardSkeleton />
-            <CardSkeleton />
-          </>
+          <DashboardSkeleton />
         ) : (
           <>
             {/* 1. Current Balance Card (Exact image 1 style) */}
