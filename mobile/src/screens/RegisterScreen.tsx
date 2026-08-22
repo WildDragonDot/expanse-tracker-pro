@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
 export const RegisterScreen = ({ navigation }: { navigation: any }) => {
-  const { register, loading } = useAuth()
+  const { register, loginWithGoogle, loading } = useAuth()
   const { colors } = useAppTheme()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -25,6 +25,15 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
   const [billingDay, setBillingDay] = useState('1')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+
+  const handleGoogleSignup = async () => {
+    setError('')
+    try {
+      await loginWithGoogle()
+    } catch (err: any) {
+      setError(err.message || 'Google sign-up failed.')
+    }
+  }
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -171,6 +180,19 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
               )}
             </LinearGradient>
           </TouchableOpacity>
+
+          {/* Google Sign Up Official Button */}
+          <TouchableOpacity
+            onPress={handleGoogleSignup}
+            disabled={loading}
+            activeOpacity={0.8}
+            style={[styles.googleBtn, { borderColor: colors.inputBorder }]}
+          >
+            <View style={styles.googleIconCircle}>
+              <Text style={styles.googleG}>G</Text>
+            </View>
+            <Text style={[styles.googleBtnText, { color: colors.text }]}>Sign up with Google</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Footer */}
@@ -283,5 +305,32 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 13,
     fontWeight: '800',
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  googleIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  googleG: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#4285F4',
+  },
+  googleBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 })

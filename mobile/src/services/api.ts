@@ -26,12 +26,16 @@ export class MobileApiClient {
   public async init() {
     try {
       const storedUrl = await AsyncStorage.getItem('@api_base_url')
-      if (storedUrl) this.baseUrl = storedUrl
+      if (storedUrl && storedUrl.startsWith('http') && !storedUrl.includes('localhost')) {
+        this.baseUrl = storedUrl
+      } else {
+        this.baseUrl = DEFAULT_API_URL
+      }
 
       const storedToken = await AsyncStorage.getItem('@auth_token')
       if (storedToken) this.token = storedToken
     } catch {
-      // ignore
+      this.baseUrl = DEFAULT_API_URL
     }
   }
 

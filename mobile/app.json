@@ -16,7 +16,8 @@
       "bundleIdentifier": "com.financetracker.pro"
     },
     "android": {
-      "package": "com.financetracker.pro",
+      "package": "com.gsvinfotech.expensetracker",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#070A13",
         "foregroundImage": "./assets/android-icon-foreground.png"

@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
 export const LoginScreen = ({ navigation }: { navigation: any }) => {
-  const { login, loginWithDemo, loading } = useAuth()
+  const { login, loginWithGoogle, loginWithDemo, loading } = useAuth()
   const { colors } = useAppTheme()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -33,6 +33,15 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
       await login(email.trim(), password)
     } catch (err: any) {
       setError(err.message || 'Invalid email or password.')
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setError('')
+    try {
+      await loginWithGoogle()
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in with Google.')
     }
   }
 
@@ -131,7 +140,7 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
 
           {/* Google Sign In Official Button */}
           <TouchableOpacity
-            onPress={handleDemoLogin}
+            onPress={handleGoogleLogin}
             disabled={loading}
             activeOpacity={0.8}
             style={[styles.googleBtn, { borderColor: colors.inputBorder }]}
