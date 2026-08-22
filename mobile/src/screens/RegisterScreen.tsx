@@ -25,6 +25,7 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
   const [billingDay, setBillingDay] = useState('1')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const isFormValid = name.trim().length > 0 && email.trim().length > 0 && password.length >= 6
 
   const handleGoogleSignup = async () => {
     setError('')
@@ -166,9 +167,14 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
           </View>
 
           {/* Register Button */}
-          <TouchableOpacity onPress={handleRegister} disabled={loading} activeOpacity={0.8} style={styles.submitBtn}>
+          <TouchableOpacity
+            onPress={handleRegister}
+            disabled={!isFormValid || loading}
+            activeOpacity={0.8}
+            style={[styles.submitBtn, !isFormValid && { opacity: 0.45 }]}
+          >
             <LinearGradient
-              colors={colors.secondaryGradient}
+              colors={isFormValid ? colors.secondaryGradient : ['#374151', '#1F2937']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientBtn}
@@ -176,7 +182,9 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.submitBtnText}>Create Account →</Text>
+                <Text style={[styles.submitBtnText, !isFormValid && { color: colors.textMuted }]}>
+                  Create Account →
+                </Text>
               )}
             </LinearGradient>
           </TouchableOpacity>

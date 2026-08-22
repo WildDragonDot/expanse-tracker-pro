@@ -25,6 +25,7 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
 
+  const isFormValid = email.trim().length > 0 && password.length >= 6
   const passwordInputRef = useRef<TextInput>(null)
 
   const handleLogin = async () => {
@@ -144,12 +145,12 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
           {/* Sign In Primary Button */}
           <TouchableOpacity
             onPress={handleLogin}
-            disabled={isSubmitting || isGoogleSubmitting}
+            disabled={!isFormValid || isSubmitting || isGoogleSubmitting}
             activeOpacity={0.8}
-            style={styles.submitBtn}
+            style={[styles.submitBtn, !isFormValid && { opacity: 0.45 }]}
           >
             <LinearGradient
-              colors={colors.primaryGradient}
+              colors={isFormValid ? colors.primaryGradient : ['#374151', '#1F2937']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientBtn}
@@ -157,7 +158,9 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
               {isSubmitting ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.submitBtnText}>Sign In →</Text>
+                <Text style={[styles.submitBtnText, !isFormValid && { color: colors.textMuted }]}>
+                  Sign In →
+                </Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
