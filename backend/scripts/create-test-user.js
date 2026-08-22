@@ -7,12 +7,12 @@ async function createTestUser() {
   try {
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email: 'test@example.com' }
+      where: { email: 'wikeba2568@alexida.com' }
     })
 
     if (existingUser) {
       console.log('✅ Test user already exists!')
-      console.log('Email: test@example.com')
+      console.log('Email: wikeba2568@alexida.com')
       console.log('Password: password123')
       return
     }

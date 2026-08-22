@@ -1,0 +1,22 @@
+{
+  "name": "expanse-tracker-pro-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack Expense Tracker Pro Application",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "db:generate": "cd backend && npm run db:generate",
+    "db:push": "cd backend && npm run db:push",
+    "db:studio": "cd backend && npm run db:studio",
+    "setup": "cd backend && node setup-database.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

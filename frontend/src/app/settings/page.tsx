@@ -275,8 +275,8 @@ function SettingsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-premium-mesh pt-16 pb-24 text-foreground md:pb-8 md:pl-64 lg:pl-72">
-      <div className="mx-auto w-full max-w-2xl px-3 py-3 sm:px-5 sm:py-5">
+    <div className="min-h-screen bg-background text-foreground pt-16 pb-24 md:pt-6 md:pb-12 md:pl-64 lg:pl-72">
+      <div className="mx-auto w-full max-w-3xl px-3 py-3 sm:px-5 sm:py-5">
         <div className="rounded-[2rem] border border-black/5 bg-white/72 p-3 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/50 dark:shadow-[0_24px_80px_rgba(2,6,23,0.42)]">
           <div className="rounded-[1.7rem] border border-black/5 bg-white/78 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.06)] dark:border-white/8 dark:bg-slate-950/45">
             <div className="flex items-start justify-between gap-3">

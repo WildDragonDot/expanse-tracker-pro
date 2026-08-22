@@ -555,72 +555,51 @@ function ShoppingContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-premium-mesh pt-16 pb-20 md:pt-0 md:pb-8 md:pl-64 lg:pl-72">
-        {/* Desktop Header */}
-        <header className="md:block hidden relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-          <div className="absolute inset-0 opacity-20" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23FFFFFF' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-          }} />
-          <div className="relative max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 lg:py-12">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-white space-y-2">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h1 className="heading-page">Shopping</h1>
-                    <p className="text-sm text-white/80">Organize shopping by categories and track costs</p>
-                  </div>
-                </div>
+      <div className="min-h-screen bg-background text-foreground pt-16 pb-24 md:pt-6 md:pb-12 md:pl-64 lg:pl-72">
+        {/* Desktop Header Banner */}
+        <div className="hidden md:block max-w-7xl mx-auto px-4 md:px-6 lg:px-8 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white shadow-xl shadow-emerald-500/20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+            <div className="relative z-10 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-md">
+                  Purchases
+                </span>
+                <span className="text-xs text-white/80">
+                  {categories.length} categories • {stats.totalItems} items
+                </span>
               </div>
-              <button onClick={toggleTheme} disabled={isTransitioning} className="theme-toggle-btn flex-shrink-0 p-3 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-300">
-                <div className="relative w-6 h-6">
-                  <svg className={`absolute inset-0 w-6 h-6 text-white transition-all duration-300 ${theme === 'light' ? 'opacity-100' : 'opacity-0'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                  <svg className={`absolute inset-0 w-6 h-6 text-white transition-all duration-300 ${theme === 'dark' ? 'opacity-100' : 'opacity-0'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
+              <h1 className="text-2xl lg:text-3xl font-black tracking-tight">Shopping Lists</h1>
+              <p className="text-sm text-white/80 max-w-lg">
+                Organize shopping lists by category, set price estimates, and log actual receipts.
+              </p>
+            </div>
+
+            <div className="relative z-10 flex items-center gap-3">
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-white text-emerald-700 font-bold text-sm shadow-lg hover:bg-white/90 hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add Category</span>
+              </button>
+              <button
+                onClick={() => setShowItemModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-sm backdrop-blur-md transition-all duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add Item</span>
               </button>
             </div>
-          </div>
-        </header>
-
-        {/* Mobile Header */}
-        <div className="md:hidden fixed top-16 left-0 right-0 z-40 px-3 py-2 bg-background/98 backdrop-blur-xl border-b border-border/5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="relative w-8 h-8 rounded-lg shadow-lg">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/30 to-green-500/30 rounded-lg"></div>
-                <div className="relative w-full h-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div>
-                <h1 className="text-base font-bold text-foreground">Shopping</h1>
-                <p className="text-xs text-muted-foreground">{categories.length} categories • {stats.totalItems} items</p>
-              </div>
-            </div>
-            <button onClick={() => setShowCategoryModal(true)} className="relative w-9 h-9 bg-gradient-to-br from-emerald-500 via-green-600 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg hover:shadow-xl active:scale-95 transition-all">
-              <div className="absolute inset-0 bg-white/20 rounded-xl opacity-0 hover:opacity-100 transition-opacity"></div>
-              <svg className="w-4 h-4 relative z-10 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
           </div>
         </div>
 
         {/* Content */}
-        <main className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 mt-16 md:-mt-12 pb-safe relative z-10 space-y-4 md:space-y-6">
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 space-y-4 md:space-y-6">
           {/* Statistics Cards - Premium Enhanced */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-slide-in">
             {/* Categories Card */}

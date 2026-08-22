@@ -942,58 +942,58 @@ button, input, textarea, select {
 -------------------------------------------------- */
 /* Page Headers - Large, Bold, Responsive */
 .heading-page {
-  @apply text-2xl md:text-3xl lg:text-4xl font-bold;
+  @apply text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-foreground;
 }
 
 /* Section Headers - Medium, Semibold */
 .heading-section {
-  @apply text-base md:text-lg font-semibold text-foreground;
+  @apply text-sm sm:text-base md:text-lg font-bold text-foreground tracking-tight;
 }
 
 /* Card Headers - Smaller, Bold */
 .heading-card {
-  @apply text-lg font-bold text-foreground;
+  @apply text-base md:text-lg font-bold text-foreground;
 }
 
 /* Metric Values - Large, Bold, Colorful */
 .metric-value {
-  @apply text-lg md:text-xl font-bold;
+  @apply text-lg sm:text-xl font-bold tracking-tight;
 }
 
 /* Large Metric Values - For main dashboard stats */
 .metric-value-large {
-  @apply text-3xl font-bold;
+  @apply text-2xl sm:text-3xl font-bold tracking-tight;
 }
 
 /* Extra Large Metric Values - For primary balance displays */
 .metric-value-xl {
-  @apply text-4xl md:text-5xl lg:text-6xl font-bold leading-tight;
+  @apply text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight;
 }
 
 /* Currency Symbol Enhancements */
 .currency-symbol {
   @apply inline-block font-bold;
-  font-size: 1.3em;
-  margin-right: 0.1em;
+  font-size: 1em;
+  margin-right: 0.05em;
 }
 
 .currency-symbol-large {
   @apply inline-block font-bold;
-  font-size: 1.4em;
-  margin-right: 0.15em;
+  font-size: 1em;
+  margin-right: 0.05em;
 }
 
 .currency-symbol-xl {
   @apply inline-block font-bold;
-  font-size: 1.5em;
-  margin-right: 0.2em;
+  font-size: 1em;
+  margin-right: 0.05em;
 }
 
 /* Currency Symbol with better contrast */
 .currency-symbol-primary {
   @apply inline-block font-bold text-primary;
-  font-size: 1.4em;
-  margin-right: 0.15em;
+  font-size: 1em;
+  margin-right: 0.05em;
 }
 
 /* Payment Method Icons */

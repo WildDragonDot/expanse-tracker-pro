@@ -578,147 +578,54 @@ function MonthlyBudgetContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-premium-mesh pt-16 pb-20 md:pt-0 md:pb-8 md:pl-64 lg:pl-72">
-        {/* Desktop Header */}
-        <header className="md:block hidden relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-600 via-rose-600 to-red-600" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23FFFFFF' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }}
-          />
-          <div className="relative max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-white space-y-2">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs md:text-sm text-white/80 font-medium bg-white/10 px-2 py-1 rounded-full">
-                        Budget
-                      </span>
-                      <span className="w-1 h-1 bg-white/60 rounded-full"></span>
-                      <span className="text-xs text-white/60 flex items-center gap-1">
-                        <span>Monthly tracking</span>
-                      </span>
-                    </div>
-                    <h1 className="heading-page">Monthly Budget</h1>
-                  </div>
-                </div>
-                <p className="text-sm md:text-base text-white/80 max-w-md">
-                  Set category-wise budgets and track your spending limits
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="p-3 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-300 shadow-lg hover:shadow-xl"
-                  title="Add Budget"
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={() => {
-                    fetchAvailableMonths()
-                    setShowCopyModal(true)
-                  }}
-                  className="p-3 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-300 shadow-lg hover:shadow-xl"
-                  title="Copy from Previous Month"
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={toggleTheme}
-                  disabled={isTransitioning}
-                  aria-label="Toggle theme"
-                  className={`theme-toggle-btn flex-shrink-0 p-3 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-300 shadow-lg hover:shadow-xl ${
-                    isTransitioning ? 'animate-theme-toggle' : ''
-                  } disabled:opacity-50`}
-                >
-                  <div className="relative w-6 h-6">
-                    <svg
-                      className={`absolute inset-0 w-6 h-6 text-white transition-all duration-500 ${
-                        theme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                      />
-                    </svg>
-                    <svg
-                      className={`absolute inset-0 w-6 h-6 text-white transition-all duration-500 ${
-                        theme === 'light' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                      />
-                    </svg>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Mobile Header */}
-        <div className="md:hidden fixed top-16 left-0 right-0 z-40 px-3 py-2 bg-background/98 backdrop-blur-xl border-b border-border/5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="relative w-8 h-8 rounded-lg shadow-lg">
-                <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-pink-400/30 to-rose-500/30 rounded-lg"></div>
-                <div className="relative w-full h-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div>
-                <h1 className="text-base font-bold text-foreground">Monthly Budget</h1>
-                <p className="text-xs text-muted-foreground">
+      <div className="min-h-screen bg-background text-foreground pt-16 pb-24 md:pt-6 md:pb-12 md:pl-64 lg:pl-72">
+        {/* Desktop Header Banner */}
+        <div className="hidden md:block max-w-7xl mx-auto px-4 md:px-6 lg:px-8 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-pink-600 via-rose-600 to-red-600 text-white shadow-xl shadow-rose-500/20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+            <div className="relative z-10 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-md">
+                  Budgets
+                </span>
+                <span className="text-xs text-white/80">
                   {months[(selectedMonth || new Date().getMonth() + 1) - 1]} {selectedYear || new Date().getFullYear()}
-                </p>
+                </span>
               </div>
+              <h1 className="text-2xl lg:text-3xl font-black tracking-tight">Monthly Budget Planning</h1>
+              <p className="text-sm text-white/80 max-w-lg">
+                Set category limits, monitor spending progress, and prevent budget overruns.
+              </p>
             </div>
-            <button 
-              onClick={() => setShowAddModal(true)} 
-              className="relative w-9 h-9 bg-gradient-to-br from-pink-500 via-rose-600 to-red-600 rounded-xl flex items-center justify-center text-white shadow-lg hover:shadow-xl active:scale-95 transition-all"
-            >
-              <div className="absolute inset-0 bg-white/20 rounded-xl opacity-0 hover:opacity-100 transition-opacity"></div>
-              <svg className="w-4 h-4 relative z-10 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+
+            <div className="relative z-10 flex items-center gap-3">
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-white text-rose-700 font-bold text-sm shadow-lg hover:bg-white/90 hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Set Budget</span>
+              </button>
+              <button
+                onClick={() => {
+                  fetchAvailableMonths()
+                  setShowCopyModal(true)
+                }}
+                className="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-sm backdrop-blur-md transition-all duration-200 flex items-center gap-2"
+                title="Copy from previous month"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <span>Copy Previous</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <main className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 mt-16 md:-mt-12 pb-safe relative z-10 space-y-4 md:space-y-6">
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 space-y-4 md:space-y-6">
 
           {/* Month/Year Selector & Actions */}
           <div className="relative glass-premium rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-border/20 shadow-premium hover:shadow-premium-lg transition-all duration-300 overflow-hidden group">

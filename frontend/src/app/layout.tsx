@@ -1,6 +1,5 @@
-'use client'
-
 import type { ReactNode } from 'react'
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -11,6 +10,9 @@ import Analytics from '@/components/Analytics'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import PWALoader from '@/components/PWALoader'
 import { siteConfig, generateWebAppStructuredData, generateOrganizationStructuredData } from '@/lib/seo'
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-heading' })
 
 export default function RootLayout({
   children,
@@ -202,7 +204,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased">
+      <body className={`${inter.variable} ${jakarta.variable} font-sans antialiased selection:bg-indigo-500 selection:text-white`}>
         <Analytics />
         <PWALoader />
         <ErrorBoundary>

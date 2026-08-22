@@ -522,127 +522,42 @@ function AnalyticsContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-premium-mesh pt-16 pb-20 md:pt-0 md:pb-8 md:pl-64 lg:pl-72">
-        {/* Desktop Header */}
-        <header className="md:block hidden relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23FFFFFF' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }}
-          />
-          <div className="relative max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-white space-y-2">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs md:text-sm text-white/80 font-medium bg-white/10 px-2 py-1 rounded-full">
-                        Insights
-                      </span>
-                      <span className="w-1 h-1 bg-white/60 rounded-full"></span>
-                      <span className="text-xs text-white/60 flex items-center gap-1">
-                        <span>Health Score:</span>
-                        <span className="currency-symbol-large text-white/80">{analyticsData.healthScore}%</span>
-                      </span>
-                    </div>
-                    <h1 className="heading-page">Financial Analytics</h1>
-                  </div>
-                </div>
-                <p className="text-sm md:text-base text-white/80 max-w-md">
-                  Comprehensive insights and detailed analysis of your financial data
-                </p>
+      <div className="min-h-screen bg-background text-foreground pt-16 pb-24 md:pt-6 md:pb-12 md:pl-64 lg:pl-72">
+        {/* Desktop Header Banner */}
+        <div className="hidden md:block max-w-7xl mx-auto px-4 md:px-6 lg:px-8 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+            <div className="relative z-10 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-md">
+                  Analytics & Insights
+                </span>
+                <span className="text-xs text-white/80">
+                  Health Score: {analyticsData.healthScore}% • {expenses.length + incomes.length} total records
+                </span>
               </div>
-
-              <div className="flex items-center gap-3">
-                {/* Export & Share Actions */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleExport('excel')}
-                    disabled={exportLoading}
-                    className="p-3 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50"
-                    title="Export to Excel"
-                  >
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    className="p-3 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-300 shadow-lg hover:shadow-xl"
-                    title="Share Report"
-                  >
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                    </svg>
-                  </button>
-                </div>
-
-                <button
-                  onClick={toggleTheme}
-                  disabled={isTransitioning}
-                  aria-label="Toggle theme"
-                  className={`theme-toggle-btn flex-shrink-0 p-3 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-300 shadow-lg hover:shadow-xl ${
-                    isTransitioning ? 'animate-theme-toggle' : ''
-                  } disabled:opacity-50`}
-                >
-                  <div className="relative w-6 h-6">
-                    <svg
-                      className={`absolute inset-0 w-6 h-6 text-white transition-all duration-300 ${
-                        theme === 'light' ? 'opacity-100 rotate-0' : 'opacity-0 rotate-180'
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                    <svg
-                      className={`absolute inset-0 w-6 h-6 text-white transition-all duration-300 ${
-                        theme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-180'
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Mobile Simple Header */}
-        <div className="md:hidden fixed top-16 left-0 right-0 z-40 px-3 py-2 bg-background/98 backdrop-blur-xl border-b border-border/5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-base font-bold text-foreground">Analytics</h1>
-              <p className="text-xs text-muted-foreground">
-                Health Score: {analyticsData.healthScore}% • {expenses.length + incomes.length} transactions
+              <h1 className="text-2xl lg:text-3xl font-black tracking-tight">Financial Analytics</h1>
+              <p className="text-sm text-white/80 max-w-lg">
+                Deep dive into cash flow trends, category distributions, bank breakdowns, and forecasts.
               </p>
             </div>
-            <button
-              onClick={() => handleExport('excel')}
-              disabled={exportLoading}
-              className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-md disabled:opacity-50"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </button>
+
+            <div className="relative z-10 flex items-center gap-3">
+              <button
+                onClick={() => handleExport('excel')}
+                disabled={exportLoading}
+                className="px-4 py-2.5 rounded-xl bg-white text-indigo-700 font-bold text-sm shadow-lg hover:bg-white/90 hover:scale-105 transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Export Excel</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <main className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 mt-16 md:-mt-12 pb-safe relative z-10 space-y-4 md:space-y-8">
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 space-y-4 md:space-y-6">
           {/* Key Metrics Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-slide-in">
             {/* Financial Health */}
