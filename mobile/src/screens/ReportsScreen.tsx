@@ -186,10 +186,10 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         {/* Date Filter Pills */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsRow}>
           {[
-            { id: 'month', label: 'This Month' },
-            { id: 'quarter', label: 'Last 90 Days' },
-            { id: 'ytd', label: `YTD ${new Date().getFullYear()}` },
-            { id: 'custom', label: dateRange === 'custom' ? `${customFrom.slice(5)} to ${customTo.slice(5)}` : '📅 Custom Range' },
+            { id: 'month', label: 'This Month', isCustom: false },
+            { id: 'quarter', label: 'Last 90 Days', isCustom: false },
+            { id: 'ytd', label: `YTD ${new Date().getFullYear()}`, isCustom: false },
+            { id: 'custom', label: dateRange === 'custom' ? `${customFrom.slice(5)} - ${customTo.slice(5)}` : 'Custom Range', isCustom: true },
           ].map((pill) => (
             <TouchableOpacity
               key={pill.id}
@@ -208,9 +208,13 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                 {
                   backgroundColor: dateRange === pill.id ? '#8B5CF6' : colors.surfaceGlass,
                   borderColor: dateRange === pill.id ? '#8B5CF6' : colors.surfaceGlassBorder,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
                 },
               ]}
             >
+              {pill.isCustom && <Calendar size={13} color={dateRange === pill.id ? '#FFFFFF' : '#8B5CF6'} />}
               <Text
                 style={[
                   styles.filterPillText,
@@ -473,7 +477,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 60 },
-  filterPillsRow: { flexDirection: 'row', gap: 8, paddingBottom: 12 },
+  filterPillsRow: { flexDirection: 'row', gap: 8, paddingBottom: 12, paddingRight: 24 },
   filterPill: {
     paddingVertical: 8,
     paddingHorizontal: 14,
