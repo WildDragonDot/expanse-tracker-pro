@@ -419,14 +419,18 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
             encoding: FileSystem.EncodingType.Base64,
           })
 
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: 'application/pdf',
-              dialogTitle: `Print / Save Statement: ${filename}`,
-              UTI: 'com.adobe.pdf',
-            })
-          } else {
+          // Open native System Print & PDF Spooler directly
+          try {
             await Print.printAsync({ uri: fileUri })
+          } catch (printErr: any) {
+            console.warn('Direct print fallback to sharing:', printErr)
+            if (await Sharing.isAvailableAsync()) {
+              await Sharing.shareAsync(fileUri, {
+                mimeType: 'application/pdf',
+                dialogTitle: `Download / Save Statement: ${filename}`,
+                UTI: 'com.adobe.pdf',
+              })
+            }
           }
         } else {
           Alert.alert('Notice', 'Storage directory not accessible for PDF.')
