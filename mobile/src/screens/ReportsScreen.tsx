@@ -195,12 +195,10 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
               key={pill.id}
               activeOpacity={0.7}
               onPress={() => {
+                setDateRange(pill.id as any)
                 if (pill.id === 'custom') {
                   setTempFrom(customFrom)
                   setTempTo(customTo)
-                  setShowCustomModal(true)
-                } else {
-                  setDateRange(pill.id as any)
                 }
               }}
               style={[
@@ -228,28 +226,77 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
           ))}
         </View>
 
-        {/* Custom Range Active Banner */}
+        {/* Custom Range Inline Panel */}
         {dateRange === 'custom' && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => {
-              setTempFrom(customFrom)
-              setTempTo(customTo)
-              setShowCustomModal(true)
-            }}
-            style={[styles.customBanner, { backgroundColor: 'rgba(139, 92, 246, 0.12)', borderColor: 'rgba(139, 92, 246, 0.3)' }]}
-          >
-            <View style={styles.customBannerLeft}>
-              <CalendarDays color="#8B5CF6" size={18} />
-              <View>
-                <Text style={[styles.customBannerTitle, { color: colors.text }]}>Selected Date Range</Text>
-                <Text style={[styles.customBannerSub, { color: colors.textSecondary }]}>
-                  {customFrom}  ➔  {customTo}
-                </Text>
+          <View style={[styles.customInlineCard, { backgroundColor: colors.surfaceGlass, borderColor: 'rgba(139, 92, 246, 0.35)' }]}>
+            <View style={styles.customInlineHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <CalendarDays color="#8B5CF6" size={16} />
+                <Text style={[styles.customInlineTitle, { color: colors.text }]}>Custom Date Window</Text>
               </View>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{customFrom} to {customTo}</Text>
             </View>
-            <Text style={styles.customBannerChange}>Change</Text>
-          </TouchableOpacity>
+
+            {/* Quick Presets */}
+            <View style={styles.inlinePresetRow}>
+              {[
+                { label: '7 Days', days: 7 },
+                { label: '30 Days', days: 30 },
+                { label: '60 Days', days: 60 },
+                { label: '90 Days', days: 90 },
+              ].map((p, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    const d = new Date()
+                    d.setDate(d.getDate() - p.days)
+                    const fromStr = d.toISOString().split('T')[0]
+                    const toStr = new Date().toISOString().split('T')[0]
+                    setCustomFrom(fromStr)
+                    setCustomTo(toStr)
+                    setTempFrom(fromStr)
+                    setTempTo(toStr)
+                  }}
+                  style={[styles.inlinePresetBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: colors.surfaceGlassBorder }]}
+                >
+                  <Text style={[styles.inlinePresetText, { color: colors.text }]}>{p.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Input Row */}
+            <View style={styles.inlineInputRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inlineLabel, { color: colors.textSecondary }]}>From (YYYY-MM-DD)</Text>
+                <TextInput
+                  value={tempFrom}
+                  onChangeText={setTempFrom}
+                  style={[styles.inlineDateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inlineLabel, { color: colors.textSecondary }]}>To (YYYY-MM-DD)</Text>
+                <TextInput
+                  value={tempTo}
+                  onChangeText={setTempTo}
+                  style={[styles.inlineDateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                />
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setCustomFrom(tempFrom)
+                  setCustomTo(tempTo)
+                }}
+                style={styles.inlineApplyBtn}
+              >
+                <Check color="#FFFFFF" size={16} />
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
         {loading ? (
@@ -493,19 +540,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   filterPillText: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  customBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 14,
+  customInlineCard: {
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 1,
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  customBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  customBannerTitle: { fontSize: 13, fontWeight: '700' },
-  customBannerSub: { fontSize: 11, marginTop: 2 },
-  customBannerChange: { color: '#8B5CF6', fontSize: 12, fontWeight: '800' },
+  customInlineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  customInlineTitle: { fontSize: 13, fontWeight: '800' },
+  inlinePresetRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  inlinePresetBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  inlinePresetText: { fontSize: 11, fontWeight: '700' },
+  inlineInputRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
+  inlineLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4 },
+  inlineDateInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  inlineApplyBtn: {
+    width: 38,
+    height: 38,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   card: { padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 12 },
   cardSubText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
   balanceAmount: { fontSize: 26, fontWeight: '900', marginBottom: 10 },
