@@ -184,16 +184,16 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         {/* Date Filter Pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsRow}>
+        <View style={styles.filterPillsRow}>
           {[
-            { id: 'month', label: 'This Month', isCustom: false },
-            { id: 'quarter', label: 'Last 90 Days', isCustom: false },
-            { id: 'ytd', label: `YTD ${new Date().getFullYear()}`, isCustom: false },
-            { id: 'custom', label: dateRange === 'custom' ? `${customFrom.slice(5)} - ${customTo.slice(5)}` : 'Custom Range', isCustom: true },
+            { id: 'month', label: 'Month', isCustom: false },
+            { id: 'quarter', label: '90 Days', isCustom: false },
+            { id: 'ytd', label: 'YTD', isCustom: false },
+            { id: 'custom', label: dateRange === 'custom' ? `${customFrom.slice(5)}...` : 'Custom', isCustom: true },
           ].map((pill) => (
             <TouchableOpacity
               key={pill.id}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
               onPress={() => {
                 if (pill.id === 'custom') {
                   setTempFrom(customFrom)
@@ -210,11 +210,12 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                   borderColor: dateRange === pill.id ? '#8B5CF6' : colors.surfaceGlassBorder,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 6,
+                  justifyContent: 'center',
+                  gap: 4,
                 },
               ]}
             >
-              {pill.isCustom && <Calendar size={13} color={dateRange === pill.id ? '#FFFFFF' : '#8B5CF6'} />}
+              {pill.isCustom && <Calendar size={12} color={dateRange === pill.id ? '#FFFFFF' : '#8B5CF6'} />}
               <Text
                 style={[
                   styles.filterPillText,
@@ -225,7 +226,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         {/* Custom Range Active Banner */}
         {dateRange === 'custom' && (
@@ -477,14 +478,15 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 60 },
-  filterPillsRow: { flexDirection: 'row', gap: 8, paddingBottom: 12, paddingRight: 24 },
+  filterPillsRow: { flexDirection: 'row', gap: 6, paddingBottom: 12 },
   filterPill: {
+    flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
+    paddingHorizontal: 6,
+    borderRadius: 14,
     borderWidth: 1,
   },
-  filterPillText: { fontSize: 12, fontWeight: '700' },
+  filterPillText: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   customBanner: {
     flexDirection: 'row',
     alignItems: 'center',
