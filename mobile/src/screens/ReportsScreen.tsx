@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -24,6 +24,10 @@ import {
   CalendarDays,
   X,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  Briefcase,
+  Layers,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -32,17 +36,98 @@ import { useAppTheme } from '../context/ThemeContext'
 import { ReportsSkeleton } from '../components/SkeletonLoader'
 import { api } from '../services/api'
 
+interface CycleInfo {
+  index: number
+  label: string
+  subtitle: string
+  startDate: string
+  endDate: string
+  isCurrent: boolean
+}
+
+function calculateBillingCycles(cycleDay = 1, count = 12): CycleInfo[] {
+  const cycles: CycleInfo[] = []
+  const today = new Date()
+
+  let curYear = today.getFullYear()
+  let curMonth = today.getMonth() // 0-11
+
+  // If today's day of month is less than cycleDay, current cycle began last month
+  if (today.getDate() < cycleDay) {
+    curMonth -= 1
+    if (curMonth < 0) {
+      curMonth = 11
+      curYear -= 1
+    }
+  }
+
+  for (let i = 0; i < count; i++) {
+    let cycleStartMonth = curMonth - i
+    let cycleStartYear = curYear
+    while (cycleStartMonth < 0) {
+      cycleStartMonth += 12
+      cycleStartYear -= 1
+    }
+
+    const startDateObj = new Date(cycleStartYear, cycleStartMonth, cycleDay)
+
+    let cycleEndMonth = cycleStartMonth + 1
+    let cycleEndYear = cycleStartYear
+    if (cycleEndMonth > 11) {
+      cycleEndMonth = 0
+      cycleEndYear += 1
+    }
+    const nextCycleStartObj = new Date(cycleEndYear, cycleEndMonth, cycleDay)
+    const endDateObj = new Date(nextCycleStartObj.getTime() - 24 * 60 * 60 * 1000)
+
+    const startStr = startDateObj.toISOString().split('T')[0]
+    const endStr = endDateObj.toISOString().split('T')[0]
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const startMonthName = monthNames[startDateObj.getMonth()]
+
+    let label = ''
+    if (i === 0) {
+      label = `Current Cycle (${startMonthName} ${cycleDay})`
+    } else if (i === 1) {
+      label = `Last Cycle (${startMonthName} ${cycleDay})`
+    } else {
+      label = `${startMonthName} ${startDateObj.getFullYear()} Cycle`
+    }
+
+    const subtitle = `${startStr} to ${endStr}`
+
+    cycles.push({
+      index: i,
+      label,
+      subtitle,
+      startDate: startStr,
+      endDate: endStr,
+      isCurrent: i === 0,
+    })
+  }
+
+  return cycles
+}
+
 export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
   const { user } = useAuth()
   const { colors } = useAppTheme()
 
-  const [dateRange, setDateRange] = useState<'month' | 'quarter' | 'ytd' | 'custom'>('month')
-  
+  const [filterType, setFilterType] = useState<'cycle' | 'month' | 'quarter' | 'ytd' | 'custom'>('cycle')
+
+  // Billing Cycles computation
+  const billingDay = (user as any)?.billingCycleStartDay || 1
+  const availableCycles = useMemo(() => calculateBillingCycles(billingDay, 12), [billingDay])
+  const [selectedCycleIndex, setSelectedCycleIndex] = useState(0)
+  const currentCycle = availableCycles[selectedCycleIndex] || availableCycles[0]
+  const [showCycleModal, setShowCycleModal] = useState(false)
+
   // Custom Date Range State (YYYY-MM-DD)
   const now = new Date()
   const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
   const defaultEndDate = now.toISOString().split('T')[0]
-  
+
   const [customFrom, setCustomFrom] = useState(defaultStartDate)
   const [customTo, setCustomTo] = useState(defaultEndDate)
   const [showCustomModal, setShowCustomModal] = useState(false)
@@ -63,16 +148,50 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
 
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'
 
+  const activeDateRange = useMemo(() => {
+    if (filterType === 'cycle') {
+      return { from: currentCycle.startDate, to: currentCycle.endDate, label: currentCycle.label }
+    }
+    if (filterType === 'custom') {
+      return { from: customFrom, to: customTo, label: `${customFrom} to ${customTo}` }
+    }
+    if (filterType === 'quarter') {
+      const d = new Date()
+      d.setDate(d.getDate() - 90)
+      return { from: d.toISOString().split('T')[0], to: defaultEndDate, label: 'Last 90 Days' }
+    }
+    if (filterType === 'ytd') {
+      return { from: new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0], to: defaultEndDate, label: `YTD ${now.getFullYear()}` }
+    }
+    return { from: defaultStartDate, to: defaultEndDate, label: 'This Month' }
+  }, [filterType, currentCycle, customFrom, customTo])
+
   const loadReport = async () => {
     try {
-      const data = await api.getRangeSummary(
-        dateRange,
-        dateRange === 'custom' ? customFrom : undefined,
-        dateRange === 'custom' ? customTo : undefined
-      )
+      let rangeParam: 'month' | 'quarter' | 'ytd' | 'custom' = 'month'
+      let fromParam: string | undefined
+      let toParam: string | undefined
+
+      if (filterType === 'cycle' || filterType === 'custom') {
+        rangeParam = 'custom'
+        fromParam = activeDateRange.from
+        toParam = activeDateRange.to
+      } else {
+        rangeParam = filterType
+      }
+
+      const data = await api.getRangeSummary(rangeParam, fromParam, toParam)
       setReportData(data)
     } catch {
-      setReportData({ totalIncome: 0, totalExpenses: 0, savings: 0, savingsRate: 0, avgDailySpend: 0, transactionsCount: 0, topCategories: [] })
+      setReportData({
+        totalIncome: 0,
+        totalExpenses: 0,
+        savings: 0,
+        savingsRate: 0,
+        avgDailySpend: 0,
+        transactionsCount: 0,
+        topCategories: [],
+      })
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -82,7 +201,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
   useEffect(() => {
     setLoading(true)
     loadReport()
-  }, [dateRange, customFrom, customTo])
+  }, [filterType, selectedCycleIndex, customFrom, customTo])
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -91,8 +210,8 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
 
   const handleShareReport = async () => {
     try {
-      const rangeLabel = dateRange === 'custom' ? `${customFrom} to ${customTo}` : dateRange.toUpperCase()
-      const summaryText = `📊 FinanceTracker Pro - Financial Statement (${rangeLabel})\n` +
+      const summaryText = `📊 FinanceTracker Pro - Statement (${activeDateRange.label})\n` +
+        `• Period: ${activeDateRange.from} to ${activeDateRange.to}\n` +
         `• Total Inflow: ${currencySymbol}${reportData.totalIncome.toLocaleString()}\n` +
         `• Total Outflow: ${currencySymbol}${reportData.totalExpenses.toLocaleString()}\n` +
         `• Net Savings: ${currencySymbol}${reportData.savings.toLocaleString()} (${reportData.savingsRate}%)\n` +
@@ -103,7 +222,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         message: summaryText,
         title: 'Financial Statement Report',
       })
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Unable to share report.')
     }
   }
@@ -113,24 +232,10 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
   const handleEmailPDFReport = async () => {
     setSendingEmail(true)
     try {
-      let dateFrom = defaultStartDate
-      let dateTo = defaultEndDate
-
-      if (dateRange === 'custom') {
-        dateFrom = customFrom
-        dateTo = customTo
-      } else if (dateRange === 'quarter') {
-        const d = new Date()
-        d.setDate(d.getDate() - 90)
-        dateFrom = d.toISOString().split('T')[0]
-      } else if (dateRange === 'ytd') {
-        dateFrom = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
-      }
-
       const res = await api.sendEmailReport({
-        dateFrom,
-        dateTo,
-        type: dateRange === 'month' ? 'monthly' : 'custom',
+        dateFrom: activeDateRange.from,
+        dateTo: activeDateRange.to,
+        type: filterType === 'cycle' ? 'cycle' : filterType === 'month' ? 'monthly' : 'custom',
         includeBillAttachments: true,
       })
 
@@ -157,9 +262,11 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
     const csv = rows.map((r) => r.join(',')).join('\n')
 
     try {
-      const fileLabel = dateRange === 'custom' ? `${customFrom}_${customTo}` : dateRange
-      await Share.share({ message: csv, title: `Statement-${fileLabel}.csv` })
-    } catch (e) {
+      await Share.share({
+        message: csv,
+        title: `Statement-${activeDateRange.from}_${activeDateRange.to}.csv`,
+      })
+    } catch {
       Alert.alert('Error', 'Unable to export CSV.')
     }
   }
@@ -167,7 +274,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
   const applyCustomRange = () => {
     setCustomFrom(tempFrom)
     setCustomTo(tempTo)
-    setDateRange('custom')
+    setFilterType('custom')
     setShowCustomModal(false)
   }
 
@@ -183,120 +290,132 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* Date Filter Pills */}
-        <View style={styles.filterPillsRow}>
+        {/* Filter Pills Navigation */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScrollRow}
+        >
           {[
-            { id: 'month', label: 'Month', isCustom: false },
-            { id: 'quarter', label: '90 Days', isCustom: false },
-            { id: 'ytd', label: 'YTD', isCustom: false },
-            { id: 'custom', label: dateRange === 'custom' ? `${customFrom.slice(5)}...` : 'Custom', isCustom: true },
-          ].map((pill) => (
-            <TouchableOpacity
-              key={pill.id}
-              activeOpacity={0.7}
-              onPress={() => {
-                setDateRange(pill.id as any)
-                if (pill.id === 'custom') {
-                  setTempFrom(customFrom)
-                  setTempTo(customTo)
-                }
-              }}
-              style={[
-                styles.filterPill,
-                {
-                  backgroundColor: dateRange === pill.id ? '#8B5CF6' : colors.surfaceGlass,
-                  borderColor: dateRange === pill.id ? '#8B5CF6' : colors.surfaceGlassBorder,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
-                },
-              ]}
-            >
-              {pill.isCustom && <Calendar size={12} color={dateRange === pill.id ? '#FFFFFF' : '#8B5CF6'} />}
-              <Text
+            { id: 'cycle', label: `Cycle (Day ${billingDay})`, icon: Briefcase },
+            { id: 'month', label: 'Month', icon: null },
+            { id: 'quarter', label: '90 Days', icon: null },
+            { id: 'ytd', label: 'YTD', icon: null },
+            { id: 'custom', label: filterType === 'custom' ? `${customFrom.slice(5)} to ${customTo.slice(5)}` : 'Custom Range', icon: Calendar },
+          ].map((pill) => {
+            const Icon = pill.icon
+            const isSelected = filterType === pill.id
+            return (
+              <TouchableOpacity
+                key={pill.id}
+                activeOpacity={0.7}
+                onPress={() => {
+                  if (pill.id === 'custom') {
+                    setTempFrom(customFrom)
+                    setTempTo(customTo)
+                    setShowCustomModal(true)
+                  } else {
+                    setFilterType(pill.id as any)
+                  }
+                }}
                 style={[
-                  styles.filterPillText,
-                  { color: dateRange === pill.id ? '#FFFFFF' : colors.textSecondary },
+                  styles.filterPill,
+                  {
+                    backgroundColor: isSelected ? '#8B5CF6' : colors.surfaceGlass,
+                    borderColor: isSelected ? '#8B5CF6' : colors.surfaceGlassBorder,
+                  },
                 ]}
               >
-                {pill.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Custom Range Inline Panel */}
-        {dateRange === 'custom' && (
-          <View style={[styles.customInlineCard, { backgroundColor: colors.surfaceGlass, borderColor: 'rgba(139, 92, 246, 0.35)' }]}>
-            <View style={styles.customInlineHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <CalendarDays color="#8B5CF6" size={16} />
-                <Text style={[styles.customInlineTitle, { color: colors.text }]}>Custom Date Window</Text>
-              </View>
-              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{customFrom} to {customTo}</Text>
-            </View>
-
-            {/* Quick Presets */}
-            <View style={styles.inlinePresetRow}>
-              {[
-                { label: '7 Days', days: 7 },
-                { label: '30 Days', days: 30 },
-                { label: '60 Days', days: 60 },
-                { label: '90 Days', days: 90 },
-              ].map((p, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    const d = new Date()
-                    d.setDate(d.getDate() - p.days)
-                    const fromStr = d.toISOString().split('T')[0]
-                    const toStr = new Date().toISOString().split('T')[0]
-                    setCustomFrom(fromStr)
-                    setCustomTo(toStr)
-                    setTempFrom(fromStr)
-                    setTempTo(toStr)
-                  }}
-                  style={[styles.inlinePresetBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: colors.surfaceGlassBorder }]}
+                {Icon && <Icon size={13} color={isSelected ? '#FFFFFF' : '#8B5CF6'} />}
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                  ]}
                 >
-                  <Text style={[styles.inlinePresetText, { color: colors.text }]}>{p.label}</Text>
-                </TouchableOpacity>
-              ))}
+                  {pill.label}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+
+        {/* Salary / Billing Cycle Switcher Bar */}
+        {filterType === 'cycle' && (
+          <View style={[styles.cycleCard, { backgroundColor: colors.surfaceGlass, borderColor: 'rgba(139, 92, 246, 0.3)' }]}>
+            <View style={styles.cycleHeader}>
+              <View style={styles.cycleTitleRow}>
+                <Briefcase color="#8B5CF6" size={15} />
+                <Text style={[styles.cycleTitle, { color: colors.text }]}>Salary / Billing Cycle</Text>
+                {currentCycle.isCurrent && (
+                  <View style={styles.liveTag}>
+                    <Text style={styles.liveTagText}>ACTIVE</Text>
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowCycleModal(true)}
+                style={styles.allCyclesLink}
+              >
+                <Layers color="#8B5CF6" size={13} />
+                <Text style={styles.allCyclesLinkText}>All Cycles ({availableCycles.length})</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Input Row */}
-            <View style={styles.inlineInputRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.inlineLabel, { color: colors.textSecondary }]}>From (YYYY-MM-DD)</Text>
-                <TextInput
-                  value={tempFrom}
-                  onChangeText={setTempFrom}
-                  style={[styles.inlineDateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
-                />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.inlineLabel, { color: colors.textSecondary }]}>To (YYYY-MM-DD)</Text>
-                <TextInput
-                  value={tempTo}
-                  onChangeText={setTempTo}
-                  style={[styles.inlineDateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
-                />
-              </View>
+            {/* Previous / Next Stepper */}
+            <View style={styles.stepperRow}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                disabled={selectedCycleIndex >= availableCycles.length - 1}
+                onPress={() => setSelectedCycleIndex((prev) => Math.min(availableCycles.length - 1, prev + 1))}
+                style={[styles.stepperBtn, { opacity: selectedCycleIndex >= availableCycles.length - 1 ? 0.3 : 1 }]}
+              >
+                <ChevronLeft color={colors.text} size={18} />
+              </TouchableOpacity>
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => {
-                  setCustomFrom(tempFrom)
-                  setCustomTo(tempTo)
-                }}
-                style={styles.inlineApplyBtn}
+                onPress={() => setShowCycleModal(true)}
+                style={styles.cycleCenterInfo}
               >
-                <Check color="#FFFFFF" size={16} />
+                <Text style={[styles.cycleName, { color: colors.text }]}>{currentCycle.label}</Text>
+                <Text style={[styles.cycleDates, { color: colors.textSecondary }]}>{currentCycle.subtitle}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                disabled={selectedCycleIndex <= 0}
+                onPress={() => setSelectedCycleIndex((prev) => Math.max(0, prev - 1))}
+                style={[styles.stepperBtn, { opacity: selectedCycleIndex <= 0 ? 0.3 : 1 }]}
+              >
+                <ChevronRight color={colors.text} size={18} />
               </TouchableOpacity>
             </View>
           </View>
+        )}
+
+        {/* Custom Range Active Banner */}
+        {filterType === 'custom' && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              setTempFrom(customFrom)
+              setTempTo(customTo)
+              setShowCustomModal(true)
+            }}
+            style={[styles.customBanner, { backgroundColor: 'rgba(139, 92, 246, 0.12)', borderColor: 'rgba(139, 92, 246, 0.3)' }]}
+          >
+            <View style={styles.customBannerLeft}>
+              <CalendarDays color="#8B5CF6" size={18} />
+              <View>
+                <Text style={[styles.customBannerTitle, { color: colors.text }]}>Selected Custom Window</Text>
+                <Text style={[styles.customBannerSub, { color: colors.textSecondary }]}>
+                  {customFrom}  ➔  {customTo}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.customBannerChange}>Edit</Text>
+          </TouchableOpacity>
         )}
 
         {loading ? (
@@ -444,6 +563,70 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         )}
       </ScrollView>
 
+      {/* Salary Cycle Selection Modal */}
+      <Modal
+        visible={showCycleModal}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setShowCycleModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Briefcase color="#8B5CF6" size={20} />
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Salary Cycle</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowCycleModal(false)} style={styles.modalCloseBtn}>
+                <X color={colors.textSecondary} size={18} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.cycleModalDesc, { color: colors.textSecondary }]}>
+              Your monthly salary cycle resets on <Text style={{ color: '#8B5CF6', fontWeight: '800' }}>Day {billingDay}</Text> of each month. Choose any cycle to view its real financial report.
+            </Text>
+
+            <ScrollView style={{ maxHeight: 360 }}>
+              {availableCycles.map((cycle) => {
+                const isSelected = selectedCycleIndex === cycle.index
+                return (
+                  <TouchableOpacity
+                    key={cycle.index}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setSelectedCycleIndex(cycle.index)
+                      setFilterType('cycle')
+                      setShowCycleModal(false)
+                    }}
+                    style={[
+                      styles.cycleListItem,
+                      {
+                        backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.15)' : colors.surfaceGlass,
+                        borderColor: isSelected ? '#8B5CF6' : colors.surfaceGlassBorder,
+                      },
+                    ]}
+                  >
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.cycleListLabel, { color: colors.text }]}>{cycle.label}</Text>
+                        {cycle.isCurrent && (
+                          <View style={styles.liveTag}>
+                            <Text style={styles.liveTagText}>ACTIVE</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.cycleListDates, { color: colors.textSecondary }]}>{cycle.subtitle}</Text>
+                    </View>
+                    {isSelected && <Check color="#8B5CF6" size={18} />}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Custom Date Range Selection Modal */}
       <Modal
         visible={showCustomModal}
@@ -457,7 +640,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Calendar color="#8B5CF6" size={20} />
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Custom Date Range</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Custom Date Window</Text>
               </View>
               <TouchableOpacity onPress={() => setShowCustomModal(false)} style={styles.modalCloseBtn}>
                 <X color={colors.textSecondary} size={18} />
@@ -468,9 +651,10 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
             <Text style={[styles.presetTitle, { color: colors.textSecondary }]}>Quick Presets</Text>
             <View style={styles.presetRow}>
               {[
-                { label: 'Last 7 Days', days: 7 },
-                { label: 'Last 30 Days', days: 30 },
-                { label: 'Last 60 Days', days: 60 },
+                { label: '7 Days', days: 7 },
+                { label: '30 Days', days: 30 },
+                { label: '60 Days', days: 60 },
+                { label: '90 Days', days: 90 },
               ].map((preset, idx) => (
                 <TouchableOpacity
                   key={idx}
@@ -531,55 +715,81 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 60 },
-  filterPillsRow: { flexDirection: 'row', gap: 6, paddingBottom: 12 },
+  filterScrollRow: { flexDirection: 'row', gap: 6, paddingBottom: 12, paddingRight: 16 },
   filterPill: {
-    flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingHorizontal: 12,
     borderRadius: 14,
     borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
-  filterPillText: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  customInlineCard: {
+  filterPillText: { fontSize: 11, fontWeight: '700' },
+  cycleCard: {
     padding: 14,
     borderRadius: 18,
     borderWidth: 1,
     marginBottom: 14,
   },
-  customInlineHeader: {
+  cycleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
-  customInlineTitle: { fontSize: 13, fontWeight: '800' },
-  inlinePresetRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
-  inlinePresetBtn: {
-    flex: 1,
-    paddingVertical: 6,
+  cycleTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cycleTitle: { fontSize: 13, fontWeight: '800' },
+  liveTag: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  liveTagText: { color: '#10B981', fontSize: 9, fontWeight: '800' },
+  allCyclesLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  allCyclesLinkText: { color: '#8B5CF6', fontSize: 11, fontWeight: '700' },
+  stepperRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
+    justifyContent: 'space-between',
   },
-  inlinePresetText: { fontSize: 11, fontWeight: '700' },
-  inlineInputRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
-  inlineLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4 },
-  inlineDateInput: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  inlineApplyBtn: {
-    width: 38,
-    height: 38,
-    backgroundColor: '#8B5CF6',
-    borderRadius: 10,
+  stepperBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  cycleCenterInfo: { alignItems: 'center', flex: 1, paddingHorizontal: 8 },
+  cycleName: { fontSize: 13, fontWeight: '800', marginBottom: 2 },
+  cycleDates: { fontSize: 11, fontWeight: '600' },
+  cycleModalDesc: { fontSize: 12, lineHeight: 18, marginBottom: 14 },
+  cycleListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  cycleListLabel: { fontSize: 13, fontWeight: '700' },
+  cycleListDates: { fontSize: 11, marginTop: 2 },
+  customBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  customBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  customBannerTitle: { fontSize: 13, fontWeight: '700' },
+  customBannerSub: { fontSize: 11, marginTop: 2 },
+  customBannerChange: { color: '#8B5CF6', fontSize: 12, fontWeight: '800' },
   card: { padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 12 },
   cardSubText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
   balanceAmount: { fontSize: 26, fontWeight: '900', marginBottom: 10 },
