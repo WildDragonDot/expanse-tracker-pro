@@ -37,7 +37,7 @@ if [ "$(hostname -I 2>/dev/null | grep -o '172.31.15.205' || true)" == "172.31.1
     cd "$REMOTE_DIR/backend"
     npm install
     npx prisma generate
-    npx prisma db push
+    npx prisma db push --accept-data-loss
     npm run build
 
     echo -e "\n${CYAN}🎨 3/4 Building Frontend (Next.js Web App)...${NC}"
@@ -77,7 +77,7 @@ ssh -o StrictHostKeyChecking=no -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" bash -s 
     cd /home/ubuntu/expanse-tracker-pro/backend
     npm install --silent
     npx prisma generate
-    npx prisma db push
+    npx prisma db push --accept-data-loss
     npm run build
     
     echo "  -> Building Frontend..."
