@@ -1142,11 +1142,17 @@ export function computeHealthScore(summary: {
     score = Math.round(
       metrics.savingsRate * 0.4 + metrics.budgetAdherence * 0.3 + metrics.incomeStability * 0.2 + metrics.expenseVariability * 0.1
     )
-  } else {
-    metrics.budgetAdherence = summary.totalExpenses === 0 ? 100 : 20
-    metrics.incomeStability = 0
-    metrics.expenseVariability = 40
-    score = summary.totalExpenses === 0 ? 50 : 25
+    if (summary.totalExpenses === 0) {
+      metrics.budgetAdherence = 0
+      metrics.incomeStability = 0
+      metrics.expenseVariability = 0
+      score = 0
+    } else {
+      metrics.budgetAdherence = 20
+      metrics.incomeStability = 0
+      metrics.expenseVariability = 30
+      score = 15
+    }
   }
 
   score = Math.max(0, Math.min(100, score))

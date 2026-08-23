@@ -174,11 +174,12 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
 
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'
   const upcomingBillDaysLeft = upcomingBill ? daysUntil(upcomingBill.dueDate) : 0
-  const scoreForGauge = healthScore ?? 0
-  const budgetBurnLabel = summary.savingsRate >= 20 ? 'Safe' : summary.savingsRate >= 5 ? 'Watch' : 'High'
-  const budgetBurnColor = summary.savingsRate >= 20 ? '#10B981' : summary.savingsRate >= 5 ? '#F59E0B' : '#F43F5E'
+  const hasActivity = summary.monthlyIncome > 0 || summary.monthlyExpense > 0
+  const scoreForGauge = hasActivity ? (healthScore ?? 0) : 0
+  const budgetBurnLabel = !hasActivity ? 'N/A' : summary.savingsRate >= 20 ? 'Safe' : summary.savingsRate >= 5 ? 'Watch' : 'High'
+  const budgetBurnColor = !hasActivity ? colors.textMuted : summary.savingsRate >= 20 ? '#10B981' : summary.savingsRate >= 5 ? '#F59E0B' : '#F43F5E'
   const copilotText =
-    summary.monthlyIncome === 0 && summary.monthlyExpense === 0
+    !hasActivity
       ? 'Add your first income or expense to start tracking your financial health.'
       : `You're saving ${summary.savingsRate}% of your income this month.`
 
@@ -444,15 +445,15 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
               >
                 <View style={styles.healthScoreLeft}>
                   <Text style={[styles.healthScoreBig, { color: colors.text }]}>
-                    {healthScore ?? '—'}
+                    {!hasActivity ? '0' : (healthScore ?? '—')}
                     <Text style={[styles.healthScoreMax, { color: colors.textMuted }]}>/100</Text>
                   </Text>
                 </View>
 
                 <View style={styles.healthStatusBadge}>
-                  <View style={styles.healthStatusDot} />
-                  <Text style={styles.healthStatusText}>
-                    {healthScore === null ? 'CALCULATING' : scoreForGauge >= 80 ? 'EXCELLENT' : scoreForGauge >= 65 ? 'OPTIMAL' : scoreForGauge >= 40 ? 'FAIR' : 'ATTENTION'}
+                  <View style={[styles.healthStatusDot, !hasActivity && { backgroundColor: colors.textMuted }]} />
+                  <Text style={[styles.healthStatusText, !hasActivity && { color: colors.textMuted }]}>
+                    {!hasActivity ? 'NO ACTIVITY' : healthScore === null ? 'CALCULATING' : scoreForGauge >= 80 ? 'EXCELLENT' : scoreForGauge >= 65 ? 'OPTIMAL' : scoreForGauge >= 40 ? 'FAIR' : 'ATTENTION'}
                   </Text>
                 </View>
               </TouchableOpacity>

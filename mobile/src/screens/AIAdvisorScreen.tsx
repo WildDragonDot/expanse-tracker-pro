@@ -46,6 +46,7 @@ export const AIAdvisorScreen = () => {
 
   const [healthScore, setHealthScore] = useState<number | null>(null)
   const [savingsRate, setSavingsRate] = useState(0)
+  const [hasActivity, setHasActivity] = useState(false)
   const [billCompliance, setBillCompliance] = useState<number | null>(null)
 
   useEffect(() => {
@@ -55,8 +56,14 @@ export const AIAdvisorScreen = () => {
       .catch(() => setHealthScore(null))
 
     api.getDashboardSummary()
-      .then((s) => setSavingsRate(s.savingsRate || 0))
-      .catch(() => setSavingsRate(0))
+      .then((s) => {
+        setSavingsRate(s.savingsRate || 0)
+        setHasActivity((s.totalIncome || 0) > 0 || (s.totalExpenses || 0) > 0)
+      })
+      .catch(() => {
+        setSavingsRate(0)
+        setHasActivity(false)
+      })
 
     api.getBillOccurrences()
       .then((occs) => {
@@ -66,8 +73,8 @@ export const AIAdvisorScreen = () => {
       .catch(() => setBillCompliance(null))
   }, [])
 
-  const scoreForGauge = healthScore ?? 0
-  const budgetBurnLabel = savingsRate >= 20 ? 'Safe' : savingsRate >= 5 ? 'Watch' : 'High'
+  const scoreForGauge = hasActivity ? (healthScore ?? 0) : 0
+  const budgetBurnLabel = !hasActivity ? 'N/A' : savingsRate >= 20 ? 'Safe' : savingsRate >= 5 ? 'Watch' : 'High'
 
   const handleSend = async () => {
     if (!prompt.trim()) return
@@ -130,22 +137,26 @@ export const AIAdvisorScreen = () => {
             </View>
 
             <View style={styles.scoreStatusBadge}>
-              <View style={styles.scoreStatusDot} />
-              <Text style={styles.scoreStatusText}>
-                {healthScore === null ? 'CALCULATING' : scoreForGauge >= 80 ? 'EXCELLENT' : scoreForGauge >= 65 ? 'OPTIMAL' : scoreForGauge >= 40 ? 'FAIR' : 'ATTENTION'}
+              <View style={[styles.scoreStatusDot, !hasActivity && { backgroundColor: colors.textMuted }]} />
+              <Text style={[styles.scoreStatusText, !hasActivity && { color: colors.textMuted }]}>
+                {!hasActivity ? 'NO ACTIVITY' : healthScore === null ? 'CALCULATING' : scoreForGauge >= 80 ? 'EXCELLENT' : scoreForGauge >= 65 ? 'OPTIMAL' : scoreForGauge >= 40 ? 'FAIR' : 'ATTENTION'}
               </Text>
             </View>
           </View>
 
           <View style={styles.scoreNumberRow}>
             <Text style={styles.scoreNumber}>
-              {healthScore ?? '—'}<Text style={styles.scoreMax}>/100</Text>
+              {!hasActivity ? '0' : (healthScore ?? '—')}<Text style={styles.scoreMax}>/100</Text>
             </Text>
-            <Text style={[styles.scoreScoreSub, { color: colors.textSecondary }]}>Based on your real transaction history</Text>
+            <Text style={[styles.scoreScoreSub, { color: colors.textSecondary }]}>
+              {!hasActivity ? 'No transaction activity recorded yet' : 'Based on your real transaction history'}
+            </Text>
           </View>
 
           <Text style={[styles.scoreDesc, { color: colors.textSecondary }]}>
-            You're currently saving <Text style={{ color: '#10B981', fontWeight: '800' }}>{savingsRate}%</Text> of your income this month.
+            {!hasActivity
+              ? 'Add your first income or expense to calculate your health score.'
+              : `You're currently saving ${savingsRate}% of your income this month.`}
           </Text>
 
           {/* 4-Segment Gauge */}
