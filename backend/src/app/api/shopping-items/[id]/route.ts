@@ -94,9 +94,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       }
     }
 
+    const { id: _id, userId: _userId, ...allowedUpdates } = body
+
     const updated = await prisma.shoppingItem.update({
       where: { id: params.id },
-      data: body
+      data: allowedUpdates
     })
 
     // Update category real cost only (not expected cost - user sets that manually)

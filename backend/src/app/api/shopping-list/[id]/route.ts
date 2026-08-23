@@ -70,9 +70,11 @@ export async function PATCH(
       }
     }
 
+    const { id: _id, userId: _userId, ...allowedUpdates } = body
+
     const updatedItem = await prisma.shoppingList.update({
       where: { id: params.id },
-      data: body
+      data: allowedUpdates
     })
 
     return NextResponse.json(updatedItem)

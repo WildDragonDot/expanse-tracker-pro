@@ -67,7 +67,7 @@ describe('security', () => {
   })
 
   it('detects brute force attempts inside the configured window', () => {
-    jest.useFakeTimers().setSystemTime(new Date('2024-01-10T10:00:00.000Z'))
+    jest.useFakeTimers().setSystemTime(new Date('2024-01-10T10:00:00.000Z').getTime())
 
     const now = Date.now()
     const attempts = [0, 10_000, 20_000, 30_000, 40_000].map((offset) => now - offset)
