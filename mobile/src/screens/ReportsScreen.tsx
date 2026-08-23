@@ -12,8 +12,14 @@ import {
   Modal,
   TextInput,
   Platform,
+  LogBox,
 } from 'react-native'
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
+import DateTimePicker, {
+  DateTimePickerAndroid,
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker'
+
+LogBox.ignoreLogs(['DateTimePicker: `onChange` is deprecated'])
 import {
   Download,
   Share2,
@@ -458,6 +464,35 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
       }
     } catch {}
     return dateStr
+  }
+
+  const openDatePicker = (type: 'from' | 'to') => {
+    const currentDate = parseDateString(type === 'from' ? tempFrom : tempTo)
+    if (Platform.OS === 'android') {
+      try {
+        DateTimePickerAndroid.open({
+          value: currentDate,
+          mode: 'date',
+          is24Hour: true,
+          maximumDate: type === 'from' && tempTo ? parseDateString(tempTo) : new Date(2035, 11, 31),
+          minimumDate: type === 'to' && tempFrom ? parseDateString(tempFrom) : new Date(2020, 0, 1),
+          onChange: (event, selectedDate) => {
+            if (event.type === 'set' && selectedDate) {
+              const formatted = formatLocalDate(selectedDate)
+              if (type === 'from') {
+                setTempFrom(formatted)
+              } else if (type === 'to') {
+                setTempTo(formatted)
+              }
+            }
+          },
+        })
+      } catch {
+        setShowDatePickerType(type)
+      }
+    } else {
+      setShowDatePickerType(type)
+    }
   }
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -1090,7 +1125,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Start Date (From)</Text>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => setShowDatePickerType('from')}
+                onPress={() => openDatePicker('from')}
                 style={[
                   styles.datePickerTrigger,
                   { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
@@ -1120,7 +1155,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>End Date (To)</Text>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => setShowDatePickerType('to')}
+                onPress={() => openDatePicker('to')}
                 style={[
                   styles.datePickerTrigger,
                   { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
