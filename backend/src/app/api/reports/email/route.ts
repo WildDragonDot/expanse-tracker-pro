@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const POST = withAuth(async (request: NextRequest, { userId }) => {
   try {
     const body = await request.json()
-    const { dateFrom, dateTo, category, type, selectedExpenseIds, includeBillAttachments } = body
+    const { dateFrom, dateTo, category, type, selectedExpenseIds, includeBillAttachments, recipientEmail, returnPdfBase64 } = body
 
     // Fetch user
     let user = await prisma.user.findUnique({
@@ -80,41 +80,28 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       balance
     })
 
-    // Prepare attachments
-    const attachments: any[] = [
-      {
-        filename: `financial-report-${dateFrom}-to-${dateTo}.pdf`,
-        content: pdfBuffer
-      }
-    ]
+    const pdfBase64 = pdfBuffer.toString('base64')
 
-    // Add bill attachments if requested
-    if (includeBillAttachments) {
-      for (const expense of expenses) {
-        if (expense.receiptUrl) {
-          // If receiptUrl is a base64 string
-          if (expense.receiptUrl.startsWith('data:')) {
-            const base64Data = expense.receiptUrl.split(',')[1]
-            const mimeType = expense.receiptUrl.split(';')[0].split(':')[1]
-            const extension = mimeType.split('/')[1]
-            
-            attachments.push({
-              filename: `receipt-${expense.id}-${expense.title}.${extension}`,
-              content: Buffer.from(base64Data, 'base64'),
-              contentType: mimeType
-            })
-          }
+    // If client just wants the generated PDF for printing / downloading
+    if (returnPdfBase64) {
+      return NextResponse.json({
+        success: true,
+        pdfBase64,
+        filename: `financial-statement-${dateFrom}-to-${dateTo}.pdf`,
+        stats: {
+          expenses: expenses.length,
+          incomes: incomes.length,
+          totalExpenses,
+          totalIncomes,
+          balance
         }
-      }
+      })
     }
 
-    // Convert PDF to base64 for email attachment
-    const pdfBase64 = pdfBuffer.toString('base64')
-    
     // Prepare email attachments
     const emailAttachments: any[] = [
       {
-        filename: `financial-report-${dateFrom}-to-${dateTo}.pdf`,
+        filename: `financial-statement-${dateFrom}-to-${dateTo}.pdf`,
         content: pdfBase64,
         encoding: 'base64'
       }
@@ -124,27 +111,47 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     if (includeBillAttachments) {
       let billCount = 0
       for (const expense of expenses) {
-        if (billCount >= 10) break // Limit to 10 bills
+        if (billCount >= 10) break
         
-        if (expense.receiptUrl && expense.receiptUrl.startsWith('data:')) {
-          const base64Data = expense.receiptUrl.split(',')[1]
-          const mimeType = expense.receiptUrl.split(';')[0].split(':')[1]
-          const extension = mimeType.split('/')[1]
-          
-          emailAttachments.push({
-            filename: `receipt-${expense.id}-${expense.title.substring(0, 20)}.${extension}`,
-            content: base64Data,
-            encoding: 'base64'
-          })
-          billCount++
+        if (expense.receiptUrl) {
+          if (expense.receiptUrl.startsWith('data:')) {
+            const base64Data = expense.receiptUrl.split(',')[1]
+            const mimeType = expense.receiptUrl.split(';')[0].split(':')[1] || 'image/jpeg'
+            const extension = mimeType.split('/')[1] || 'jpg'
+            emailAttachments.push({
+              filename: `receipt-${expense.id.slice(-6)}-${(expense.title || 'bill').replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`,
+              content: base64Data,
+              encoding: 'base64'
+            })
+            billCount++
+          } else if (expense.receiptUrl.startsWith('http')) {
+            try {
+              const imgRes = await fetch(expense.receiptUrl)
+              if (imgRes.ok) {
+                const arrayBuffer = await imgRes.arrayBuffer()
+                const buffer = Buffer.from(arrayBuffer)
+                emailAttachments.push({
+                  filename: `receipt-${expense.id.slice(-6)}-${(expense.title || 'bill').replace(/[^a-zA-Z0-9]/g, '_')}.jpg`,
+                  content: buffer.toString('base64'),
+                  encoding: 'base64'
+                })
+                billCount++
+              }
+            } catch (e) {
+              console.warn('Could not fetch R2 image attachment for email:', e)
+            }
+          }
         }
       }
     }
 
+    // Target recipient email (custom email if provided, else user's registered email)
+    const targetEmail = (recipientEmail && recipientEmail.trim()) || user.email
+
     // Send email using the existing sendEmail utility
     const emailResult = await sendEmail({
-      to: user.email,
-      subject: `Premium Financial Report: ${dateFrom} to ${dateTo} | ExpenseTracker`,
+      to: targetEmail,
+      subject: `Official Financial Statement: ${dateFrom} to ${dateTo} | ExpenseTracker Pro`,
       html: generateEmailHTML({
         userName: user.name,
         dateFrom,
@@ -170,8 +177,10 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
 
     return NextResponse.json({
       success: true,
-      message: 'Email report sent successfully',
+      message: `Financial statement sent successfully to ${targetEmail}`,
       messageId: emailResult.messageId,
+      pdfBase64,
+      targetEmail,
       stats: {
         expenses: expenses.length,
         incomes: incomes.length,

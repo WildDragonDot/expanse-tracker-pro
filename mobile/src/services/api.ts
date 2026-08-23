@@ -345,9 +345,11 @@ export class MobileApiClient {
     dateTo: string
     category?: string
     type?: string
+    recipientEmail?: string
     includeBillAttachments?: boolean
-  }): Promise<{ success: boolean; message: string; stats?: any }> {
-    return this.request<{ success: boolean; message: string; stats?: any }>('/reports/email', {
+    returnPdfBase64?: boolean
+  }): Promise<{ success: boolean; message: string; pdfBase64?: string; filename?: string; stats?: any }> {
+    return this.request<{ success: boolean; message: string; pdfBase64?: string; filename?: string; stats?: any }>('/reports/email', {
       method: 'POST',
       body: JSON.stringify(data),
     })
