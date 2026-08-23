@@ -7,11 +7,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AuthProvider } from './src/context/AuthContext'
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext'
 import { AppNavigator } from './src/navigation/AppNavigator'
-import { SplashScreen } from './src/components/SplashScreen'
 
 function RootApp() {
   const { theme } = useAppTheme()
-  const [splashFinished, setSplashFinished] = useState(false)
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -31,7 +29,6 @@ function RootApp() {
       <NavigationContainer>
         <AppNavigator />
       </NavigationContainer>
-      {!splashFinished && <SplashScreen onFinish={() => setSplashFinished(true)} />}
     </SafeAreaProvider>
   )
 }
