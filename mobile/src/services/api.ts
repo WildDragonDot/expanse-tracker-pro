@@ -239,7 +239,7 @@ export class MobileApiClient {
   }
 
   // --- REPORTS ---
-  async getRangeSummary(range: 'month' | 'quarter' | 'ytd'): Promise<{
+  async getRangeSummary(range: 'month' | 'quarter' | 'ytd' | 'custom', from?: string, to?: string): Promise<{
     totalIncome: number
     totalExpenses: number
     savings: number
@@ -248,7 +248,10 @@ export class MobileApiClient {
     transactionsCount: number
     topCategories: { category: string; amount: number; percentage: number }[]
   }> {
-    return this.request(`/analytics/range?range=${range}`)
+    let url = `/analytics/range?range=${range}`
+    if (from) url += `&from=${encodeURIComponent(from)}`
+    if (to) url += `&to=${encodeURIComponent(to)}`
+    return this.request(url)
   }
 
   // --- UDHAR (LOANS GIVEN/TAKEN) ---
@@ -334,6 +337,20 @@ export class MobileApiClient {
       body: JSON.stringify({ query: prompt }),
     })
     return { reply: res.response }
+  }
+
+  // --- REPORTS & PDF EMAIL EXPORTS ---
+  async sendEmailReport(data: {
+    dateFrom: string
+    dateTo: string
+    category?: string
+    type?: string
+    includeBillAttachments?: boolean
+  }): Promise<{ success: boolean; message: string; stats?: any }> {
+    return this.request<{ success: boolean; message: string; stats?: any }>('/reports/email', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   }
 }
 

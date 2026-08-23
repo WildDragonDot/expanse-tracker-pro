@@ -8,6 +8,9 @@ import {
   Share,
   Alert,
   RefreshControl,
+  ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native'
 import {
   Download,
@@ -16,6 +19,11 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Receipt,
+  Mail,
+  Calendar,
+  CalendarDays,
+  X,
+  Check,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -28,7 +36,19 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
   const { user } = useAuth()
   const { colors } = useAppTheme()
 
-  const [dateRange, setDateRange] = useState<'month' | 'quarter' | 'ytd'>('month')
+  const [dateRange, setDateRange] = useState<'month' | 'quarter' | 'ytd' | 'custom'>('month')
+  
+  // Custom Date Range State (YYYY-MM-DD)
+  const now = new Date()
+  const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  const defaultEndDate = now.toISOString().split('T')[0]
+  
+  const [customFrom, setCustomFrom] = useState(defaultStartDate)
+  const [customTo, setCustomTo] = useState(defaultEndDate)
+  const [showCustomModal, setShowCustomModal] = useState(false)
+  const [tempFrom, setTempFrom] = useState(defaultStartDate)
+  const [tempTo, setTempTo] = useState(defaultEndDate)
+
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [reportData, setReportData] = useState({
@@ -45,7 +65,11 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
 
   const loadReport = async () => {
     try {
-      const data = await api.getRangeSummary(dateRange)
+      const data = await api.getRangeSummary(
+        dateRange,
+        dateRange === 'custom' ? customFrom : undefined,
+        dateRange === 'custom' ? customTo : undefined
+      )
       setReportData(data)
     } catch {
       setReportData({ totalIncome: 0, totalExpenses: 0, savings: 0, savingsRate: 0, avgDailySpend: 0, transactionsCount: 0, topCategories: [] })
@@ -58,7 +82,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
   useEffect(() => {
     setLoading(true)
     loadReport()
-  }, [dateRange])
+  }, [dateRange, customFrom, customTo])
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -67,7 +91,8 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
 
   const handleShareReport = async () => {
     try {
-      const summaryText = `📊 FinanceTracker Pro - Financial Statement (${dateRange.toUpperCase()})\n` +
+      const rangeLabel = dateRange === 'custom' ? `${customFrom} to ${customTo}` : dateRange.toUpperCase()
+      const summaryText = `📊 FinanceTracker Pro - Financial Statement (${rangeLabel})\n` +
         `• Total Inflow: ${currencySymbol}${reportData.totalIncome.toLocaleString()}\n` +
         `• Total Outflow: ${currencySymbol}${reportData.totalExpenses.toLocaleString()}\n` +
         `• Net Savings: ${currencySymbol}${reportData.savings.toLocaleString()} (${reportData.savingsRate}%)\n` +
@@ -83,6 +108,47 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
     }
   }
 
+  const [sendingEmail, setSendingEmail] = useState(false)
+
+  const handleEmailPDFReport = async () => {
+    setSendingEmail(true)
+    try {
+      let dateFrom = defaultStartDate
+      let dateTo = defaultEndDate
+
+      if (dateRange === 'custom') {
+        dateFrom = customFrom
+        dateTo = customTo
+      } else if (dateRange === 'quarter') {
+        const d = new Date()
+        d.setDate(d.getDate() - 90)
+        dateFrom = d.toISOString().split('T')[0]
+      } else if (dateRange === 'ytd') {
+        dateFrom = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
+      }
+
+      const res = await api.sendEmailReport({
+        dateFrom,
+        dateTo,
+        type: dateRange === 'month' ? 'monthly' : 'custom',
+        includeBillAttachments: true,
+      })
+
+      if (res.success) {
+        Alert.alert(
+          'Email Sent! 📄',
+          `Your comprehensive PDF Financial Statement with attached receipts was sent to ${user?.email || 'your registered email'}.`
+        )
+      } else {
+        Alert.alert('Notice', res.message || 'Unable to send report right now.')
+      }
+    } catch (err: any) {
+      Alert.alert('Email Failed', err.message || 'Could not send PDF statement via email.')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
   const handleExportCSV = async () => {
     const rows = [
       ['Category', 'Amount', '% of Spend'],
@@ -91,34 +157,52 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
     const csv = rows.map((r) => r.join(',')).join('\n')
 
     try {
-      // No file-system access is bundled in this app — sharing the real CSV text lets the
-      // user save it from the native share sheet (e.g. "Save to Files") instead of us
-      // falsely claiming a file was already written to disk.
-      await Share.share({ message: csv, title: `Statement-${dateRange}.csv` })
+      const fileLabel = dateRange === 'custom' ? `${customFrom}_${customTo}` : dateRange
+      await Share.share({ message: csv, title: `Statement-${fileLabel}.csv` })
     } catch (e) {
       Alert.alert('Error', 'Unable to export CSV.')
     }
   }
 
+  const applyCustomRange = () => {
+    setCustomFrom(tempFrom)
+    setCustomTo(tempTo)
+    setDateRange('custom')
+    setShowCustomModal(false)
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <HeaderBar title="Financial Reports" onProfilePress={() => navigation?.navigate('Settings')} />
+      <HeaderBar
+        title="Financial Reports"
+        onProfilePress={() => navigation?.navigate('Settings')}
+        onNotificationPress={() => navigation?.navigate('Subscriptions')}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         {/* Date Filter Pills */}
-        <View style={styles.filterPillsRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsRow}>
           {[
             { id: 'month', label: 'This Month' },
             { id: 'quarter', label: 'Last 90 Days' },
             { id: 'ytd', label: `YTD ${new Date().getFullYear()}` },
+            { id: 'custom', label: dateRange === 'custom' ? `${customFrom.slice(5)} to ${customTo.slice(5)}` : '📅 Custom Range' },
           ].map((pill) => (
             <TouchableOpacity
               key={pill.id}
               activeOpacity={0.8}
-              onPress={() => setDateRange(pill.id as any)}
+              onPress={() => {
+                if (pill.id === 'custom') {
+                  setTempFrom(customFrom)
+                  setTempTo(customTo)
+                  setShowCustomModal(true)
+                } else {
+                  setDateRange(pill.id as any)
+                }
+              }}
               style={[
                 styles.filterPill,
                 {
@@ -137,17 +221,61 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
+
+        {/* Custom Range Active Banner */}
+        {dateRange === 'custom' && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              setTempFrom(customFrom)
+              setTempTo(customTo)
+              setShowCustomModal(true)
+            }}
+            style={[styles.customBanner, { backgroundColor: 'rgba(139, 92, 246, 0.12)', borderColor: 'rgba(139, 92, 246, 0.3)' }]}
+          >
+            <View style={styles.customBannerLeft}>
+              <CalendarDays color="#8B5CF6" size={18} />
+              <View>
+                <Text style={[styles.customBannerTitle, { color: colors.text }]}>Selected Date Range</Text>
+                <Text style={[styles.customBannerSub, { color: colors.textSecondary }]}>
+                  {customFrom}  ➔  {customTo}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.customBannerChange}>Change</Text>
+          </TouchableOpacity>
+        )}
 
         {loading ? (
           <ReportsSkeleton />
         ) : (
           <>
-            {/* 2-Column Summary Cards */}
-            <View style={styles.twoCardsRow}>
-              {/* Inflows */}
-              <View style={[styles.summaryCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
-                <View style={styles.cardHeader}>
+            {/* Net Savings Hero Card */}
+            <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+              <Text style={[styles.cardSubText, { color: colors.textSecondary }]}>
+                NET SAVINGS & SURPLUS
+              </Text>
+              <Text style={[styles.balanceAmount, { color: reportData.savings >= 0 ? '#10B981' : '#F43F5E' }]}>
+                {currencySymbol}{reportData.savings.toLocaleString()}
+              </Text>
+
+              <View style={styles.heroSubRow}>
+                <View style={styles.badgePill}>
+                  <TrendingUp color="#8B5CF6" size={12} />
+                  <Text style={styles.badgePillText}>{reportData.savingsRate}% Savings Velocity</Text>
+                </View>
+                <Text style={[styles.transactionCountText, { color: colors.textSecondary }]}>
+                  {reportData.transactionsCount} entries
+                </Text>
+              </View>
+            </View>
+
+            {/* Income vs Expenses Grid */}
+            <View style={styles.gridRow}>
+              {/* Income */}
+              <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+                <View style={styles.metricHeaderRow}>
                   <View style={[styles.iconBox, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
                     <ArrowDownLeft color="#10B981" size={16} />
                   </View>
@@ -158,12 +286,12 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                 <Text style={[styles.amountValue, { color: '#10B981' }]}>
                   {currencySymbol}{reportData.totalIncome.toLocaleString()}
                 </Text>
-                <Text style={[styles.subLabel, { color: colors.textSecondary }]}>Total Credits</Text>
+                <Text style={[styles.subLabel, { color: colors.textSecondary }]}>Total Income</Text>
               </View>
 
-              {/* Outflows */}
-              <View style={[styles.summaryCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
-                <View style={styles.cardHeader}>
+              {/* Expense */}
+              <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+                <View style={styles.metricHeaderRow}>
                   <View style={[styles.iconBox, { backgroundColor: 'rgba(244, 63, 94, 0.15)' }]}>
                     <ArrowUpRight color="#F43F5E" size={16} />
                   </View>
@@ -174,30 +302,12 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                 <Text style={[styles.amountValue, { color: '#F43F5E' }]}>
                   {currencySymbol}{reportData.totalExpenses.toLocaleString()}
                 </Text>
-                <Text style={[styles.subLabel, { color: colors.textSecondary }]}>Total Debits</Text>
-              </View>
-            </View>
-
-            <View style={styles.twoCardsRow}>
-              {/* Net Savings */}
-              <View style={[styles.summaryCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                    <TrendingUp color="#3B82F6" size={16} />
-                  </View>
-                  <Text style={[styles.pillBadge, { color: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                    {reportData.savingsRate}%
-                  </Text>
-                </View>
-                <Text style={[styles.amountValue, { color: '#3B82F6' }]}>
-                  {currencySymbol}{reportData.savings.toLocaleString()}
-                </Text>
-                <Text style={[styles.subLabel, { color: colors.textSecondary }]}>Net Savings</Text>
+                <Text style={[styles.subLabel, { color: colors.textSecondary }]}>Total Expenses</Text>
               </View>
 
-              {/* Daily Spend */}
-              <View style={[styles.summaryCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
-                <View style={styles.cardHeader}>
+              {/* Average Daily */}
+              <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+                <View style={styles.metricHeaderRow}>
                   <View style={[styles.iconBox, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
                     <Receipt color="#F59E0B" size={16} />
                   </View>
@@ -216,11 +326,27 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
             <View style={styles.actionExportRow}>
               <TouchableOpacity
                 activeOpacity={0.85}
+                onPress={handleEmailPDFReport}
+                disabled={sendingEmail}
+                style={[styles.exportBtn, { backgroundColor: '#8B5CF6' }]}
+              >
+                {sendingEmail ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Mail color="#FFFFFF" size={15} />
+                    <Text style={styles.exportBtnText}>Email PDF</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
                 onPress={handleExportCSV}
                 disabled={reportData.topCategories.length === 0}
                 style={[styles.exportBtn, { backgroundColor: '#6366F1', opacity: reportData.topCategories.length === 0 ? 0.5 : 1 }]}
               >
-                <Download color="#FFFFFF" size={16} />
+                <Download color="#FFFFFF" size={15} />
                 <Text style={styles.exportBtnText}>Export CSV</Text>
               </TouchableOpacity>
 
@@ -229,8 +355,8 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                 onPress={handleShareReport}
                 style={[styles.exportBtn, { backgroundColor: '#10B981' }]}
               >
-                <Share2 color="#FFFFFF" size={16} />
-                <Text style={styles.exportBtnText}>Share Statement</Text>
+                <Share2 color="#FFFFFF" size={15} />
+                <Text style={styles.exportBtnText}>Share</Text>
               </TouchableOpacity>
             </View>
 
@@ -248,17 +374,16 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                 reportData.topCategories.map((c, idx) => (
                   <View key={idx} style={styles.categoryRow}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                      <CategoryIcon name={c.category} size={14} containerSize={26} style={{ marginRight: 8 }} />
-                      <View style={styles.catInfo}>
-                        <Text style={[styles.catName, { color: colors.text }]}>{c.category}</Text>
-                        <Text style={[styles.catAmount, { color: colors.text }]}>
-                          {currencySymbol}{c.amount.toLocaleString()} ({c.percentage}%)
-                        </Text>
-                      </View>
+                      <CategoryIcon name={c.category} size={24} />
+                      <Text style={[styles.categoryName, { color: colors.text, marginLeft: 8 }]}>{c.category}</Text>
+                      <Text style={[styles.categoryAmount, { color: colors.text }]}>
+                        {currencySymbol}{c.amount.toLocaleString()}
+                      </Text>
                     </View>
-                    <View style={[styles.track, { backgroundColor: colors.inputBg }]}>
-                      <View style={[styles.fill, { width: `${c.percentage}%`, backgroundColor: '#8B5CF6' }]} />
+                    <View style={styles.progressBg}>
+                      <View style={[styles.progressFill, { width: `${Math.min(100, c.percentage)}%`, backgroundColor: '#8B5CF6' }]} />
                     </View>
+                    <Text style={[styles.percentLabel, { color: colors.textSecondary }]}>{c.percentage}% of total expenses</Text>
                   </View>
                 ))
               )}
@@ -266,94 +391,162 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
           </>
         )}
       </ScrollView>
+
+      {/* Custom Date Range Selection Modal */}
+      <Modal visible={showCustomModal} animationType="slide" transparent onRequestClose={() => setShowCustomModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Calendar color="#8B5CF6" size={20} />
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Custom Date Range</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowCustomModal(false)} style={styles.modalCloseBtn}>
+                <X color={colors.textSecondary} size={18} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick Preset Buttons */}
+            <Text style={[styles.presetTitle, { color: colors.textSecondary }]}>Quick Presets</Text>
+            <View style={styles.presetRow}>
+              {[
+                { label: 'Last 7 Days', days: 7 },
+                { label: 'Last 30 Days', days: 30 },
+                { label: 'Last 60 Days', days: 60 },
+              ].map((preset, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    const d = new Date()
+                    d.setDate(d.getDate() - preset.days)
+                    setTempFrom(d.toISOString().split('T')[0])
+                    setTempTo(new Date().toISOString().split('T')[0])
+                  }}
+                  style={[styles.presetBtn, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
+                >
+                  <Text style={[styles.presetBtnText, { color: colors.text }]}>{preset.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* From Date Input */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>From Date (YYYY-MM-DD)</Text>
+              <TextInput
+                value={tempFrom}
+                onChangeText={setTempFrom}
+                placeholder="2026-01-01"
+                placeholderTextColor={colors.textMuted}
+                style={[styles.dateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+              />
+            </View>
+
+            {/* To Date Input */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>To Date (YYYY-MM-DD)</Text>
+              <TextInput
+                value={tempTo}
+                onChangeText={setTempTo}
+                placeholder="2026-12-31"
+                placeholderTextColor={colors.textMuted}
+                style={[styles.dateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+              />
+            </View>
+
+            {/* Apply Button */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={applyCustomRange}
+              style={styles.applyRangeBtn}
+            >
+              <Check color="#FFFFFF" size={18} />
+              <Text style={styles.applyRangeBtnText}>Apply Date Range</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-  filterPillsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
-  },
+  scrollContent: { padding: 16, paddingBottom: 60 },
+  filterPillsRow: { flexDirection: 'row', gap: 8, paddingBottom: 12 },
   filterPill: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  filterPillText: { fontSize: 11, fontWeight: '700' },
-  twoCardsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
-  },
-  summaryCard: {
-    flex: 1,
-    padding: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1,
   },
-  cardHeader: {
+  filterPillText: { fontSize: 12, fontWeight: '700' },
+  customBanner: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 12,
   },
-  iconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pillBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  amountValue: { fontSize: 18, fontWeight: '900', marginBottom: 2 },
-  subLabel: { fontSize: 11, fontWeight: '600' },
-  actionExportRow: {
+  customBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  customBannerTitle: { fontSize: 13, fontWeight: '700' },
+  customBannerSub: { fontSize: 11, marginTop: 2 },
+  customBannerChange: { color: '#8B5CF6', fontSize: 12, fontWeight: '800' },
+  card: { padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 12 },
+  cardSubText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
+  balanceAmount: { fontSize: 26, fontWeight: '900', marginBottom: 10 },
+  heroSubRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  badgePill: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-    marginBottom: 16,
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
   },
+  badgePillText: { color: '#8B5CF6', fontSize: 11, fontWeight: '700' },
+  transactionCountText: { fontSize: 12 },
+  gridRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  metricCard: { flex: 1, padding: 12, borderRadius: 16, borderWidth: 1 },
+  metricHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  iconBox: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  pillBadge: { fontSize: 10, fontWeight: '800', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  amountValue: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  subLabel: { fontSize: 10 },
+  actionExportRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   exportBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 16,
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
-  exportBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  sectionHeader: { marginBottom: 10 },
-  sectionTitle: { fontSize: 14, fontWeight: '800' },
-  card: {
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  categoryRow: { marginBottom: 14 },
-  catInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  catName: { fontSize: 13, fontWeight: '700' },
-  catAmount: { fontSize: 12, fontWeight: '800' },
-  track: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  fill: { height: 6, borderRadius: 3 },
+  exportBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  sectionHeader: { marginBottom: 8 },
+  sectionTitle: { fontSize: 15, fontWeight: '800' },
+  categoryRow: { marginBottom: 12 },
+  categoryName: { flex: 1, fontSize: 13, fontWeight: '700' },
+  categoryAmount: { fontSize: 13, fontWeight: '800' },
+  progressBg: { height: 6, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3 },
+  percentLabel: { fontSize: 10, marginTop: 3, textAlign: 'right' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.75)', justifyContent: 'flex-end' },
+  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: 20, paddingBottom: 36 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 16, fontWeight: '800' },
+  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255, 255, 255, 0.08)', justifyContent: 'center', alignItems: 'center' },
+  presetTitle: { fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  presetRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  presetBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10, borderWidth: 1 },
+  presetBtnText: { fontSize: 11, fontWeight: '700' },
+  inputGroup: { marginBottom: 14 },
+  inputLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
+  dateInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, fontWeight: '600' },
+  applyRangeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#8B5CF6', paddingVertical: 14, borderRadius: 14, marginTop: 8 },
+  applyRangeBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 })

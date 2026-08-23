@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { TrendingUp, Sun, Moon } from 'lucide-react-native'
+import { TrendingUp, Sun, Moon, Bell } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 
@@ -9,12 +9,16 @@ interface Props {
   title: string
   subtitle?: string
   onProfilePress?: () => void
+  onNotificationPress?: () => void
+  hasUnreadNotifications?: boolean
 }
 
 export const HeaderBar: React.FC<Props> = ({
   title,
   subtitle = 'FinanceTracker Pro',
   onProfilePress,
+  onNotificationPress,
+  hasUnreadNotifications = true,
 }) => {
   const insets = useSafeAreaInsets()
   const { colors, theme, toggleTheme } = useAppTheme()
@@ -43,6 +47,14 @@ export const HeaderBar: React.FC<Props> = ({
       </View>
 
       <View style={styles.right}>
+        <TouchableOpacity
+          onPress={onNotificationPress || onProfilePress}
+          style={[styles.iconBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.1)', position: 'relative' }]}
+        >
+          <Bell color={colors.text} size={16} />
+          {hasUnreadNotifications && <View style={styles.notificationDot} />}
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={toggleTheme}
           style={[styles.iconBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.1)' }]}
@@ -124,5 +136,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#EF4444',
   },
 })

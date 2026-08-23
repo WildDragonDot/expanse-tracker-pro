@@ -1221,6 +1221,32 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
 
             <TouchableOpacity
+              onPress={async () => {
+                setActiveModal(null)
+                try {
+                  const now = new Date()
+                  const dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+                  const dateTo = now.toISOString().split('T')[0]
+                  const res = await api.sendEmailReport({ dateFrom, dateTo, type: 'monthly', includeBillAttachments: true })
+                  if (res.success) {
+                    Alert.alert('Email Sent! 📄', `Your comprehensive PDF Statement with receipts was dispatched to ${user?.email || 'your registered email'}.`)
+                  } else {
+                    Alert.alert('Notice', res.message || 'Unable to send report right now.')
+                  }
+                } catch (e: any) {
+                  Alert.alert('Email Error', e.message || 'Could not send PDF statement via email.')
+                }
+              }}
+              style={[styles.exportRow, { borderColor: colors.surfaceGlassBorder }]}
+            >
+              <Mail color="#8B5CF6" size={24} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.exportTitle, { color: colors.text }]}>Email PDF Statement (.pdf)</Text>
+                <Text style={[styles.exportSub, { color: colors.textMuted }]}>Delivered to your email with attached receipts</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               onPress={() => {
                 setActiveModal(null)
                 Alert.alert('Excel Statement', 'Generated complete financial ledger in Excel (.xlsx).')

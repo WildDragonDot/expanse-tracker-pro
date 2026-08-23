@@ -185,7 +185,12 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <HeaderBar title="Dashboard" onProfilePress={() => navigation.navigate('Settings')} />
+      <HeaderBar
+        title="Dashboard"
+        onProfilePress={() => navigation.navigate('Settings')}
+        onNotificationPress={() => navigation.navigate('Subscriptions')}
+        hasUnreadNotifications={upcomingBill !== null}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

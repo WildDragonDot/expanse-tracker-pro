@@ -12,11 +12,21 @@ export const GET = withAuth(async (request: NextRequest, { userId }) => {
     const { searchParams } = new URL(request.url)
     const range = searchParams.get('range') || 'month'
 
+    const fromParam = searchParams.get('from') || searchParams.get('startDate')
+    const toParam = searchParams.get('to') || searchParams.get('endDate')
+
     const now = new Date()
     let startDate: Date
-    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
 
-    if (range === 'quarter') {
+    if (fromParam) {
+      startDate = new Date(fromParam)
+      startDate.setHours(0, 0, 0, 0)
+      if (toParam) {
+        endDate = new Date(toParam)
+        endDate.setHours(23, 59, 59, 999)
+      }
+    } else if (range === 'quarter') {
       startDate = new Date(now)
       startDate.setDate(startDate.getDate() - 89)
       startDate.setHours(0, 0, 0, 0)
