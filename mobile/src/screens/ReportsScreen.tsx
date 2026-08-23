@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Platform,
   LogBox,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import DateTimePicker, {
   DateTimePickerAndroid,
   DateTimePickerEvent,
@@ -332,10 +333,11 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
     }
   }
 
-  useEffect(() => {
-    setLoading(true)
-    loadReport()
-  }, [filterType, activePeriod.startDate, activePeriod.endDate])
+  useFocusEffect(
+    useCallback(() => {
+      loadReport()
+    }, [filterType, activePeriod.startDate, activePeriod.endDate])
+  )
 
   const onRefresh = () => {
     setRefreshing(true)

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   ShoppingBag,
@@ -60,9 +61,11 @@ export const ShoppingScreen = ({ navigation }: { navigation?: any }) => {
     }
   }
 
-  useEffect(() => {
-    loadItems()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      loadItems()
+    }, [])
+  )
 
   const onRefresh = () => {
     setRefreshing(true)

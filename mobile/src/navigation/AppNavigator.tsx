@@ -27,6 +27,7 @@ import { UdharScreen } from '../screens/UdharScreen'
 import { ShoppingScreen } from '../screens/ShoppingScreen'
 import { ReportsScreen } from '../screens/ReportsScreen'
 import { EventPlanningScreen } from '../screens/EventPlanningScreen'
+import { NotificationsScreen } from '../screens/NotificationsScreen'
 import { MoreFeaturesDrawer } from '../components/MoreFeaturesDrawer'
 
 const Tab = createBottomTabNavigator()
@@ -203,6 +204,13 @@ export const AppNavigator = () => {
               headerStyle: { backgroundColor: colors.background },
               headerTintColor: colors.text,
               headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            }}
+          />
+          <Stack.Screen
+            name="Notifications"
+            component={NotificationsScreen}
+            options={{
+              headerShown: false,
             }}
           />
           <Stack.Screen

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   ArrowDownRight,
@@ -35,6 +36,7 @@ import { TransactionDetailsModal, TransactionItem } from '../components/Transact
 import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
 import { Expense, Income } from '../types'
 import { api } from '../services/api'
+import { formatTransactionDate } from '../utils/dateUtils'
 
 export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?: any }) => {
   const { user } = useAuth()
@@ -71,8 +73,13 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
     }
   }
 
+  useFocusEffect(
+    useCallback(() => {
+      loadData()
+    }, [])
+  )
+
   useEffect(() => {
-    loadData()
     if (route?.params?.openModal) {
       setModalType(route.params.openModal === 'income' ? 'income' : 'expense')
       setModalVisible(true)
@@ -92,7 +99,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
     }
 
     const amountNum = parseFloat(formAmount)
-    const today = new Date().toISOString().split('T')[0]
+    const currentTimestamp = new Date().toISOString()
 
     try {
       if (modalType === 'expense') {
@@ -102,7 +109,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
           category: formCategory,
           bank: formBank,
           paymentMode: 'UPI',
-          date: today,
+          date: currentTimestamp,
           notes: formNotes.trim(),
         })
         setExpenses((prev) => [created, ...prev])
@@ -110,7 +117,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
         const created = await api.createIncome({
           source: formTitle.trim(),
           amount: amountNum,
-          date: today,
+          date: currentTimestamp,
           notes: formNotes.trim(),
         })
         setIncomes((prev) => [created, ...prev])
@@ -410,7 +417,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
                 <View style={styles.txInfo}>
                   <Text style={[styles.txTitle, { color: colors.text }]}>{tx.title}</Text>
                   <Text style={[styles.txMeta, { color: colors.textSecondary }]}>
-                    {tx.category} • {tx.date} • {tx.bank}
+                    {tx.category} • {formatTransactionDate(tx.date)} • {tx.bank || 'Account'}
                   </Text>
                 </View>
                 <View style={styles.amountWrap}>

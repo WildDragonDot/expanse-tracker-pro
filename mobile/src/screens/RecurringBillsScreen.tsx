@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   Switch,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   CalendarDays,
@@ -111,9 +112,11 @@ export const RecurringBillsScreen = () => {
     }
   }
 
-  useEffect(() => {
-    loadBillsData()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      loadBillsData()
+    }, [])
+  )
 
   const onRefresh = () => {
     setRefreshing(true)

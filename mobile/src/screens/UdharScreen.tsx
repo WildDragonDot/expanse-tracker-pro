@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   Linking,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   Users,
@@ -58,9 +59,11 @@ export const UdharScreen = ({ navigation }: { navigation: any }) => {
     }
   }
 
-  useEffect(() => {
-    loadRecords()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      loadRecords()
+    }, [])
+  )
 
   const onRefresh = () => {
     setRefreshing(true)

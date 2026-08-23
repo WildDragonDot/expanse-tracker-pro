@@ -24,6 +24,7 @@ import {
   CheckCircle2,
 } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
+import { formatLocalDateTime } from '../utils/dateUtils'
 
 export interface TransactionItem {
   id: string
@@ -131,9 +132,9 @@ export const TransactionDetailsModal: React.FC<Props> = ({
               <View style={[styles.metaRow, { borderTopWidth: 1, borderTopColor: colors.inputBorder }]}>
                 <View style={styles.metaLeft}>
                   <Calendar color={colors.textSecondary} size={16} />
-                  <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Date</Text>
+                  <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Date & Time</Text>
                 </View>
-                <Text style={[styles.metaValue, { color: colors.text }]}>{transaction.date}</Text>
+                <Text style={[styles.metaValue, { color: colors.text }]}>{formatLocalDateTime(transaction.date)}</Text>
               </View>
 
               {/* Bank Account */}

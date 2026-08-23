@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   ArrowUpRight,
@@ -37,6 +38,7 @@ import { CategoryDetailsModal, CategoryDetailsItem } from '../components/Categor
 import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
 import { api } from '../services/api'
 import { BillOccurrence } from '../types'
+import { formatTransactionDate, formatLocalDateTime } from '../utils/dateUtils'
 
 const CATEGORY_COLORS = ['#8B5CF6', '#10B981', '#06B6D4', '#F59E0B', '#F43F5E']
 
@@ -151,9 +153,11 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      loadData()
+    }, [])
+  )
 
   useEffect(() => {
     api.getBillOccurrences().then((occs) => {
@@ -188,7 +192,6 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
       <HeaderBar
         title="Dashboard"
         onProfilePress={() => navigation.navigate('Settings')}
-        onNotificationPress={() => navigation.navigate('Subscriptions')}
         hasUnreadNotifications={upcomingBill !== null}
       />
 
@@ -628,7 +631,9 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                 />
                 <View style={styles.txDetails}>
                   <Text style={[styles.txTitle, { color: colors.text }]}>{tx.title}</Text>
-                  <Text style={[styles.txMeta, { color: colors.textSecondary }]}>{tx.category} • {tx.date}</Text>
+                  <Text style={[styles.txMeta, { color: colors.textSecondary }]}>
+                    {tx.category} • {formatTransactionDate(tx.date)}
+                  </Text>
                 </View>
                 <Text style={[styles.txAmount, { color: tx.type === 'income' ? '#10B981' : colors.text }]}>
                   {tx.type === 'income' ? '+' : '-'}

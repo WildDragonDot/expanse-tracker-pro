@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import {
   TrendingUp,
   PieChart as PieIcon,
@@ -62,9 +63,11 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
     }
   }
 
-  useEffect(() => {
-    loadInsights()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      loadInsights()
+    }, [])
+  )
 
   const onRefresh = () => {
     setRefreshing(true)

@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useNavigation } from '@react-navigation/native'
 import { TrendingUp, Sun, Moon, Bell } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -20,11 +21,28 @@ export const HeaderBar: React.FC<Props> = ({
   onNotificationPress,
   hasUnreadNotifications = true,
 }) => {
+  const navigation = useNavigation<any>()
   const insets = useSafeAreaInsets()
   const { colors, theme, toggleTheme } = useAppTheme()
   const { user } = useAuth()
 
   const isDark = theme === 'dark'
+
+  const handleNotification = () => {
+    if (onNotificationPress) {
+      onNotificationPress()
+    } else {
+      navigation.navigate('Notifications')
+    }
+  }
+
+  const handleProfile = () => {
+    if (onProfilePress) {
+      onProfilePress()
+    } else {
+      navigation.navigate('Settings')
+    }
+  }
 
   return (
     <View
@@ -48,7 +66,7 @@ export const HeaderBar: React.FC<Props> = ({
 
       <View style={styles.right}>
         <TouchableOpacity
-          onPress={onNotificationPress || onProfilePress}
+          onPress={handleNotification}
           style={[styles.iconBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)', borderColor: 'rgba(255, 255, 255, 0.1)', position: 'relative' }]}
         >
           <Bell color={colors.text} size={16} />
@@ -62,7 +80,7 @@ export const HeaderBar: React.FC<Props> = ({
           {isDark ? <Sun color="#F59E0B" size={16} /> : <Moon color="#6366F1" size={16} />}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onProfilePress} style={styles.avatarBtn}>
+        <TouchableOpacity onPress={handleProfile} style={styles.avatarBtn}>
           <View style={styles.avatarWrap}>
             <Text style={styles.avatarText}>
               {user?.name ? user.name.slice(0, 2).toUpperCase() : 'CV'}

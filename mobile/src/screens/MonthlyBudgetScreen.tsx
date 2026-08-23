@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   Calendar,
@@ -94,10 +95,11 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
     }
   }
 
-  useEffect(() => {
-    setLoading(true)
-    loadBudgets()
-  }, [selectedMonth, selectedYear])
+  useFocusEffect(
+    useCallback(() => {
+      loadBudgets()
+    }, [selectedMonth, selectedYear])
+  )
 
   const onRefresh = () => {
     setRefreshing(true)

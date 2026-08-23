@@ -339,6 +339,30 @@ export class MobileApiClient {
     return { reply: res.response }
   }
 
+  // --- NOTIFICATIONS ---
+  async getNotifications(): Promise<{
+    success: boolean
+    unreadCount: number
+    notifications: Array<{
+      id: string
+      type: 'bill' | 'budget' | 'udhar' | 'report' | 'system' | 'tip'
+      title: string
+      message: string
+      createdAt: string
+      read: boolean
+      priority: 'high' | 'medium' | 'low'
+      actionScreen?: string
+      actionParams?: any
+      metadata?: any
+    }>
+  }> {
+    return this.request<{
+      success: boolean
+      unreadCount: number
+      notifications: any[]
+    }>('/notifications')
+  }
+
   // --- REPORTS & PDF EMAIL EXPORTS ---
   async sendEmailReport(data: {
     dateFrom: string
