@@ -9,6 +9,8 @@ import {
   TextInput,
   Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
@@ -271,63 +273,73 @@ export const EventPlanningScreen = ({ navigation }: { navigation?: any }) => {
 
       {/* Add Event Modal */}
       <Modal visible={showEventModal} animationType="slide" transparent onRequestClose={() => setShowEventModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => setShowEventModal(false)} style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder, maxHeight: '88%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>New Planned Event</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Create Budget Event</Text>
               <TouchableOpacity onPress={() => setShowEventModal(false)}>
                 <X color={colors.textSecondary} size={22} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>EVENT / TRIP TITLE</Text>
-              <TextInput
-                value={eventName}
-                onChangeText={setEventName}
-                placeholder="e.g. Goa Trip 2026, Diwali Celebration"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>EVENT / TRIP NAME</Text>
+                <TextInput
+                  value={eventName}
+                  onChangeText={setEventName}
+                  placeholder="e.g. Goa Vacation, Diwali Celebration"
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PLANNED TOTAL BUDGET ({currencySymbol})</Text>
-              <TextInput
-                value={eventBudget}
-                onChangeText={setEventBudget}
-                placeholder="35,000"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>TOTAL BUDGET LIMIT ({currencySymbol})</Text>
+                <TextInput
+                  value={eventBudget}
+                  onChangeText={setEventBudget}
+                  placeholder="50,000"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>MEMBERS SPLITTING COST</Text>
-              <TextInput
-                value={eventMembers}
-                onChangeText={setEventMembers}
-                placeholder="4"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>NUMBER OF MEMBERS (OPTIONAL)</Text>
+                <TextInput
+                  value={eventMembers}
+                  onChangeText={setEventMembers}
+                  placeholder="4"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <TouchableOpacity onPress={handleCreateEvent} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
-              <LinearGradient colors={['#F97316', '#EA580C']} style={styles.submitGradient}>
-                <Text style={styles.submitText}>{saving ? 'Saving…' : 'Save Planned Event'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={handleCreateEvent} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
+                <LinearGradient colors={['#F97316', '#EA580C']} style={styles.submitGradient}>
+                  <Text style={styles.submitText}>{saving ? 'Saving…' : 'Save Planned Event'}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Add Item Modal */}
       <Modal visible={showItemModal} animationType="slide" transparent onRequestClose={() => setShowItemModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => setShowItemModal(false)} style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder, maxHeight: '88%' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Add Event Expense Item</Text>
               <TouchableOpacity onPress={() => setShowItemModal(false)}>
@@ -335,36 +347,38 @@ export const EventPlanningScreen = ({ navigation }: { navigation?: any }) => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>ITEM NAME</Text>
-              <TextInput
-                value={itemTitle}
-                onChangeText={setItemTitle}
-                placeholder="e.g. Flight Tickets, Hotel Booking"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>ITEM NAME</Text>
+                <TextInput
+                  value={itemTitle}
+                  onChangeText={setItemTitle}
+                  placeholder="e.g. Flight Tickets, Hotel Booking"
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>ESTIMATED COST ({currencySymbol})</Text>
-              <TextInput
-                value={itemEstimate}
-                onChangeText={setItemEstimate}
-                placeholder="10,000"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>ESTIMATED COST ({currencySymbol})</Text>
+                <TextInput
+                  value={itemEstimate}
+                  onChangeText={setItemEstimate}
+                  placeholder="10,000"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <TouchableOpacity onPress={handleAddItem} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
-              <LinearGradient colors={colors.primaryGradient} style={styles.submitGradient}>
-                <Text style={styles.submitText}>{saving ? 'Adding…' : 'Add to Event'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={handleAddItem} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
+                <LinearGradient colors={colors.primaryGradient} style={styles.submitGradient}>
+                  <Text style={styles.submitText}>{saving ? 'Adding…' : 'Add to Event'}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   )

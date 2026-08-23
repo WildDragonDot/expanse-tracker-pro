@@ -10,6 +10,8 @@ import {
   RefreshControl,
   Alert,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -489,9 +491,13 @@ export const RecurringBillsScreen = () => {
         transparent
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => setModalVisible(false)} style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder, maxHeight: '88%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 10 }}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Add Bill & Reminders</Text>
                 <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -667,7 +673,7 @@ export const RecurringBillsScreen = () => {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   )

@@ -13,6 +13,7 @@ import {
   TextInput,
   Platform,
   LogBox,
+  KeyboardAvoidingView,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import DateTimePicker, {
@@ -1009,115 +1010,120 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         </View>
       </Modal>
 
-      {/* Modal 2: Send Statement Email Modal (Registered vs Custom Email + Bills Toggle) */}
+      {/* Modal 2: Email Statement Modal */}
       <Modal
         visible={showEmailModal}
         transparent
         animationType="fade"
         onRequestClose={() => setShowEmailModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
           <TouchableOpacity
             activeOpacity={1}
             style={StyleSheet.absoluteFill}
             onPress={() => setShowEmailModal(false)}
           />
-          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.surfaceGlassBorder }]}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <FileText color="#8B5CF6" size={20} />
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Email Financial Report</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowEmailModal(false)} style={styles.closeBtn}>
-                <X color={colors.textSecondary} size={20} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              Official invoice & statement for {activePeriod.label} ({activePeriod.startDate} to {activePeriod.endDate}).
-            </Text>
-
-            {/* Destination Selection */}
-            <View style={styles.emailOptionContainer}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setUseCustomEmail(false)}
-                style={[
-                  styles.emailChoiceRow,
-                  !useCustomEmail && { borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.1)' },
-                ]}
-              >
-                <View style={[styles.radioCircle, !useCustomEmail && styles.radioCircleActive]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.emailChoiceTitle, { color: colors.text }]}>Registered Account Email</Text>
-                  <Text style={[styles.emailChoiceSub, { color: colors.textSecondary }]}>{user?.email || 'Your account email'}</Text>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.surfaceGlassBorder, maxHeight: '88%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              <View style={styles.modalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <FileText color="#8B5CF6" size={20} />
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>Email Financial Report</Text>
                 </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setUseCustomEmail(true)}
-                style={[
-                  styles.emailChoiceRow,
-                  useCustomEmail && { borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.1)' },
-                ]}
-              >
-                <View style={[styles.radioCircle, useCustomEmail && styles.radioCircleActive]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.emailChoiceTitle, { color: colors.text }]}>Custom Recipient Email</Text>
-                  <Text style={[styles.emailChoiceSub, { color: colors.textSecondary }]}>Accountant, Employer, or Personal</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Custom Email Input */}
-            {useCustomEmail && (
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Recipient Email Address</Text>
-                <TextInput
-                  value={recipientEmail}
-                  onChangeText={setRecipientEmail}
-                  placeholder="e.g. ca@financefirm.com"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  style={[styles.dateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
-                />
+                <TouchableOpacity onPress={() => setShowEmailModal(false)} style={styles.closeBtn}>
+                  <X color={colors.textSecondary} size={20} />
+                </TouchableOpacity>
               </View>
-            )}
 
-            {/* Receipts toggle */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setIncludeReceipts(!includeReceipts)}
-              style={styles.toggleReceiptsRow}
-            >
-              <View style={[styles.checkboxBox, includeReceipts && styles.checkboxBoxActive]}>
-                {includeReceipts && <Check color="#FFFFFF" size={14} />}
-              </View>
-              <Text style={[styles.toggleReceiptsText, { color: colors.text }]}>
-                Attach Cloudflare R2 Bill & Receipt Images
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                Official invoice & statement for {activePeriod.label} ({activePeriod.startDate} to {activePeriod.endDate}).
               </Text>
-            </TouchableOpacity>
 
-            {/* Send Action Button */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              disabled={sendingEmail}
-              onPress={handleSendEmailReport}
-              style={[styles.applyRangeBtn, { marginTop: 16 }]}
-            >
-              {sendingEmail ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Send color="#FFFFFF" size={18} />
-                  <Text style={styles.applyRangeBtnText}>Send Financial Statement</Text>
-                </>
+              {/* Destination Selection */}
+              <View style={styles.emailOptionContainer}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setUseCustomEmail(false)}
+                  style={[
+                    styles.emailChoiceRow,
+                    !useCustomEmail && { borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.1)' },
+                  ]}
+                >
+                  <View style={[styles.radioCircle, !useCustomEmail && styles.radioCircleActive]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.emailChoiceTitle, { color: colors.text }]}>Registered Account Email</Text>
+                    <Text style={[styles.emailChoiceSub, { color: colors.textSecondary }]}>{user?.email || 'Your account email'}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setUseCustomEmail(true)}
+                  style={[
+                    styles.emailChoiceRow,
+                    useCustomEmail && { borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.1)' },
+                  ]}
+                >
+                  <View style={[styles.radioCircle, useCustomEmail && styles.radioCircleActive]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.emailChoiceTitle, { color: colors.text }]}>Custom Recipient Email</Text>
+                    <Text style={[styles.emailChoiceSub, { color: colors.textSecondary }]}>Accountant, Employer, or Personal</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Custom Email Input */}
+              {useCustomEmail && (
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Recipient Email Address</Text>
+                  <TextInput
+                    value={recipientEmail}
+                    onChangeText={setRecipientEmail}
+                    placeholder="e.g. ca@financefirm.com"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    style={[styles.dateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                  />
+                </View>
               )}
-            </TouchableOpacity>
+
+              {/* Receipts toggle */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setIncludeReceipts(!includeReceipts)}
+                style={styles.toggleReceiptsRow}
+              >
+                <View style={[styles.checkboxBox, includeReceipts && styles.checkboxBoxActive]}>
+                  {includeReceipts && <Check color="#FFFFFF" size={14} />}
+                </View>
+                <Text style={[styles.toggleReceiptsText, { color: colors.text }]}>
+                  Attach Cloudflare R2 Bill & Receipt Images
+                </Text>
+              </TouchableOpacity>
+
+              {/* Send Action Button */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={sendingEmail}
+                onPress={handleSendEmailReport}
+                style={[styles.applyRangeBtn, { marginTop: 16 }]}
+              >
+                {sendingEmail ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Send color="#FFFFFF" size={18} />
+                    <Text style={styles.applyRangeBtnText}>Send Financial Statement</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal 3: Custom Date Range Modal */}

@@ -10,6 +10,8 @@ import {
   RefreshControl,
   Alert,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -257,8 +259,12 @@ export const UdharScreen = ({ navigation }: { navigation: any }) => {
 
       {/* Add Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => setModalVisible(false)} style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder, maxHeight: '88%' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Add Udhar / Debt Entry</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -266,68 +272,70 @@ export const UdharScreen = ({ navigation }: { navigation: any }) => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.typeSwitcher}>
-              <TouchableOpacity onPress={() => setDirection('given')} style={[styles.typeBtn, direction === 'given' && { backgroundColor: '#10B981' }]}>
-                <Text style={[styles.typeText, { color: direction === 'given' ? '#FFFFFF' : colors.textSecondary }]}>I Gave (Lent)</Text>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              <View style={styles.typeSwitcher}>
+                <TouchableOpacity onPress={() => setDirection('given')} style={[styles.typeBtn, direction === 'given' && { backgroundColor: '#10B981' }]}>
+                  <Text style={[styles.typeText, { color: direction === 'given' ? '#FFFFFF' : colors.textSecondary }]}>I Gave (Lent)</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setDirection('taken')} style={[styles.typeBtn, direction === 'taken' && { backgroundColor: '#F43F5E' }]}>
+                  <Text style={[styles.typeText, { color: direction === 'taken' ? '#FFFFFF' : colors.textSecondary }]}>I Took (Borrowed)</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PERSON NAME</Text>
+                <TextInput
+                  value={personName}
+                  onChangeText={setPersonName}
+                  placeholder="e.g. Rahul Sharma"
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PHONE NUMBER (OPTIONAL)</Text>
+                <TextInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="+91XXXXXXXXXX"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="phone-pad"
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>AMOUNT ({currencySymbol})</Text>
+                <TextInput
+                  value={amount}
+                  onChangeText={setAmount}
+                  placeholder="3,000"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>REASON / NOTES</Text>
+                <TextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="e.g. Dinner bill split"
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
+
+              <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.saveBtn, { opacity: saving ? 0.6 : 1 }]}>
+                <LinearGradient colors={colors.primaryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveGradient}>
+                  <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save Udhar Record'}</Text>
+                </LinearGradient>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setDirection('taken')} style={[styles.typeBtn, direction === 'taken' && { backgroundColor: '#F43F5E' }]}>
-                <Text style={[styles.typeText, { color: direction === 'taken' ? '#FFFFFF' : colors.textSecondary }]}>I Took (Borrowed)</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PERSON NAME</Text>
-              <TextInput
-                value={personName}
-                onChangeText={setPersonName}
-                placeholder="e.g. Rahul Sharma"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PHONE NUMBER (OPTIONAL)</Text>
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="+91XXXXXXXXXX"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="phone-pad"
-                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>AMOUNT ({currencySymbol})</Text>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="3,000"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>REASON / NOTES</Text>
-              <TextInput
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="e.g. Dinner bill split"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
-
-            <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.saveBtn, { opacity: saving ? 0.6 : 1 }]}>
-              <LinearGradient colors={colors.primaryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveGradient}>
-                <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save Udhar Record'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   )

@@ -9,6 +9,8 @@ import {
   TextInput,
   Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -345,8 +347,12 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
 
       {/* Add Budget Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => setModalVisible(false)} style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder, maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Set Category Budget</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -354,36 +360,38 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY NAME</Text>
-              <TextInput
-                value={catName}
-                onChangeText={setCatName}
-                placeholder="e.g. Dining Out, Fitness, Shopping"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY NAME</Text>
+                <TextInput
+                  value={catName}
+                  onChangeText={setCatName}
+                  placeholder="e.g. Dining Out, Fitness, Shopping"
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>BUDGET LIMIT ({currencySymbol})</Text>
-              <TextInput
-                value={catBudget}
-                onChangeText={setCatBudget}
-                placeholder="10,000"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>BUDGET LIMIT ({currencySymbol})</Text>
+                <TextInput
+                  value={catBudget}
+                  onChangeText={setCatBudget}
+                  placeholder="10,000"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <TouchableOpacity onPress={handleAddBudget} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
-              <LinearGradient colors={colors.primaryGradient} style={styles.submitGradient}>
-                <Text style={styles.submitText}>{saving ? 'Saving…' : 'Save Budget'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={handleAddBudget} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
+                <LinearGradient colors={colors.primaryGradient} style={styles.submitGradient}>
+                  <Text style={styles.submitText}>{saving ? 'Saving…' : 'Save Budget'}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Month Picker Modal */}

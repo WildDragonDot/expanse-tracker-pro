@@ -9,6 +9,8 @@ import {
   TextInput,
   RefreshControl,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -445,8 +447,17 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
       />
 
       {/* Add Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
+        <KeyboardAvoidingView
+          behavior="padding"
+          style={styles.modalOverlay}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setModalVisible(false)}
+            style={StyleSheet.absoluteFill}
+          />
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>
@@ -457,52 +468,54 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalInputGroup}>
-              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
-                {modalType === 'expense' ? 'MERCHANT / DESCRIPTION' : 'INCOME SOURCE'}
-              </Text>
-              <TextInput
-                value={formTitle}
-                onChangeText={setFormTitle}
-                placeholder={modalType === 'expense' ? 'e.g. Grocery, Flight, Dinner' : 'e.g. Salary, Client Payout'}
-                placeholderTextColor={colors.textMuted}
-                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              <View style={styles.modalInputGroup}>
+                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                  {modalType === 'expense' ? 'MERCHANT / DESCRIPTION' : 'INCOME SOURCE'}
+                </Text>
+                <TextInput
+                  value={formTitle}
+                  onChangeText={setFormTitle}
+                  placeholder={modalType === 'expense' ? 'e.g. Grocery, Flight, Dinner' : 'e.g. Salary, Client Payout'}
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <View style={styles.modalInputGroup}>
-              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>AMOUNT ({currencySymbol})</Text>
-              <TextInput
-                value={formAmount}
-                onChangeText={setFormAmount}
-                placeholder="2,500"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+              <View style={styles.modalInputGroup}>
+                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>AMOUNT ({currencySymbol})</Text>
+                <TextInput
+                  value={formAmount}
+                  onChangeText={setFormAmount}
+                  placeholder="2,500"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <View style={styles.modalInputGroup}>
-              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>NOTES</Text>
-              <TextInput
-                value={formNotes}
-                onChangeText={setFormNotes}
-                placeholder="Optional notes or description"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+              <View style={styles.modalInputGroup}>
+                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>NOTES</Text>
+                <TextInput
+                  value={formNotes}
+                  onChangeText={setFormNotes}
+                  placeholder="Optional notes or description"
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <TouchableOpacity onPress={handleSaveTransaction} style={styles.modalSubmitBtn}>
-              <LinearGradient
-                colors={modalType === 'expense' ? colors.primaryGradient : colors.secondaryGradient}
-                style={styles.modalGradientBtn}
-              >
-                <Text style={styles.modalSubmitText}>Save Transaction to Ledger</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveTransaction} style={styles.modalSubmitBtn}>
+                <LinearGradient
+                  colors={modalType === 'expense' ? colors.primaryGradient : colors.secondaryGradient}
+                  style={styles.modalGradientBtn}
+                >
+                  <Text style={styles.modalSubmitText}>Save Transaction to Ledger</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Info Tooltip Modal */}
@@ -702,6 +715,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     borderWidth: 1,
     padding: 24,
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',

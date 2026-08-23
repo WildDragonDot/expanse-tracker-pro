@@ -9,6 +9,8 @@ import {
   TextInput,
   Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -244,8 +246,12 @@ export const ShoppingScreen = ({ navigation }: { navigation?: any }) => {
 
       {/* Actual Price Modal */}
       <Modal visible={priceModalVisible} animationType="fade" transparent onRequestClose={() => setPriceModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => setPriceModalVisible(false)} style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder, maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Confirm Actual Paid Price</Text>
               <TouchableOpacity onPress={() => setPriceModalVisible(false)}>
@@ -275,13 +281,17 @@ export const ShoppingScreen = ({ navigation }: { navigation?: any }) => {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Add Item Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => setModalVisible(false)} style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder, maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Add Shopping Item</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -289,47 +299,49 @@ export const ShoppingScreen = ({ navigation }: { navigation?: any }) => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>ITEM NAME</Text>
-              <TextInput
-                value={title}
-                onChangeText={setTitle}
-                placeholder="e.g. Olive Oil, Monitor Stand"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>ITEM NAME</Text>
+                <TextInput
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="e.g. Olive Oil, Monitor Stand"
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>ESTIMATED PRICE ({currencySymbol})</Text>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="450"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>ESTIMATED PRICE ({currencySymbol})</Text>
+                <TextInput
+                  value={amount}
+                  onChangeText={setAmount}
+                  placeholder="450"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
-              <TextInput
-                value={category}
-                onChangeText={setCategory}
-                placeholder="Groceries, Electronics, etc."
-                placeholderTextColor={colors.textMuted}
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-              />
-            </View>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
+                <TextInput
+                  value={category}
+                  onChangeText={setCategory}
+                  placeholder="Groceries, Electronics, etc."
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                />
+              </View>
 
-            <TouchableOpacity onPress={handleAddItem} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
-              <LinearGradient colors={['#10B981', '#059669']} style={styles.submitGradient}>
-                <Text style={styles.submitText}>{saving ? 'Adding…' : 'Add to Shopping List'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={handleAddItem} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
+                <LinearGradient colors={['#10B981', '#059669']} style={styles.submitGradient}>
+                  <Text style={styles.submitText}>{saving ? 'Adding…' : 'Add to Shopping List'}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   )

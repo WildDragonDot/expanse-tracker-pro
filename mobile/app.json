@@ -27,6 +27,7 @@
         "RECEIVE_BOOT_COMPLETED",
         "POST_NOTIFICATIONS"
       ],
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false
     },
     "androidStatusBar": {

@@ -15,6 +15,8 @@ import {
   FlatList,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
@@ -920,9 +922,12 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
 
       {/* MODAL 3: Profile Edit Modal */}
       <Modal visible={activeModal === 'profile'} animationType="slide" transparent onRequestClose={() => setActiveModal(null)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setActiveModal(null)} />
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder, maxHeight: '88%' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Personal Profile</Text>
               <TouchableOpacity onPress={() => setActiveModal(null)} style={styles.closeBtn}>
@@ -930,35 +935,35 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Photo Avatar Preview with Change Button */}
-            <View style={styles.profileEditPhotoRow}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setActiveModal('photo_picker')}
-                style={styles.profileEditAvatarBox}
-              >
-                {profileImage ? (
-                  <Image source={{ uri: profileImage }} style={styles.profileEditAvatarImg} />
-                ) : (
-                  <View style={styles.profileEditAvatarFallback}>
-                    <Text style={styles.avatarInitials}>
-                      {editName ? editName.substring(0, 2).toUpperCase() : 'DR'}
-                    </Text>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              {/* Photo Avatar Preview with Change Button */}
+              <View style={styles.profileEditPhotoRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setActiveModal('photo_picker')}
+                  style={styles.profileEditAvatarBox}
+                >
+                  {profileImage ? (
+                    <Image source={{ uri: profileImage }} style={styles.profileEditAvatarImg} />
+                  ) : (
+                    <View style={styles.profileEditAvatarFallback}>
+                      <Text style={styles.avatarInitials}>
+                        {editName ? editName.substring(0, 2).toUpperCase() : 'DR'}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.cameraBadgeLarge}>
+                    <Camera color="#FFFFFF" size={14} />
                   </View>
-                )}
-                <View style={styles.cameraBadgeLarge}>
-                  <Camera color="#FFFFFF" size={14} />
-                </View>
-              </TouchableOpacity>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.profileName, { color: colors.text }]}>{editName}</Text>
-                <TouchableOpacity onPress={() => setActiveModal('photo_picker')}>
-                  <Text style={styles.changePhotoLink}>Tap to choose new photo</Text>
                 </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.profileName, { color: colors.text }]}>{editName}</Text>
+                  <TouchableOpacity onPress={() => setActiveModal('photo_picker')}>
+                    <Text style={styles.changePhotoLink}>Tap to choose new photo</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
 
-            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
               <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Full Name</Text>
               <TextInput
                 style={[styles.modalInput, { color: colors.text, borderColor: colors.surfaceGlassBorder }]}
@@ -995,20 +1000,20 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
                 placeholder="Financial goals"
                 placeholderTextColor={colors.textMuted}
               />
-            </ScrollView>
 
-            <TouchableOpacity
-              style={styles.modalActionBtn}
-              onPress={() => {
-                updateProfile({ name: editName, email: editEmail, profileImage })
-                setActiveModal(null)
-                Alert.alert('Saved', 'Profile updated successfully!')
-              }}
-            >
-              <Text style={styles.modalActionBtnText}>Save Profile</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalActionBtn, { marginTop: 16, marginBottom: 20 }]}
+                onPress={() => {
+                  updateProfile({ name: editName, email: editEmail, profileImage })
+                  setActiveModal(null)
+                  Alert.alert('Saved', 'Profile updated successfully!')
+                }}
+              >
+                <Text style={styles.modalActionBtnText}>Save Profile</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* MODAL 4: Notifications Modal */}
