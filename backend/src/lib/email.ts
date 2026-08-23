@@ -1,12 +1,11 @@
 import nodemailer from 'nodemailer'
 
-// Email configuration - supports Mailgun, Gmail, and generic SMTP
+// Email configuration - supports Mailgun API (recommended for EC2/Cloud), Mailgun SMTP, Gmail, and generic SMTP
 const getEmailConfig = () => {
-  // Priority 1: Mailgun (recommended for production)
   if (process.env.MAILGUN_LOGIN && process.env.MAILGUN_PASSWORD) {
     return {
       host: 'smtp.mailgun.org',
-      port: 2525,
+      port: 587,
       secure: false,
       auth: {
         user: process.env.MAILGUN_LOGIN,
@@ -15,12 +14,11 @@ const getEmailConfig = () => {
     }
   }
 
-  // Priority 2: Generic SMTP configuration
   if (process.env.SMTP_HOST) {
     return {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+      secure: process.env.SMTP_PORT === '465',
       auth: {
         user: process.env.SMTP_USER || process.env.GMAIL_USER,
         pass: process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD,
@@ -28,7 +26,6 @@ const getEmailConfig = () => {
     }
   }
 
-  // Priority 3: Gmail (fallback)
   return {
     service: 'gmail',
     auth: {
@@ -41,15 +38,15 @@ const getEmailConfig = () => {
 const emailConfig = getEmailConfig()
 
 console.log('📧 Email Configuration:', {
-  type: process.env.MAILGUN_LOGIN
-    ? 'Mailgun'
+  type: (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN)
+    ? 'Mailgun HTTP API (Ultra-Fast)'
+    : process.env.MAILGUN_LOGIN
+    ? 'Mailgun SMTP'
     : process.env.SMTP_HOST
     ? 'SMTP'
     : 'Gmail',
-  host: emailConfig.host || 'gmail',
-  port: emailConfig.port || '587',
-  user: emailConfig.auth?.user ? '✅ Set' : '❌ Not set',
-  pass: emailConfig.auth?.pass ? '✅ Set' : '❌ Not set',
+  host: process.env.MAILGUN_DOMAIN || emailConfig.host || 'gmail',
+  user: (process.env.MAILGUN_API_KEY || emailConfig.auth?.user) ? '✅ Set' : '❌ Not set',
 })
 
 const transporter = nodemailer.createTransport(emailConfig)
@@ -70,23 +67,59 @@ export async function sendEmail({ to, subject, html, text, attachments }: EmailO
   try {
     const fromEmail =
       process.env.MAILGUN_FROM ||
+      (process.env.MAILGUN_DOMAIN ? `postmaster@${process.env.MAILGUN_DOMAIN}` : null) ||
       process.env.SMTP_USER ||
       process.env.GMAIL_USER
 
-    if (!fromEmail) {
+    if (!fromEmail && !process.env.MAILGUN_API_KEY) {
       throw new Error(
-        'Email sender not configured. Set MAILGUN_LOGIN, GMAIL_USER, or SMTP_USER environment variable.'
+        'Email sender not configured. Set MAILGUN_API_KEY, MAILGUN_LOGIN, GMAIL_USER, or SMTP_USER environment variable.'
       )
     }
 
     console.log(`📧 Sending email to ${to}: ${subject}`)
 
+    // Priority 1: Direct Mailgun HTTP REST API (Bypasses all ISP/EC2 SMTP port firewalls)
+    if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
+      const apiKey = process.env.MAILGUN_API_KEY
+      const domain = process.env.MAILGUN_DOMAIN
+      const sender = fromEmail?.includes('<') ? fromEmail : `"ExpenseTracker Pro" <${fromEmail || `postmaster@${domain}`}>`
+
+      const formData = new URLSearchParams()
+      formData.append('from', sender)
+      formData.append('to', to)
+      formData.append('subject', subject)
+      formData.append('html', html)
+      if (text) formData.append('text', text)
+      else formData.append('text', html.replace(/<[^>]*>/g, ''))
+
+      const authHeader = 'Basic ' + Buffer.from(`api:${apiKey}`).toString('base64')
+      const response = await fetch(`https://api.mailgun.net/v3/${domain}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || `Mailgun API error status ${response.status}`)
+      }
+
+      console.log('✅ Email sent via Mailgun API successfully:', data.id)
+      return { success: true, messageId: data.id }
+    }
+
+    // Priority 2: Nodemailer SMTP Transport
     const info = await transporter.sendMail({
-      from: `"FinanceTracker" <${fromEmail}>`,
+      from: fromEmail?.includes('<') ? fromEmail : `"ExpenseTracker Pro" <${fromEmail}>`,
       to,
       subject,
       html,
-      text: text || html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+      text: text || html.replace(/<[^>]*>/g, ''),
       attachments
     })
 
@@ -104,161 +137,83 @@ export async function sendEmail({ to, subject, html, text, attachments }: EmailO
 // Email templates
 export const emailTemplates = {
   welcome: (name: string) => ({
-    subject: 'Welcome to FinanceTracker!',
+    subject: 'Welcome to ExpenseTracker Pro!',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to FinanceTracker!</h1>
-          <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Your journey to financial freedom starts here</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px;">
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 24px;">
+          <h1 style="color: white; margin: 0; font-size: 26px;">Welcome to ExpenseTracker Pro! 🚀</h1>
+          <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 15px;">Smart AI-Powered Personal Finance & Budgeting</p>
         </div>
         
-        <div style="padding: 0 20px;">
-          <h2 style="color: #333; margin-bottom: 20px;">Hi ${name}! 👋</h2>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            Thank you for joining FinanceTracker! We're excited to help you take control of your finances and achieve your financial goals.
+        <div style="padding: 0 16px;">
+          <h2 style="color: #f1f5f9; margin-bottom: 16px;">Hi ${name}! 👋</h2>
+          <p style="color: #94a3b8; line-height: 1.6; margin-bottom: 20px;">
+            Thank you for joining ExpenseTracker Pro! Your account is active and ready to help you track expenses, automate bills, and manage cash flow with AI.
           </p>
           
-          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #333; margin-top: 0;">🚀 Get Started:</h3>
-            <ul style="color: #666; line-height: 1.8;">
-              <li>Add your first expense to start tracking</li>
-              <li>Set up your budget and financial goals</li>
-              <li>Explore our smart analytics and insights</li>
-              <li>Connect your bank accounts for automatic sync</li>
+          <div style="background: #1e293b; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid rgba(255,255,255,0.08);">
+            <h3 style="color: #38bdf8; margin-top: 0;">⚡ Quick Start:</h3>
+            <ul style="color: #cbd5e1; line-height: 1.8;">
+              <li>Log your daily income and expenses</li>
+              <li>Monitor autonomous Financial Health Score</li>
+              <li>Track recurring bills and monthly budgets</li>
+              <li>Chat with your AI Financial Copilot</li>
             </ul>
           </div>
           
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
-               style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-              Go to Dashboard
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="https://expensetracker.chandandev.online" 
+               style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+              Open Web Dashboard
             </a>
           </div>
-          
-          <p style="color: #999; font-size: 14px; text-align: center; margin-top: 30px;">
-            Need help? Reply to this email or contact us at support@financetracker.com
-          </p>
         </div>
       </div>
     `,
   }),
 
-  expenseAlert: (name: string, expense: any) => ({
-    subject: `New Expense Added: ₹${expense.amount.toLocaleString()}`,
+  otpVerification: (otp: string) => ({
+    subject: `Your Verification Code: ${otp}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">💸 Expense Alert</h1>
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background-color: #0f172a; color: #f8fafc; border-radius: 12px;">
+        <h2 style="color: #6366f1; text-align: center; margin-bottom: 8px;">ExpenseTracker Pro</h2>
+        <p style="color: #94a3b8; text-align: center; margin-bottom: 24px;">Use the verification code below to verify your account:</p>
+        
+        <div style="background: #1e293b; border: 1px solid #6366f1; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #38bdf8;">${otp}</span>
         </div>
         
-        <p style="color: #333;">Hi ${name},</p>
-        <p style="color: #666;">A new expense has been added to your account:</p>
-        
-        <div style="background: #fff; border: 1px solid #e1e5e9; border-radius: 8px; padding: 20px; margin: 20px 0;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 style="margin: 0; color: #333;">${expense.title}</h3>
-            <span style="font-size: 20px; font-weight: bold; color: #f5576c;">₹${expense.amount.toLocaleString()}</span>
-          </div>
-          <p style="margin: 5px 0; color: #666;"><strong>Category:</strong> ${expense.category}</p>
-          <p style="margin: 5px 0; color: #666;"><strong>Date:</strong> ${new Date(expense.date).toLocaleDateString()}</p>
-          <p style="margin: 5px 0; color: #666;"><strong>Payment:</strong> ${expense.paymentMode} - ${expense.bank}</p>
-          ${expense.notes ? `<p style="margin: 10px 0 0 0; color: #666;"><strong>Notes:</strong> ${expense.notes}</p>` : ''}
-        </div>
-        
-        <div style="text-align: center; margin: 20px 0;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL}/expenses" 
-             style="background: #f5576c; color: white; padding: 10px 25px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-            View All Expenses
-          </a>
-        </div>
+        <p style="color: #64748b; font-size: 13px; text-align: center; margin-top: 24px;">
+          This code expires in 10 minutes. If you did not request this, please ignore this email.
+        </p>
       </div>
     `,
   }),
 
-  budgetWarning: (name: string, category: string, spent: number, budget: number) => ({
-    subject: `⚠️ Budget Alert: ${category} spending at ${Math.round((spent/budget)*100)}%`,
+  budgetWarning: (name: string, category: string, spent: number, limit: number) => ({
+    subject: `⚠️ Budget Alert: ${category} spending is at ${Math.round((spent / limit) * 100)}%`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%); padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
-          <h1 style="color: #2d3436; margin: 0; font-size: 24px;">⚠️ Budget Warning</h1>
+      <div style="font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; padding: 24px; background-color: #0f172a; color: #f8fafc; border-radius: 12px;">
+        <h2 style="color: #f59e0b; margin-top: 0;">⚠️ Budget Threshold Warning</h2>
+        <p style="color: #cbd5e1;">Hi ${name}, you've spent <strong>₹${spent.toLocaleString()}</strong> out of your <strong>₹${limit.toLocaleString()}</strong> budget for <strong>${category}</strong>.</p>
+        <div style="background: #1e293b; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid rgba(245,158,11,0.3);">
+          <p style="color: #f59e0b; margin: 0; font-weight: bold;">Budget Burn: ${Math.round((spent / limit) * 100)}% used</p>
         </div>
-        
-        <p style="color: #333;">Hi ${name},</p>
-        <p style="color: #666;">You're approaching your budget limit for <strong>${category}</strong>:</p>
-        
-        <div style="background: #fff; border: 1px solid #e1e5e9; border-radius: 8px; padding: 20px; margin: 20px 0;">
-          <div style="margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-              <span style="color: #666;">Spent this month:</span>
-              <span style="font-weight: bold; color: #e17055;">₹${spent.toLocaleString()}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <span style="color: #666;">Budget limit:</span>
-              <span style="font-weight: bold; color: #333;">₹${budget.toLocaleString()}</span>
-            </div>
-            <div style="background: #f1f2f6; height: 10px; border-radius: 5px; overflow: hidden;">
-              <div style="background: ${spent/budget > 0.9 ? '#e17055' : '#fdcb6e'}; height: 100%; width: ${Math.min((spent/budget)*100, 100)}%; transition: width 0.3s ease;"></div>
-            </div>
-            <p style="text-align: center; margin: 10px 0 0 0; font-weight: bold; color: ${spent/budget > 0.9 ? '#e17055' : '#fdcb6e'};">
-              ${Math.round((spent/budget)*100)}% of budget used
-            </p>
-          </div>
-        </div>
-        
-        <div style="text-align: center; margin: 20px 0;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
-             style="background: #fdcb6e; color: #2d3436; padding: 10px 25px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-            View Dashboard
-          </a>
-        </div>
+        <p style="color: #94a3b8; font-size: 13px;">Review your recent expenses on ExpenseTracker Pro to stay within your monthly target.</p>
       </div>
     `,
   }),
 
-  monthlyReport: (name: string, data: any) => ({
-    subject: `📊 Your Monthly Financial Report - ${data.month} ${data.year}`,
+  monthlyReport: (name: string, reportData: any) => ({
+    subject: `📊 Your Monthly Financial Report: ${reportData.month} ${reportData.year}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">📊 Monthly Report</h1>
-          <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 18px;">${data.month} ${data.year}</p>
-        </div>
-        
-        <p style="color: #333;">Hi ${name},</p>
-        <p style="color: #666;">Here's your financial summary for the month:</p>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0;">
-          <div style="background: #00b894; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-            <h3 style="margin: 0 0 10px 0; font-size: 16px;">Total Income</h3>
-            <p style="margin: 0; font-size: 24px; font-weight: bold;">₹${data.totalIncome.toLocaleString()}</p>
-          </div>
-          <div style="background: #e17055; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-            <h3 style="margin: 0 0 10px 0; font-size: 16px;">Total Expenses</h3>
-            <p style="margin: 0; font-size: 24px; font-weight: bold;">₹${data.totalExpenses.toLocaleString()}</p>
-          </div>
-        </div>
-        
-        <div style="background: ${data.savings >= 0 ? '#00b894' : '#e17055'}; color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-          <h3 style="margin: 0 0 10px 0; font-size: 18px;">${data.savings >= 0 ? 'Savings' : 'Deficit'}</h3>
-          <p style="margin: 0; font-size: 28px; font-weight: bold;">₹${Math.abs(data.savings).toLocaleString()}</p>
-        </div>
-        
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #333; margin-top: 0;">Top Spending Categories:</h3>
-          ${data.topCategories.map((cat: any, index: number) => `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: ${index < data.topCategories.length - 1 ? '1px solid #e1e5e9' : 'none'};">
-              <span style="color: #666;">${cat.category}</span>
-              <span style="font-weight: bold; color: #333;">₹${cat.amount.toLocaleString()}</span>
-            </div>
-          `).join('')}
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL}/reports" 
-             style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-            View Detailed Report
-          </a>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #0f172a; color: #f8fafc; border-radius: 12px;">
+        <h2 style="color: #6366f1; margin-top: 0;">Monthly Financial Summary</h2>
+        <p style="color: #cbd5e1;">Hi ${name}, here is your spending and savings snapshot for <strong>${reportData.month} ${reportData.year}</strong>.</p>
+        <div style="background: #1e293b; padding: 20px; border-radius: 8px; margin: 16px 0;">
+          <p style="color: #10b981; margin: 8px 0;"><strong>Total Income:</strong> ₹${Number(reportData.totalIncome || 0).toLocaleString()}</p>
+          <p style="color: #ef4444; margin: 8px 0;"><strong>Total Expenses:</strong> ₹${Number(reportData.totalExpenses || 0).toLocaleString()}</p>
+          <p style="color: #38bdf8; margin: 8px 0;"><strong>Net Savings:</strong> ₹${Number(reportData.netSavings || 0).toLocaleString()}</p>
         </div>
       </div>
     `,
