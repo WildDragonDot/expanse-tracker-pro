@@ -43,7 +43,13 @@ export async function uploadToR2(
 
     await r2Client.send(command)
 
-    const url = `${process.env.R2_CUSTOM_DOMAIN}/${key}`
+    const basePublicUrl = (
+      process.env.R2_PUBLIC_URL ||
+      process.env.R2_CUSTOM_DOMAIN ||
+      `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET}`
+    ).replace(/\/+$/, '')
+
+    const url = `${basePublicUrl}/${key}`
 
     return {
       url,
