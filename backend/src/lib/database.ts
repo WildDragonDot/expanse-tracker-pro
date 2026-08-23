@@ -253,7 +253,7 @@ async function verifyGoogleIdToken(idToken: string): Promise<{
   if (!GOOGLE_OAUTH_AUDIENCES.includes(payload.aud)) {
     throw new Error('Google token was not issued for this app')
   }
-  if (!payload.email || payload.email_verified !== 'true') {
+  if (!payload.email || (payload.email_verified !== 'true' && payload.email_verified !== true)) {
     throw new Error('Google account email is not verified')
   }
 

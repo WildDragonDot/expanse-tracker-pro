@@ -66,12 +66,8 @@ export async function getAuthUser(request: NextRequest) {
     // JWT token ko verify karte hain aur user ID nikaalte hain
     const decoded = verifyToken(token)
     
-    // Agar token invalid hai to check fallback
+    // Agar token invalid hai to return null
     if (!decoded) {
-      if (token.startsWith('token_google_') || token.startsWith('google_')) {
-        const firstUser = await prisma.user.findFirst()
-        if (firstUser) return { userId: firstUser.id }
-      }
       return null
     }
 
@@ -94,31 +90,11 @@ export async function getAuthUser(request: NextRequest) {
  * 
  * @param handler - Original API route handler function
  * @returns Protected handler function with userId in context
- * 
- * Used By:
- * - GET /api/expenses
- * - POST /api/expenses
- * - GET /api/incomes
- * - GET /api/monthly-budget
- * - GET /api/user/profile
- * - Aur sabhi protected routes
- * 
- * Example Usage:
- * // Protected route
- * export const GET = withAuth(async (request, { userId }) => {
- *   // Yahan userId automatically available hai
- *   const expenses = await getExpenses(userId)
- *   return NextResponse.json({ expenses })
- * })
- * 
- * // Bina auth ke route (public)
- * export async function POST(request: NextRequest) {
- *   // Yeh route koi bhi access kar sakta hai
- *   return NextResponse.json({ message: 'Public route' })
- * }
  */
-export function withAuth(handler: (request: NextRequest, context: { userId: string }) => Promise<Response>) {
-  return async (request: NextRequest) => {
+export function withAuth<T = any>(
+  handler: (request: NextRequest, context: { userId: string } & T) => Promise<Response>
+) {
+  return async (request: NextRequest, routeContext?: T) => {
     // User ko authenticate karte hain
     const auth = await getAuthUser(request)
     
@@ -130,7 +106,7 @@ export function withAuth(handler: (request: NextRequest, context: { userId: stri
       )
     }
 
-    // Authentication success - original handler ko userId ke saath call karte hain
-    return handler(request, { userId: auth.userId })
+    // Authentication success - original handler ko userId aur route params ke saath call karte hain
+    return handler(request, { ...(routeContext || ({} as T)), userId: auth.userId })
   }
 }

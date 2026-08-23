@@ -60,18 +60,20 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     const avgExpensePerDay = summary.totalExpenses / new Date().getDate()
     const savingsRate = summary.totalIncome > 0 ? (summary.savings / summary.totalIncome) * 100 : 0
 
-    // Calculate historical trends (last 6 months)
-    const monthlyTrends = []
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(currentYear, currentMonth - 1 - i, 1)
-      const monthSummary = await getFinancialSummary(userId, date.getFullYear(), date.getMonth() + 1)
-      monthlyTrends.push({
-        month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        expenses: monthSummary.totalExpenses,
-        income: monthSummary.totalIncome,
-        savings: monthSummary.savings
+    // Calculate historical trends (last 6 months in parallel)
+    const monthOffsets = [5, 4, 3, 2, 1, 0]
+    const monthlyTrends = await Promise.all(
+      monthOffsets.map(async (offset) => {
+        const date = new Date(currentYear, currentMonth - 1 - offset, 1)
+        const monthSummary = await getFinancialSummary(userId, date.getFullYear(), date.getMonth() + 1)
+        return {
+          month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          expenses: monthSummary.totalExpenses,
+          income: monthSummary.totalIncome,
+          savings: monthSummary.savings
+        }
       })
-    }
+    )
 
     // Udhar summary
     const udharGiven = udhars.filter(u => u.direction === 'given').reduce((sum, u) => sum + u.remaining, 0)
