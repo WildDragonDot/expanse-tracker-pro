@@ -118,15 +118,24 @@ export async function sendEmail({ to, subject, html, text, attachments }: EmailO
         const errData = await response.json().catch(() => ({}))
         console.error('Mailgun error for recipient', to, ':', errData)
 
-        // Sandbox fallback: If Mailgun rejects recipient (400 sandbox restriction), deliver to authorized recipient
+        // Sandbox fallback: If Mailgun rejects recipient (sandbox/free account restriction), deliver to authorized recipient
         const fallbackTo = process.env.MAILGUN_AUTHORIZED_RECIPIENT || 'chandanvishwakarma.tech@gmail.com'
-        if (to !== fallbackTo && (errData.message?.includes('Sandbox') || response.status === 400)) {
+        const errMsg = (errData.message || '').toLowerCase()
+        const isSandboxOrAuthErr =
+          errMsg.includes('sandbox') ||
+          errMsg.includes('authorized') ||
+          errMsg.includes('free account') ||
+          errMsg.includes('not allowed') ||
+          response.status === 400 ||
+          response.status === 403
+
+        if (to.toLowerCase() !== fallbackTo.toLowerCase() && isSandboxOrAuthErr) {
           console.log(`[Mailgun Sandbox] Re-routing email to verified recipient: ${fallbackTo}`)
           const fallbackForm = new FormData()
           fallbackForm.append('from', sender)
           fallbackForm.append('to', fallbackTo)
           fallbackForm.append('subject', `[Delivered for ${to}] ` + subject)
-          fallbackForm.append('html', `<p style="color:#6366f1;font-size:12px;font-family:sans-serif">Note: Delivered to verified developer email <strong>${fallbackTo}</strong> because Mailgun is in Sandbox Mode.</p>` + html)
+          fallbackForm.append('html', `<div style="background:#1e293b;padding:12px;border-radius:8px;margin-bottom:16px;color:#f8fafc;font-family:sans-serif;font-size:13px;border-left:4px solid #6366f1">ℹ️ <strong>Sandbox Mode Notice:</strong> Delivered to registered developer email <strong>${fallbackTo}</strong> for account <em>${to}</em>.</div>` + html)
           if (text) fallbackForm.append('text', text)
 
           if (attachments && attachments.length > 0) {
