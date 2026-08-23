@@ -806,6 +806,11 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         onRequestClose={() => setShowPickerModal(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowPickerModal(false)}
+          />
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>
@@ -826,7 +831,10 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                   <TouchableOpacity
                     key={item.label + item.index}
                     activeOpacity={0.7}
-                    onPress={() => setActiveIndex(item.index)}
+                    onPress={() => {
+                      setActiveIndex(item.index)
+                      setShowPickerModal(false)
+                    }}
                     style={[
                       styles.cycleListItem,
                       {
@@ -865,6 +873,11 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         onRequestClose={() => setShowEmailModal(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowEmailModal(false)}
+          />
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -971,6 +984,11 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         onRequestClose={() => setShowCustomModal(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowCustomModal(false)}
+          />
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

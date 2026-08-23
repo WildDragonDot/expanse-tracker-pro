@@ -25,46 +25,43 @@ export const InfoTooltipModal: React.FC<Props> = ({ visible, tooltip, onClose })
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
-              {/* Header */}
-              <View style={styles.header}>
-                <View style={[styles.iconCircle, { backgroundColor: `${accent}20` }]}>
-                  <Info color={accent} size={18} />
-                </View>
-                <Text style={[styles.title, { color: colors.text }]}>{tooltip.title}</Text>
-                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                  <X color={colors.textSecondary} size={18} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Description */}
-              <Text style={[styles.description, { color: colors.textSecondary }]}>
-                {tooltip.description}
-              </Text>
-
-              {/* Optional Details or Formula Box */}
-              {tooltip.details ? (
-                <View style={[styles.detailsBox, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                  <Text style={[styles.detailsText, { color: colors.text }]}>{tooltip.details}</Text>
-                </View>
-              ) : null}
-
-              {/* Got it Button */}
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={onClose}
-                style={[styles.gotItBtn, { backgroundColor: accent }]}
-              >
-                <Check color="#FFFFFF" size={16} strokeWidth={2.5} />
-                <Text style={styles.gotItText}>Got it</Text>
-              </TouchableOpacity>
+      <View style={styles.overlay}>
+        <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={[styles.iconCircle, { backgroundColor: `${accent}20` }]}>
+              <Info color={accent} size={18} />
             </View>
-          </TouchableWithoutFeedback>
+            <Text style={[styles.title, { color: colors.text }]}>{tooltip.title}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <X color={colors.textSecondary} size={18} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Description */}
+          <Text style={[styles.description, { color: colors.textSecondary }]}>
+            {tooltip.description}
+          </Text>
+
+          {/* Optional Details or Formula Box */}
+          {tooltip.details ? (
+            <View style={[styles.detailsBox, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+              <Text style={[styles.detailsText, { color: colors.text }]}>{tooltip.details}</Text>
+            </View>
+          ) : null}
+
+          {/* Got it Button */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={onClose}
+            style={[styles.gotItBtn, { backgroundColor: accent }]}
+          >
+            <Check color="#FFFFFF" size={16} strokeWidth={2.5} />
+            <Text style={styles.gotItText}>Got it</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableWithoutFeedback>
+      </View>
     </Modal>
   )
 }
