@@ -203,15 +203,124 @@ export async function authenticateUser(email: string, password: string) {
     }
   })
 
-  // User nahi mila ya password galat hai
-  if (!user || !await bcrypt.compare(password, user.passwordHash)) {
+  // User nahi mila, ya account Google-only hai (koi password set hi nahi hai), ya password galat hai
+  if (!user || !user.passwordHash || !await bcrypt.compare(password, user.passwordHash)) {
+    if (user && !user.passwordHash) {
+      throw new Error('This account uses Google Sign-In. Please continue with Google.')
+    }
     throw new Error('Invalid credentials')
   }
 
   // Password hash ko response se remove karte hain (security)
   const { passwordHash, ...userWithoutPassword } = user
   const token = generateToken(user.id)
-  
+
+  return { user: userWithoutPassword, token }
+}
+
+// OAuth client ID(s) allowed as the "audience" of a Google ID token.
+// Client IDs are not secret (they ship inside the mobile app itself) — only the
+// token's signature and claims need verifying, which happens against Google below.
+const GOOGLE_OAUTH_AUDIENCES = [
+  process.env.GOOGLE_OAUTH_CLIENT_ID,
+  '268456368819-2oepgmd8t8jknh4vqs9rtnf6lem1rfml.apps.googleusercontent.com',
+].filter(Boolean) as string[]
+
+/**
+ * Google ID Token Verify Karta Hai Google Ke Servers Se
+ *
+ * Ise koi bhi fake/self-signed token accept nahi karega — Google khud signature,
+ * expiry aur audience verify karta hai. Isiliye client (mobile app) se aaya hua
+ * idToken blindly trust nahi kiya jaata.
+ *
+ * @param idToken - Google Sign-In se mila JWT ID token
+ * @throws Error agar token invalid, expired, ya kisi aur app ke liye issue hua ho
+ */
+async function verifyGoogleIdToken(idToken: string): Promise<{
+  sub: string
+  email: string
+  emailVerified: boolean
+  name: string
+  picture?: string
+}> {
+  const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`)
+  if (!res.ok) {
+    throw new Error('Invalid or expired Google token')
+  }
+
+  const payload = await res.json()
+
+  if (!GOOGLE_OAUTH_AUDIENCES.includes(payload.aud)) {
+    throw new Error('Google token was not issued for this app')
+  }
+  if (!payload.email || payload.email_verified !== 'true') {
+    throw new Error('Google account email is not verified')
+  }
+
+  return {
+    sub: payload.sub,
+    email: payload.email,
+    emailVerified: true,
+    name: payload.name || payload.email.split('@')[0],
+    picture: payload.picture,
+  }
+}
+
+/**
+ * Google Sign-In Se User Ko Authenticate (Ya Naya Account Create) Karta Hai
+ *
+ * Process:
+ * 1. idToken ko Google se verify karte hain (asli, tampered nahi)
+ * 2. googleId se existing linked account dhundte hain
+ * 3. Nahi mila to email se existing (password-based) account dhundte hain aur google se link karte hain
+ * 4. Wo bhi nahi mila to naya Google-only account banate hain (passwordHash null)
+ * 5. JWT token generate karte hain — baaki app isi token se normal auth ki tarah chalta hai
+ *
+ * @param idToken - Google Sign-In se mila JWT ID token
+ * @returns User object (without password) aur JWT token
+ *
+ * Used By:
+ * - POST /api/auth/google
+ */
+export async function authenticateGoogleUser(idToken: string) {
+  const google = await verifyGoogleIdToken(idToken)
+
+  let user = await prisma.user.findUnique({ where: { googleId: google.sub } })
+
+  if (!user) {
+    const existingByEmail = await prisma.user.findUnique({ where: { email: google.email } })
+
+    if (existingByEmail) {
+      // Same email already registered (probably via password signup) — link Google to it
+      user = await prisma.user.update({
+        where: { id: existingByEmail.id },
+        data: {
+          googleId: google.sub,
+          profileImage: existingByEmail.profileImage || google.picture,
+        },
+      })
+    } else {
+      user = await prisma.user.create({
+        data: {
+          name: google.name,
+          email: google.email,
+          googleId: google.sub,
+          authProvider: 'google',
+          profileImage: google.picture,
+        },
+      })
+
+      try {
+        await sendEmail({ to: user.email, ...emailTemplates.welcome(user.name) })
+      } catch (error) {
+        console.error('Failed to send welcome email:', error)
+      }
+    }
+  }
+
+  const { passwordHash, ...userWithoutPassword } = user
+  const token = generateToken(user.id)
+
   return { user: userWithoutPassword, token }
 }
 
@@ -306,8 +415,8 @@ export async function updateUserPassword(id: string, currentPassword: string, ne
     select: { passwordHash: true }
   })
 
-  // Current password verify karte hain
-  if (!user || !await bcrypt.compare(currentPassword, user.passwordHash)) {
+  // Current password verify karte hain (Google-only account ke paas password hi nahi hota)
+  if (!user || !user.passwordHash || !await bcrypt.compare(currentPassword, user.passwordHash)) {
     throw new Error('Current password is incorrect')
   }
 
@@ -489,18 +598,22 @@ export async function deleteIncome(id: string, userId: string) {
 // Udhar services
 export async function createUdhar(userId: string, data: {
   person: string
+  phoneNumber?: string
   reason: string
   total: number
   direction: string
+  dueDate?: string
 }) {
   return prisma.udhar.create({
     data: {
       userId,
       person: data.person,
+      phoneNumber: data.phoneNumber,
       reason: data.reason,
       total: data.total,
       remaining: data.total,
       direction: data.direction,
+      dueDate: data.dueDate ? parseAppDate(data.dueDate) : null,
     }
   })
 }
@@ -514,14 +627,20 @@ export async function getUdhars(userId: string) {
 
 export async function updateUdhar(id: string, userId: string, data: Partial<{
   person: string
+  phoneNumber: string
   reason: string
   total: number
   remaining: number
   direction: string
+  dueDate: string
 }>) {
+  const { dueDate, ...rest } = data
   return prisma.udhar.update({
     where: { id, userId },
-    data,
+    data: {
+      ...rest,
+      ...(dueDate !== undefined ? { dueDate: dueDate ? parseAppDate(dueDate) : null } : {}),
+    },
   })
 }
 
@@ -536,6 +655,285 @@ export async function getSubscriptions(userId: string) {
   return prisma.subscription.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
+  })
+}
+
+/**
+ * Ek Recurring Bill (Subscription Rule) Banata Hai
+ *
+ * Rule ke saath uski pehli BillOccurrence bhi turant create hoti hai, taaki
+ * mobile app ko "Add Bill" karte hi timeline me real entry dikhe.
+ *
+ * @param userId - Owner user ID
+ * @param data - Bill details (mobile RecurringPayment shape)
+ * @returns Naya Subscription record
+ *
+ * Used By:
+ * - POST /api/subscriptions
+ */
+export async function createSubscription(userId: string, data: {
+  title: string
+  amount: number
+  category: string
+  frequency: string
+  nextDueDate: string
+  reminderDays?: number[]
+  isAutoDebit?: boolean
+  isTrial?: boolean
+  trialEndDate?: string
+  notes?: string
+}) {
+  const nextDueDate = parseAppDate(data.nextDueDate)
+
+  const subscription = await prisma.subscription.create({
+    data: {
+      userId,
+      name: data.title,
+      amount: Math.round(data.amount),
+      category: data.category || 'General',
+      interval: data.frequency,
+      reminderDays: data.reminderDays || [],
+      isAutoDebit: data.isAutoDebit || false,
+      isTrial: data.isTrial || false,
+      trialEndDate: data.trialEndDate ? parseAppDate(data.trialEndDate) : null,
+      notes: data.notes,
+      nextDueDate,
+      lastChargedAt: nextDueDate,
+      active: true,
+      source: 'manual',
+      expenseIds: [],
+    },
+  })
+
+  await prisma.billOccurrence.create({
+    data: {
+      subscriptionId: subscription.id,
+      userId,
+      title: subscription.name,
+      amount: subscription.amount,
+      category: subscription.category,
+      dueDate: subscription.nextDueDate,
+      status: 'UPCOMING',
+      notes: subscription.notes,
+    },
+  })
+
+  return subscription
+}
+
+/**
+ * Ek Recurring Bill Rule Ko Delete Karta Hai
+ *
+ * Uski saari BillOccurrence bhi cascade se delete ho jaati hain (schema me
+ * onDelete: Cascade set hai). Already-logged expenses touch nahi hoti.
+ *
+ * @param id - Subscription ID
+ * @param userId - Owner user ID (ownership check ke liye)
+ * @throws Error agar record na mile ya kisi aur user ka ho
+ *
+ * Used By:
+ * - DELETE /api/subscriptions/[id]
+ */
+export async function deleteSubscription(id: string, userId: string) {
+  const existing = await prisma.subscription.findFirst({ where: { id, userId } })
+  if (!existing) {
+    throw new Error('Recurring bill not found')
+  }
+  await prisma.subscription.delete({ where: { id } })
+}
+
+/**
+ * Bill Frequency Ke Hisaab Se Agli Due Date Nikalta Hai
+ *
+ * @param current - Current due date
+ * @param frequency - DAILY | WEEKLY | MONTHLY | QUARTERLY | HALF_YEARLY | YEARLY
+ *   (ya detectSubscriptions se aaya lowercase 'weekly'/'monthly'/'quarterly'/'yearly')
+ */
+function computeNextDueDate(current: Date, frequency: string): Date {
+  const next = new Date(current)
+  switch ((frequency || '').toUpperCase()) {
+    case 'DAILY':
+      next.setDate(next.getDate() + 1)
+      break
+    case 'WEEKLY':
+      next.setDate(next.getDate() + 7)
+      break
+    case 'QUARTERLY':
+      next.setMonth(next.getMonth() + 3)
+      break
+    case 'HALF_YEARLY':
+      next.setMonth(next.getMonth() + 6)
+      break
+    case 'YEARLY':
+      next.setFullYear(next.getFullYear() + 1)
+      break
+    case 'MONTHLY':
+    default:
+      next.setMonth(next.getMonth() + 1)
+      break
+  }
+  return next
+}
+
+/**
+ * User Ke Saare Bill Occurrences Fetch Karta Hai (Aur Pehle Sync Karta Hai)
+ *
+ * Sync step:
+ * 1. Har active subscription ke liye ek open (UPCOMING/OVERDUE/SNOOZED) occurrence
+ *    guarantee karta hai — agar koi nahi hai (naya bill, ya pichla abhi-abhi paid hua),
+ *    to nextDueDate par ek naya UPCOMING occurrence bana deta hai.
+ * 2. Jo UPCOMING/SNOOZED occurrence ki dueDate beet chuki hai unhe OVERDUE mark karta hai.
+ *
+ * Isse mobile app ko hamesha live, real state milti hai — koi hardcoded sample data nahi.
+ *
+ * @param userId - Owner user ID
+ * @returns BillOccurrence[] (naya-pehle order me)
+ *
+ * Used By:
+ * - GET /api/subscriptions/occurrences
+ */
+export async function getBillOccurrences(userId: string) {
+  const activeSubs = await prisma.subscription.findMany({ where: { userId, active: true } })
+
+  for (const sub of activeSubs) {
+    const openOccurrence = await prisma.billOccurrence.findFirst({
+      where: { subscriptionId: sub.id, status: { in: ['UPCOMING', 'OVERDUE', 'SNOOZED'] } },
+    })
+
+    if (!openOccurrence) {
+      await prisma.billOccurrence.create({
+        data: {
+          subscriptionId: sub.id,
+          userId,
+          title: sub.name,
+          amount: sub.amount,
+          category: sub.category,
+          dueDate: sub.nextDueDate,
+          status: 'UPCOMING',
+          notes: sub.notes,
+        },
+      })
+    }
+  }
+
+  const now = new Date()
+  await prisma.billOccurrence.updateMany({
+    where: { userId, status: { in: ['UPCOMING', 'SNOOZED'] }, dueDate: { lt: now } },
+    data: { status: 'OVERDUE' },
+  })
+
+  return prisma.billOccurrence.findMany({
+    where: { userId },
+    orderBy: { dueDate: 'asc' },
+    take: 200,
+  })
+}
+
+/**
+ * Ek Bill Occurrence Ko "Paid" Mark Karta Hai
+ *
+ * Process:
+ * 1. Occurrence ko PAID mark karta hai
+ * 2. Uske against ek asli Expense entry banata hai (expense ledger me real transaction)
+ * 3. Parent subscription ki nextDueDate agle cycle tak advance karta hai
+ * 4. Agla UPCOMING occurrence create karta hai — taaki timeline continue rahe
+ *
+ * @param occurrenceId - BillOccurrence ID
+ * @param userId - Owner user ID (ownership check)
+ * @param data - Payment details (bank/date/notes) jo expense ledger me record honge
+ * @throws Error agar occurrence na mile ya already PAID ho
+ *
+ * Used By:
+ * - PUT /api/subscriptions/occurrences/[id]
+ */
+export async function markOccurrencePaid(occurrenceId: string, userId: string, data: {
+  bank?: string
+  date?: string
+  notes?: string
+}) {
+  const occurrence = await prisma.billOccurrence.findFirst({ where: { id: occurrenceId, userId } })
+  if (!occurrence) {
+    throw new Error('Bill occurrence not found')
+  }
+  if (occurrence.status === 'PAID') {
+    throw new Error('This bill is already marked as paid')
+  }
+
+  const paidAt = data.date ? parseAppDate(data.date) : new Date()
+
+  const expense = await createExpense(userId, {
+    date: paidAt.toISOString(),
+    title: occurrence.title,
+    amount: occurrence.amount,
+    category: occurrence.category,
+    bank: data.bank || 'Not Specified',
+    paymentMode: 'Bill Payment',
+    tags: ['recurring-bill'],
+    notes: data.notes || `Auto-logged from recurring bill reminder`,
+  })
+
+  const updatedOccurrence = await prisma.billOccurrence.update({
+    where: { id: occurrenceId },
+    data: { status: 'PAID', paidAt, expenseId: expense.id },
+  })
+
+  const subscription = await prisma.subscription.findUnique({ where: { id: occurrence.subscriptionId } })
+  if (subscription) {
+    const nextDueDate = computeNextDueDate(subscription.nextDueDate, subscription.interval)
+
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { nextDueDate, lastChargedAt: paidAt, expenseIds: [...subscription.expenseIds, expense.id] },
+    })
+
+    await prisma.billOccurrence.create({
+      data: {
+        subscriptionId: subscription.id,
+        userId,
+        title: subscription.name,
+        amount: subscription.amount,
+        category: subscription.category,
+        dueDate: nextDueDate,
+        status: 'UPCOMING',
+        notes: subscription.notes,
+      },
+    })
+  }
+
+  return { occurrence: updatedOccurrence, expense }
+}
+
+/**
+ * Ek Bill Occurrence Ka Reminder Snooze Karta Hai
+ *
+ * @param occurrenceId - BillOccurrence ID
+ * @param userId - Owner user ID (ownership check)
+ * @param days - Kitne din ke liye snooze karna hai
+ * @throws Error agar occurrence na mile ya already PAID ho
+ *
+ * Used By:
+ * - PATCH /api/subscriptions/occurrences/[id]
+ */
+export async function snoozeOccurrence(occurrenceId: string, userId: string, days: number) {
+  const occurrence = await prisma.billOccurrence.findFirst({ where: { id: occurrenceId, userId } })
+  if (!occurrence) {
+    throw new Error('Bill occurrence not found')
+  }
+  if (occurrence.status === 'PAID') {
+    throw new Error('This bill is already marked as paid')
+  }
+
+  const snoozedUntil = new Date()
+  snoozedUntil.setDate(snoozedUntil.getDate() + Math.max(1, days))
+
+  return prisma.billOccurrence.update({
+    where: { id: occurrenceId },
+    data: {
+      status: 'SNOOZED',
+      snoozedUntil,
+      dueDate: snoozedUntil,
+      notes: `Reminder snoozed for ${days} day(s)`,
+    },
   })
 }
 
@@ -712,6 +1110,248 @@ export async function getFinancialSummary(userId: string, year: number, month: n
     topCategories,
     expenseCount: expenses.length,
     incomeCount: incomes.length,
+  }
+}
+
+/**
+ * Financial Summary Se Health Score (0-100) Nikalta Hai
+ *
+ * Shared by /api/smart-score/recalculate aur /api/analytics/insights taaki dono
+ * jagah bilkul same formula use ho — koi alag/fake number na dikhe.
+ */
+export function computeHealthScore(summary: {
+  totalIncome: number
+  totalExpenses: number
+  savings: number
+  incomeCount: number
+  topCategories: { category: string; amount: number }[]
+}) {
+  const metrics = { savingsRate: 0, expenseVariability: 0, budgetAdherence: 0, incomeStability: 0 }
+  let score = 0
+
+  if (summary.totalIncome > 0) {
+    const savingsRate = (summary.savings / summary.totalIncome) * 100
+    metrics.savingsRate = Math.max(0, Math.min(100, savingsRate))
+    metrics.budgetAdherence =
+      summary.totalExpenses <= summary.totalIncome
+        ? 100
+        : Math.max(0, Math.round((1 - (summary.totalExpenses - summary.totalIncome) / summary.totalIncome) * 100))
+    metrics.incomeStability = summary.incomeCount > 0 ? 85 : 0
+    metrics.expenseVariability = summary.topCategories.length > 1 ? 75 : 50
+
+    score = Math.round(
+      metrics.savingsRate * 0.4 + metrics.budgetAdherence * 0.3 + metrics.incomeStability * 0.2 + metrics.expenseVariability * 0.1
+    )
+  } else {
+    metrics.budgetAdherence = summary.totalExpenses === 0 ? 100 : 20
+    metrics.incomeStability = 0
+    metrics.expenseVariability = 40
+    score = summary.totalExpenses === 0 ? 50 : 25
+  }
+
+  score = Math.max(0, Math.min(100, score))
+  return { score, metrics }
+}
+
+const ANALYTICS_CATEGORY_COLORS = ['#8B5CF6', '#10B981', '#06B6D4', '#F59E0B', '#F43F5E', '#EC4899', '#3B82F6', '#6366F1']
+
+/**
+ * Mobile "Analytics" Tab Ke Liye Poora Real Data Bundle Ek Hi Call Me
+ *
+ * Sab kuch actual Expense/Income/MonthlyBudget rows se derive hota hai — koi
+ * hardcoded chart data nahi. Charts: monthly trend, category breakdown,
+ * payment methods/types, weekly spending, income sources, daily pattern,
+ * savings-rate trend.
+ *
+ * @param userId - Owner user ID
+ * @param months - Kitne pichhle mahine trend me chahiye (default 6)
+ *
+ * Used By:
+ * - GET /api/analytics/insights
+ */
+export async function getAnalyticsInsights(userId: string, months: number = 6) {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+
+  // 1. Monthly trend (income/expenses/savings/savingsRate) for the last N months
+  const monthlyTrend: { label: string; year: number; month: number; income: number; expenses: number; savings: number; savingsRate: number }[] = []
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(currentYear, currentMonth - 1 - i, 1)
+    const monthSummary = await getFinancialSummary(userId, d.getFullYear(), d.getMonth() + 1)
+    monthlyTrend.push({
+      label: d.toLocaleDateString('en-US', { month: 'short' }),
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      income: monthSummary.totalIncome,
+      expenses: monthSummary.totalExpenses,
+      savings: monthSummary.savings,
+      savingsRate: monthSummary.savingsRate,
+    })
+  }
+
+  const currentSummary = await getFinancialSummary(userId, currentYear, currentMonth)
+  const { score: healthScore } = computeHealthScore(currentSummary)
+
+  // 2. Category breakdown for the current month, joined with any real budget limit
+  const [currentExpenses, currentIncomes, currentBudgets] = await Promise.all([
+    prisma.expense.findMany({
+      where: {
+        userId,
+        date: { gte: new Date(currentYear, currentMonth - 1, 1), lte: new Date(currentYear, currentMonth, 0, 23, 59, 59, 999) },
+      },
+    }),
+    prisma.income.findMany({
+      where: {
+        userId,
+        date: { gte: new Date(currentYear, currentMonth - 1, 1), lte: new Date(currentYear, currentMonth, 0, 23, 59, 59, 999) },
+      },
+    }),
+    prisma.monthlyBudget.findMany({ where: { userId, month: currentMonth, year: currentYear, isActive: true } }),
+  ])
+
+  const categoryAgg = new Map<string, { amount: number; count: number }>()
+  for (const exp of currentExpenses) {
+    const entry = categoryAgg.get(exp.category) || { amount: 0, count: 0 }
+    entry.amount += exp.amount
+    entry.count += 1
+    categoryAgg.set(exp.category, entry)
+  }
+  const totalCategorySpend = Array.from(categoryAgg.values()).reduce((s, c) => s + c.amount, 0) || 1
+  const budgetByCategory = new Map(currentBudgets.map((b) => [b.category, b.amount]))
+
+  const categoryBreakdown = Array.from(categoryAgg.entries())
+    .sort(([, a], [, b]) => b.amount - a.amount)
+    .slice(0, 8)
+    .map(([name, agg], idx) => ({
+      name,
+      amount: agg.amount,
+      count: agg.count,
+      percentage: Math.round((agg.amount / totalCategorySpend) * 100),
+      color: ANALYTICS_CATEGORY_COLORS[idx % ANALYTICS_CATEGORY_COLORS.length],
+      budget: budgetByCategory.get(name) || 0,
+    }))
+
+  // 3. Payment methods (real, whatever the user actually typed — e.g. "UPI", "Cash")
+  const paymentMethodAgg = new Map<string, number>()
+  for (const exp of currentExpenses) {
+    paymentMethodAgg.set(exp.paymentMode, (paymentMethodAgg.get(exp.paymentMode) || 0) + exp.amount)
+  }
+  const paymentMethods = Array.from(paymentMethodAgg.entries())
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 6)
+    .map(([label, amount], idx) => ({ label, amount, color: ANALYTICS_CATEGORY_COLORS[idx % ANALYTICS_CATEGORY_COLORS.length] }))
+
+  // 4. Payment types — group the same real paymentMode values into 3 broad buckets
+  let digitalTotal = 0, bankCardTotal = 0, cashTotal = 0
+  for (const [mode, amount] of paymentMethodAgg) {
+    const m = mode.toLowerCase()
+    if (m.includes('upi')) digitalTotal += amount
+    else if (m.includes('cash')) cashTotal += amount
+    else bankCardTotal += amount
+  }
+  const paymentTypes = [
+    { name: 'Digital (UPI)', value: digitalTotal, color: '#10B981' },
+    { name: 'Bank & Cards', value: bankCardTotal, color: '#8B5CF6' },
+    { name: 'Cash', value: cashTotal, color: '#F59E0B' },
+  ].filter((t) => t.value > 0)
+
+  // 5. Weekly spending within the current month (Week 1-4, day 29+ folded into Week 4)
+  const weeklyBuckets = [0, 0, 0, 0]
+  for (const exp of currentExpenses) {
+    const day = new Date(exp.date).getDate()
+    const weekIdx = Math.min(3, Math.floor((day - 1) / 7))
+    weeklyBuckets[weekIdx] += exp.amount
+  }
+  const weeklySpending = weeklyBuckets.map((amount, idx) => ({ label: `Week ${idx + 1}`, amount }))
+
+  // 6. Income sources for the current month
+  const incomeSourceAgg = new Map<string, number>()
+  for (const inc of currentIncomes) {
+    incomeSourceAgg.set(inc.source, (incomeSourceAgg.get(inc.source) || 0) + inc.amount)
+  }
+  const incomeSources = Array.from(incomeSourceAgg.entries())
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 6)
+    .map(([name, value], idx) => ({ name, value, color: ANALYTICS_CATEGORY_COLORS[idx % ANALYTICS_CATEGORY_COLORS.length] }))
+
+  // 7. Daily spending pattern — all-time average spend per weekday, from real expense history
+  const allExpenses = await prisma.expense.findMany({ where: { userId }, select: { amount: true, date: true } })
+  const weekdayTotals = [0, 0, 0, 0, 0, 0, 0]
+  const weekdayDateSets: Set<string>[] = [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()]
+  for (const exp of allExpenses) {
+    const d = new Date(exp.date)
+    const dow = d.getDay()
+    weekdayTotals[dow] += exp.amount
+    weekdayDateSets[dow].add(d.toISOString().split('T')[0])
+  }
+  const dailySpendingPattern = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label, idx) => ({
+    label,
+    amount: weekdayDateSets[idx].size > 0 ? Math.round(weekdayTotals[idx] / weekdayDateSets[idx].size) : 0,
+  }))
+
+  return {
+    currentMonth: {
+      income: currentSummary.totalIncome,
+      expenses: currentSummary.totalExpenses,
+      savings: currentSummary.savings,
+      savingsRate: currentSummary.savingsRate,
+      healthScore,
+    },
+    monthlyTrend,
+    categoryBreakdown,
+    paymentMethods,
+    paymentTypes,
+    weeklySpending,
+    incomeSources,
+    dailySpendingPattern,
+  }
+}
+
+/**
+ * Ek Arbitrary Date Range Ke Liye Financial Summary (Reports Tab Ke Liye)
+ *
+ * getFinancialSummary calendar-month tak simit hai; yeh function "Last 90 Days"
+ * ya "Year to Date" jaise custom ranges ke liye wahi tarah ka real summary deta hai.
+ *
+ * @param userId - Owner user ID
+ * @param startDate - Range start (inclusive)
+ * @param endDate - Range end (inclusive)
+ *
+ * Used By:
+ * - GET /api/analytics/range
+ */
+export async function getRangeSummary(userId: string, startDate: Date, endDate: Date) {
+  const [expenses, incomes] = await Promise.all([
+    prisma.expense.findMany({ where: { userId, date: { gte: startDate, lte: endDate } } }),
+    prisma.income.findMany({ where: { userId, date: { gte: startDate, lte: endDate } } }),
+  ])
+
+  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
+  const totalIncome = incomes.reduce((sum, inc) => sum + inc.amount, 0)
+  const savings = totalIncome - totalExpenses
+  const savingsRate = totalIncome > 0 ? Math.round((Math.max(0, savings) / totalIncome) * 100) : 0
+
+  const categoryBreakdown = expenses.reduce((acc, exp) => {
+    acc[exp.category] = (acc[exp.category] || 0) + exp.amount
+    return acc
+  }, {} as Record<string, number>)
+  const totalCategorySpend = totalExpenses || 1
+  const topCategories = Object.entries(categoryBreakdown)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8)
+    .map(([category, amount]) => ({ category, amount, percentage: Math.round((amount / totalCategorySpend) * 100) }))
+
+  const days = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+
+  return {
+    totalIncome,
+    totalExpenses,
+    savings,
+    savingsRate,
+    avgDailySpend: Math.round(totalExpenses / days),
+    transactionsCount: expenses.length + incomes.length,
+    topCategories,
   }
 }
 

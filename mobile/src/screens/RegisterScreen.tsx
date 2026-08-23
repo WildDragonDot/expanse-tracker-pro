@@ -9,10 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import { User as UserIcon, Mail, Lock, Eye, EyeOff, IndianRupee, Calendar, CheckCircle, X } from 'lucide-react-native'
+import { User as UserIcon, Mail, Lock, Eye, EyeOff, IndianRupee, Calendar } from 'lucide-react-native'
+import { GoogleSignInCancelledError } from '../services/firebase'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 
@@ -26,24 +26,22 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
   const [billingDay, setBillingDay] = useState('1')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [showGoogleModal, setShowGoogleModal] = useState(false)
-  const [customGoogleEmail, setCustomGoogleEmail] = useState('')
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
 
   const isFormValid = name.trim().length > 0 && email.trim().length > 0 && password.length >= 6
 
-  const googleAccounts = [
-    { email: 'vishwakarmachandan336@gmail.com', name: 'Chandan Vishwakarma' },
-    { email: 'chandanvishwakarma.tech@gmail.com', name: 'Chandan Vishwakarma' },
-    { email: 'chandan.mca.2019@gmail.com', name: 'Chandan Vishwakarma' },
-  ]
-
-  const handleSelectGoogleAccount = async (accountEmail: string) => {
-    setShowGoogleModal(false)
+  const handleGoogleSignup = async () => {
+    if (loading || isGoogleSubmitting) return
     setError('')
+    setIsGoogleSubmitting(true)
     try {
-      await loginWithGoogle(accountEmail)
+      await loginWithGoogle()
     } catch (err: any) {
-      setError(err.message || 'Google sign-up failed.')
+      if (!(err instanceof GoogleSignInCancelledError)) {
+        setError(err.message || 'Google sign-up failed.')
+      }
+    } finally {
+      setIsGoogleSubmitting(false)
     }
   }
 
@@ -209,15 +207,21 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
 
           {/* Google Sign Up Official Button */}
           <TouchableOpacity
-            onPress={() => setShowGoogleModal(true)}
-            disabled={loading}
+            onPress={handleGoogleSignup}
+            disabled={loading || isGoogleSubmitting}
             activeOpacity={0.75}
             style={[styles.googleBtn, { borderColor: colors.surfaceGlassBorder, backgroundColor: colors.inputBg }]}
           >
-            <View style={styles.googleIconCircle}>
-              <Text style={styles.googleG}>G</Text>
-            </View>
-            <Text style={[styles.googleBtnText, { color: colors.text }]}>Sign up with Google</Text>
+            {isGoogleSubmitting ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : (
+              <>
+                <View style={styles.googleIconCircle}>
+                  <Text style={styles.googleG}>G</Text>
+                </View>
+                <Text style={[styles.googleBtnText, { color: colors.text }]}>Sign up with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -229,72 +233,6 @@ export const RegisterScreen = ({ navigation }: { navigation: any }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Google Account Selection Modal */}
-      <Modal visible={showGoogleModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.surfaceGlassBorder }]}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <View style={styles.googleHeaderRow}>
-                <View style={styles.googleModalIconCircle}>
-                  <Text style={styles.googleG}>G</Text>
-                </View>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Sign up with Google</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowGoogleModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <X color={colors.textMuted} size={20} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              Choose an account to continue to FinanceTracker Pro
-            </Text>
-
-            {/* Account List */}
-            <View style={styles.accountList}>
-              {googleAccounts.map((acc, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  activeOpacity={0.7}
-                  onPress={() => handleSelectGoogleAccount(acc.email)}
-                  style={[styles.accountItem, { borderColor: colors.surfaceGlassBorder, backgroundColor: colors.inputBg }]}
-                >
-                  <View style={[styles.accountAvatar, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.accountAvatarText}>{acc.name.charAt(0)}</Text>
-                  </View>
-                  <View style={styles.accountInfo}>
-                    <Text style={[styles.accountName, { color: colors.text }]}>{acc.name}</Text>
-                    <Text style={[styles.accountEmail, { color: colors.textMuted }]}>{acc.email}</Text>
-                  </View>
-                  <CheckCircle color={colors.primary} size={18} />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Custom Google Email Input */}
-            <View style={styles.customEmailRow}>
-              <TextInput
-                value={customGoogleEmail}
-                onChangeText={setCustomGoogleEmail}
-                placeholder="Or enter other @gmail.com"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={[styles.customEmailInput, { color: colors.text, borderColor: colors.surfaceGlassBorder, backgroundColor: colors.inputBg }]}
-              />
-              {customGoogleEmail.includes('@') ? (
-                <TouchableOpacity
-                  onPress={() => handleSelectGoogleAccount(customGoogleEmail.trim())}
-                  style={[styles.customEmailBtn, { backgroundColor: colors.primary }]}
-                >
-                  <Text style={styles.customEmailBtnText}>Sign Up</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   )
 }

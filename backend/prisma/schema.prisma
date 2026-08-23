@@ -11,7 +11,9 @@ model User {
   id              String            @id @default(cuid())
   name            String
   email           String            @unique
-  passwordHash    String
+  passwordHash    String?           // Null for accounts created via Google Sign-In
+  googleId        String?           @unique // Google account's stable "sub" claim, set when linked via Google Sign-In
+  authProvider    String            @default("local") // "local" | "google"
   phone           String?
   bio             String?
   profileImage    String?
@@ -29,6 +31,7 @@ model User {
   bankAccounts    BankAccount[]
   smartScores     SmartScore[]
   subscriptions       Subscription[]
+  billOccurrences     BillOccurrence[]
   expensePlanning     ExpensePlanning[]
   planningCategories  PlanningCategory[]
   shoppingList        ShoppingList[]
@@ -74,15 +77,17 @@ model Income {
 }
 
 model Udhar {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  person    String
-  reason    String
-  total     Int
-  remaining Int
-  direction String
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person      String
+  phoneNumber String?
+  reason      String
+  total       Int
+  remaining   Int
+  direction   String
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
 
   @@index([userId])
 }
@@ -93,16 +98,48 @@ model Subscription {
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   amount        Int
+  category      String   @default("General")
   interval      String
+  reminderDays  Int[]    @default([])
+  isAutoDebit   Boolean  @default(false)
+  isTrial       Boolean  @default(false)
+  trialEndDate  DateTime?
+  notes         String?
   nextDueDate   DateTime
   lastChargedAt DateTime
   active        Boolean  @default(true)
   source        String
   expenseIds    String[]
   createdAt     DateTime @default(now())
+  occurrences   BillOccurrence[]
 
   @@unique([userId, name])
   @@index([userId, active])
+}
+
+// One tracked instance of a recurring bill coming due — what RecurringBillsScreen
+// and the dashboard's "upcoming bill" card actually read/write in the mobile app.
+model BillOccurrence {
+  id             String    @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  amount         Int
+  category       String
+  dueDate        DateTime
+  status         String    @default("UPCOMING") // UPCOMING | PAID | OVERDUE | SNOOZED | SKIPPED
+  paidAt         DateTime?
+  expenseId      String?
+  snoozedUntil   DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([subscriptionId])
 }
 
 model SmartScore {
@@ -206,6 +243,7 @@ model ShoppingCategory {
   color           String         @default("from-blue-500 to-cyan-600")
   expectedCost    Float          @default(0)
   realCost        Float          @default(0)
+  membersCount    Int            @default(1) // People splitting the cost — mobile "Event Planning" screen
   isActive        Boolean        @default(true)
   expiryDate      DateTime?
   billAttachments Json?
@@ -251,6 +289,8 @@ model ShoppingList {
   priority       String   @default("medium")
   completed      Boolean  @default(false)
   estimatedPrice Float?
+  actualPrice    Float?
+  expenseId      String?
   notes          String?
   period         String   @default("daily")
   createdAt      DateTime @default(now())

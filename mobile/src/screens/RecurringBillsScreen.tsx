@@ -25,7 +25,6 @@ import {
   Mail,
   Smartphone,
   Bell,
-  Send,
   Zap,
   Check,
   X,
@@ -69,93 +68,10 @@ export const RecurringBillsScreen = () => {
   const [activeTab, setActiveTab] = useState<'timeline' | 'rules'>('timeline')
   const [selectedBill, setSelectedBill] = useState<BillOccurrence | null>(null)
 
-  // Sample data initialized for zero-latency presentation
-  const [occurrences, setOccurrences] = useState<BillOccurrence[]>([
-    {
-      id: 'occ_1',
-      recurringPaymentId: 'rec_1',
-      title: 'Broadband / Optical Fiber',
-      amount: 1199,
-      category: 'Utilities',
-      dueDate: '2026-08-25',
-      status: 'UPCOMING',
-      notes: 'Due in 3 days • Multi-channel alerts (App, Push, Email) active',
-    },
-    {
-      id: 'occ_2',
-      recurringPaymentId: 'rec_2',
-      title: 'Netflix 4K Ultra HD',
-      amount: 649,
-      category: 'Subscriptions',
-      dueDate: '2026-08-28',
-      status: 'UPCOMING',
-      notes: 'Monthly auto-renewal alert • Email notification scheduled',
-    },
-    {
-      id: 'occ_3',
-      recurringPaymentId: 'rec_3',
-      title: 'Gym & Crossfit Trial',
-      amount: 2499,
-      category: 'Fitness',
-      dueDate: '2026-08-30',
-      status: 'UPCOMING',
-      notes: 'Free trial ends in 8 days. Cancel if not using!',
-    },
-    {
-      id: 'occ_4',
-      recurringPaymentId: 'rec_4',
-      title: 'Apartment Maintenance',
-      amount: 3500,
-      category: 'Housing',
-      dueDate: '2026-08-05',
-      status: 'PAID',
-      paidAt: '2026-08-04',
-      notes: 'Paid via HDFC NetBanking',
-    },
-  ])
-
-  const [bills, setBills] = useState<RecurringPayment[]>([
-    {
-      id: 'rec_1',
-      userId: 'user_1',
-      title: 'Broadband / Optical Fiber',
-      amount: 1199,
-      category: 'Utilities',
-      frequency: 'MONTHLY',
-      nextDueDate: '2026-08-25',
-      reminderDays: [7, 3, 1, 0],
-      isAutoDebit: false,
-      isTrial: false,
-      active: true,
-    },
-    {
-      id: 'rec_2',
-      userId: 'user_1',
-      title: 'Netflix 4K Ultra HD',
-      amount: 649,
-      category: 'Subscriptions',
-      frequency: 'MONTHLY',
-      nextDueDate: '2026-08-28',
-      reminderDays: [3, 0],
-      isAutoDebit: true,
-      isTrial: false,
-      active: true,
-    },
-    {
-      id: 'rec_3',
-      userId: 'user_1',
-      title: 'Gym & Crossfit Trial',
-      amount: 2499,
-      category: 'Fitness',
-      frequency: 'MONTHLY',
-      nextDueDate: '2026-08-30',
-      reminderDays: [7, 3, 0],
-      isAutoDebit: false,
-      isTrial: true,
-      trialEndDate: '2026-08-30',
-      active: true,
-    },
-  ])
+  // Populated from the backend below — no bills exist until the user (or the
+  // backend's subscription auto-detector) actually creates one.
+  const [occurrences, setOccurrences] = useState<BillOccurrence[]>([])
+  const [bills, setBills] = useState<RecurringPayment[]>([])
 
   // Modal State for adding new recurring rule
   const [modalVisible, setModalVisible] = useState(false)
@@ -183,11 +99,12 @@ export const RecurringBillsScreen = () => {
 
   const loadBillsData = async () => {
     try {
-      const occs = await api.getBillOccurrences().catch(() => null)
-      if (occs && occs.length) setOccurrences(occs)
-
-      const recs = await api.getRecurringBills().catch(() => null)
-      if (recs && recs.length) setBills(recs)
+      const [occs, recs] = await Promise.all([
+        api.getBillOccurrences().catch(() => []),
+        api.getRecurringBills().catch(() => []),
+      ])
+      setOccurrences(occs)
+      setBills(recs)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -203,7 +120,7 @@ export const RecurringBillsScreen = () => {
     loadBillsData()
   }
 
-  // 1-Click Pay Handler (Converts occurrence to Expense & sets next occurrence)
+  // 1-Click Pay Handler — asks the backend to log a real Expense and advance the bill
   const handleMarkPaid = async (occurrence: BillOccurrence) => {
     Alert.alert(
       'Mark as Paid?',
@@ -214,14 +131,12 @@ export const RecurringBillsScreen = () => {
           text: 'Confirm & Log Expense',
           style: 'default',
           onPress: async () => {
-            setOccurrences((prev) =>
-              prev.map((item) =>
-                item.id === occurrence.id
-                  ? { ...item, status: 'PAID', paidAt: new Date().toISOString().split('T')[0] }
-                  : item
-              )
-            )
-            await api.markBillPaid(occurrence.id, { date: new Date().toISOString() }).catch(() => null)
+            try {
+              await api.markBillPaid(occurrence.id, { date: new Date().toISOString() })
+              await loadBillsData()
+            } catch (err: any) {
+              Alert.alert('Could not mark as paid', err.message || 'Please try again.')
+            }
           },
         },
       ]
@@ -230,27 +145,21 @@ export const RecurringBillsScreen = () => {
 
   // Snooze Bill Reminder by 3 days
   const handleSnooze = async (occurrenceId: string) => {
-    setOccurrences((prev) =>
-      prev.map((item) =>
-        item.id === occurrenceId ? { ...item, status: 'SNOOZED', notes: 'Reminder snoozed for 3 days' } : item
-      )
-    )
-    await api.snoozeBill(occurrenceId, 3).catch(() => null)
+    try {
+      await api.snoozeBill(occurrenceId, 3)
+      await loadBillsData()
+    } catch (err: any) {
+      Alert.alert('Could not snooze reminder', err.message || 'Please try again.')
+    }
   }
 
-  // Instant Test Email Reminder Handler
-  const handleSendTestEmail = (title: string, amount: number, dueDate: string) => {
-    const userEmail = user?.email || 'chandan@example.com'
-    Alert.alert(
-      '📧 Email Reminder Sent!',
-      `Upcoming Payment Alert for "${title}" (${currencySymbol}${amount.toLocaleString()}) due on ${dueDate} has been dispatched to: ${userEmail}.\n\nChannels Active:\n• In-App Urgent Popup\n• Device Push Notification\n• Email Delivery to ${userEmail}`,
-      [{ text: 'Dismiss' }]
-    )
-  }
-
-  const handleDeleteRule = (id: string) => {
-    setOccurrences((prev) => prev.filter((o) => o.recurringPaymentId !== id && o.id !== id))
-    setBills((prev) => prev.filter((b) => b.id !== id))
+  const handleDeleteRule = async (id: string) => {
+    try {
+      await api.deleteRecurringBill(id)
+      await loadBillsData()
+    } catch (err: any) {
+      Alert.alert('Could not delete bill', err.message || 'Please try again.')
+    }
   }
 
   const handleCreateBill = async () => {
@@ -259,45 +168,30 @@ export const RecurringBillsScreen = () => {
       return
     }
 
-    const createdBill: RecurringPayment = {
-      id: 'rec_' + Date.now(),
-      userId: user?.id || 'user_1',
-      title: newTitle.trim(),
-      amount: parseFloat(newAmount),
-      category: newCategory,
-      frequency: newFrequency,
-      nextDueDate: newDate,
-      reminderDays: selectedDays.length ? selectedDays : [3, 0],
-      isAutoDebit: isAutoDebit,
-      isTrial: isTrial,
-      trialEndDate: isTrial ? newDate : undefined,
-      active: true,
+    try {
+      await api.createRecurringBill({
+        title: newTitle.trim(),
+        amount: parseFloat(newAmount),
+        category: newCategory,
+        frequency: newFrequency,
+        nextDueDate: newDate,
+        reminderDays: selectedDays.length ? selectedDays : [3, 0],
+        isAutoDebit,
+        isTrial,
+        trialEndDate: isTrial ? newDate : undefined,
+      })
+
+      setModalVisible(false)
+      const title = newTitle.trim()
+      const amount = newAmount
+      setNewTitle('')
+      setNewAmount('')
+      await loadBillsData()
+
+      Alert.alert('✅ Bill Added', `"${title}" (${currencySymbol}${amount}) is scheduled for ${newDate}.`, [{ text: 'OK' }])
+    } catch (err: any) {
+      Alert.alert('Could not add bill', err.message || 'Please try again.')
     }
-
-    const newOcc: BillOccurrence = {
-      id: 'occ_' + Date.now(),
-      recurringPaymentId: createdBill.id,
-      title: createdBill.title,
-      amount: createdBill.amount,
-      category: createdBill.category,
-      dueDate: createdBill.nextDueDate,
-      status: 'UPCOMING',
-      notes: `${enableEmail ? 'Email' : ''}${enablePush ? ' • Push' : ''}${enableInAppPopup ? ' • Popup' : ''} alerts active`,
-    }
-
-    setBills((prev) => [createdBill, ...prev])
-    setOccurrences((prev) => [newOcc, ...prev])
-    setModalVisible(false)
-    setNewTitle('')
-    setNewAmount('')
-
-    Alert.alert(
-      '✅ Bill & Reminders Configured!',
-      `"${createdBill.title}" (${currencySymbol}${createdBill.amount}) is scheduled for ${createdBill.nextDueDate}.\n\nYou will receive:\n• In-App Popups & Banners\n• Push Notifications\n• Email Reminders to ${user?.email || 'your email'}`,
-      [{ text: 'OK' }]
-    )
-
-    await api.createRecurringBill(createdBill).catch(() => null)
   }
 
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'
@@ -350,6 +244,20 @@ export const RecurringBillsScreen = () => {
 
         {loading ? (
           <RecurringBillsSkeleton />
+        ) : activeTab === 'timeline' && occurrences.length === 0 ? (
+          <View style={styles.emptyState}>
+            <BellRing color={colors.textMuted} size={28} />
+            <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+              No recurring bills yet. Tap + to add your first one.
+            </Text>
+          </View>
+        ) : activeTab === 'rules' && bills.length === 0 ? (
+          <View style={styles.emptyState}>
+            <BellRing color={colors.textMuted} size={28} />
+            <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+              No recurring bill rules yet. Tap + to add one.
+            </Text>
+          </View>
         ) : activeTab === 'timeline' ? (
           /* ================= TIMELINE VIEW ================= */
           occurrences.map((occ) => {
@@ -432,14 +340,6 @@ export const RecurringBillsScreen = () => {
                       <Mail color="#10B981" size={11} />
                       <Text style={[styles.channelPillText, { color: '#10B981' }]}>Email Alert</Text>
                     </View>
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() => handleSendTestEmail(occ.title, occ.amount, occ.dueDate)}
-                      style={styles.testEmailBtn}
-                    >
-                      <Send color="#3B82F6" size={11} />
-                      <Text style={styles.testEmailBtnText}>Test Email</Text>
-                    </TouchableOpacity>
                   </View>
                 )}
 
@@ -773,6 +673,18 @@ export const RecurringBillsScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   headerArea: { paddingHorizontal: 16, paddingTop: 10 },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  emptyStateText: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   tabSwitcher: {
     flexDirection: 'row',
     borderRadius: 14,

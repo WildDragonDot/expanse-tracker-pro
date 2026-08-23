@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth'
-import { getFinancialSummary, prisma } from '@/lib/database'
+import { getFinancialSummary, computeHealthScore, prisma } from '@/lib/database'
 
 // Force dynamic rendering - requires authentication
 export const dynamic = 'force-dynamic'
@@ -16,45 +16,9 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       )
     }
 
-    // Calculate smart score based on financial data
+    // Calculate smart score based on financial data (shared formula — see computeHealthScore)
     const summary = await getFinancialSummary(userId, year, month)
-    
-    let score = 0
-    let metrics = {
-      savingsRate: 0,
-      expenseVariability: 0,
-      budgetAdherence: 0,
-      incomeStability: 0
-    }
-
-    if (summary.totalIncome > 0) {
-      // Savings rate (40% weight)
-      const savingsRate = (summary.savings / summary.totalIncome) * 100
-      metrics.savingsRate = Math.max(0, Math.min(100, savingsRate))
-      
-      // Budget adherence (30% weight)
-      metrics.budgetAdherence = summary.totalExpenses <= summary.totalIncome ? 100 : Math.max(0, Math.round((1 - (summary.totalExpenses - summary.totalIncome) / summary.totalIncome) * 100))
-      
-      // Income stability (20% weight)
-      metrics.incomeStability = summary.incomeCount > 0 ? 85 : 0
-      
-      // Expense variability (10% weight)
-      metrics.expenseVariability = summary.topCategories.length > 1 ? 75 : 50
-
-      score = Math.round(
-        (metrics.savingsRate * 0.4) +
-        (metrics.budgetAdherence * 0.3) +
-        (metrics.incomeStability * 0.2) +
-        (metrics.expenseVariability * 0.1)
-      )
-    } else {
-      metrics.budgetAdherence = summary.totalExpenses === 0 ? 100 : 20
-      metrics.incomeStability = 0
-      metrics.expenseVariability = 40
-      score = summary.totalExpenses === 0 ? 50 : 25
-    }
-
-    score = Math.max(0, Math.min(100, score))
+    const { score, metrics } = computeHealthScore(summary)
 
     const smartScore = await prisma.smartScore.upsert({
       where: {

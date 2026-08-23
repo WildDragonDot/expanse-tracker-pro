@@ -33,38 +33,47 @@ export async function PATCH(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
+    // If unmarking as completed, remove the expense that was auto-logged for it
+    if (body.completed === false && item.completed && item.expenseId) {
+      try {
+        await prisma.expense.delete({ where: { id: item.expenseId } })
+      } catch (expenseError) {
+        console.error('Error deleting expense for shopping list item:', expenseError)
+      }
+      body.expenseId = null
+    }
+
+    // If marking as completed, create a real expense using the actual price paid
+    // (falls back to the estimate if the user didn't confirm a different actual price)
+    if (body.completed && !item.completed) {
+      const priceUsed = body.actualPrice ?? item.actualPrice ?? item.estimatedPrice
+      if (priceUsed) {
+        try {
+          const expense = await prisma.expense.create({
+            data: {
+              userId: decoded.userId,
+              date: new Date(),
+              title: `${item.name} (Shopping List)`,
+              amount: Math.round(priceUsed * item.quantity),
+              category: item.category || 'Shopping',
+              bank: 'Cash',
+              paymentMode: 'Cash',
+              tags: ['Shopping List', item.category || 'Shopping'],
+              notes: `Bought ${item.quantity} ${item.unit}${item.notes ? ` - ${item.notes}` : ''}`
+            }
+          })
+          body.expenseId = expense.id
+        } catch (expenseError) {
+          console.error('Error creating expense for shopping list item:', expenseError)
+          // Don't fail the whole request if expense creation fails
+        }
+      }
+    }
+
     const updatedItem = await prisma.shoppingList.update({
       where: { id: params.id },
       data: body
     })
-
-    // If item is marked as completed, create an expense automatically
-    if (body.completed && !item.completed && updatedItem.estimatedPrice) {
-      try {
-        const expenseData = {
-          userId: decoded.userId,
-          date: new Date(),
-          title: `${updatedItem.name} (Shopping List)`,
-          amount: Math.round(updatedItem.estimatedPrice * updatedItem.quantity),
-          category: updatedItem.category || 'Shopping',
-          bank: 'Cash',
-          paymentMode: 'Cash',
-          tags: ['Shopping List', updatedItem.category || 'Shopping'],
-          notes: `Bought ${updatedItem.quantity} ${updatedItem.unit}${updatedItem.notes ? ` - ${updatedItem.notes}` : ''}`
-        }
-
-        console.log('Creating expense for shopping list item:', expenseData)
-
-        const expense = await prisma.expense.create({
-          data: expenseData
-        })
-
-        console.log('Expense created successfully:', expense.id)
-      } catch (expenseError) {
-        console.error('Error creating expense for shopping list item:', expenseError)
-        // Don't fail the whole request if expense creation fails
-      }
-    }
 
     return NextResponse.json(updatedItem)
   } catch (error) {
@@ -97,6 +106,14 @@ export async function DELETE(
 
     if (!item) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+
+    if (item.expenseId) {
+      try {
+        await prisma.expense.delete({ where: { id: item.expenseId } })
+      } catch (expenseError) {
+        console.error('Error deleting expense for shopping list item:', expenseError)
+      }
     }
 
     await prisma.shoppingList.delete({

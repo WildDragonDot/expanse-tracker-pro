@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
     const body = await request.json()
 
-    const { name, icon, color, expectedCost } = body
+    const { name, icon, color, expectedCost, membersCount, expiryDate } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Category name is required' }, { status: 400 })
@@ -65,6 +65,8 @@ export async function POST(request: NextRequest) {
         icon: icon || '🛒',
         color: color || 'from-blue-500 to-cyan-600',
         expectedCost: expectedCost ? parseFloat(expectedCost) : 0,
+        membersCount: membersCount ? parseInt(membersCount) : 1,
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
         userId: decoded.userId
       }
     })

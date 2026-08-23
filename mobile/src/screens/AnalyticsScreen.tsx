@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -10,28 +10,20 @@ import {
 } from 'react-native'
 import {
   TrendingUp,
-  TrendingDown,
   PieChart as PieIcon,
-  BarChart2,
-  Calendar,
   ShieldCheck,
-  Info,
-  DollarSign,
   ArrowUp,
   ArrowDown,
   ArrowUpRight,
   CreditCard,
-  Smartphone,
   Landmark,
-  Banknote,
   Activity,
   Layers,
   PiggyBank,
-  Percent,
-  Zap,
+  Calendar,
+  DollarSign,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
-import { CategoryIcon } from '../components/CategoryIcon'
 import { CategoryDetailsModal } from '../components/CategoryDetailsModal'
 import { SvgLineChart } from '../components/charts/SvgLineChart'
 import { SvgAreaChart } from '../components/charts/SvgAreaChart'
@@ -40,140 +32,103 @@ import { SvgBarChart } from '../components/charts/SvgBarChart'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 import { AnalyticsSkeleton } from '../components/SkeletonLoader'
+import { api } from '../services/api'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CHART_WIDTH = SCREEN_WIDTH - 64
 
+type Insights = Awaited<ReturnType<typeof api.getAnalyticsInsights>>
+
 export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
   const { user } = useAuth()
   const { colors } = useAppTheme()
+  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [insights, setInsights] = useState<Insights | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<any>(null)
   const [categoryModalVisible, setCategoryModalVisible] = useState(false)
 
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'
 
-  const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
-  
-  // 1. Monthly Trend Series (Line Chart: Green, Red, Purple)
-  const monthlyTrendSeries = [
-    { key: 'income', color: '#10B981', values: [14200, 14500, 14800, 15000, 15100, 15500] },
-    { key: 'expenses', color: '#EF4444', values: [9100, 9800, 10200, 11000, 10400, 9500] },
-    { key: 'savings', color: '#8B5CF6', values: [5100, 4700, 4600, 4000, 4700, 6000] },
-  ]
+  const loadInsights = async () => {
+    try {
+      const data = await api.getAnalyticsInsights(6)
+      setInsights(data)
+    } catch {
+      setInsights(null)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
 
-  // 2. Expense Categories (Donut)
-  const categoryDonutData = [
-    { name: 'Housing & Rent', value: 4500, color: '#8B5CF6' },
-    { name: 'Food & Groceries', value: 3200, color: '#10B981' },
-    { name: 'Bills & Utilities', value: 1199, color: '#06B6D4' },
-    { name: 'Travel & Commute', value: 900, color: '#F59E0B' },
-    { name: 'Subscriptions', value: 601, color: '#EC4899' },
-  ]
-
-  const categories = [
-    { name: 'Housing & Rent', amount: 4500, percentage: 43, color: '#8B5CF6', budget: 6000, count: 1 },
-    { name: 'Food & Groceries', amount: 3200, percentage: 31, color: '#10B981', budget: 5000, count: 18 },
-    { name: 'Bills & Utilities', amount: 1199, percentage: 12, color: '#06B6D4', budget: 2000, count: 6 },
-    { name: 'Travel & Commute', amount: 900, percentage: 9, color: '#F59E0B', budget: 1500, count: 8 },
-    { name: 'Subscriptions', amount: 601, percentage: 5, color: '#EC4899', budget: 1000, count: 2 },
-  ]
-
-  // 3. Income vs Expenses Dual Bars
-  const incomeVsExpenseData = [
-    {
-      label: 'Apr',
-      values: [
-        { key: 'in', value: 14200, color: '#10B981' },
-        { key: 'ex', value: 9100, color: '#EF4444' },
-      ],
-    },
-    {
-      label: 'May',
-      values: [
-        { key: 'in', value: 14500, color: '#10B981' },
-        { key: 'ex', value: 9800, color: '#EF4444' },
-      ],
-    },
-    {
-      label: 'Jun',
-      values: [
-        { key: 'in', value: 14800, color: '#10B981' },
-        { key: 'ex', value: 10200, color: '#EF4444' },
-      ],
-    },
-    {
-      label: 'Jul',
-      values: [
-        { key: 'in', value: 15000, color: '#10B981' },
-        { key: 'ex', value: 11000, color: '#EF4444' },
-      ],
-    },
-    {
-      label: 'Aug',
-      values: [
-        { key: 'in', value: 15100, color: '#10B981' },
-        { key: 'ex', value: 10400, color: '#EF4444' },
-      ],
-    },
-    {
-      label: 'Sep',
-      values: [
-        { key: 'in', value: 15500, color: '#10B981' },
-        { key: 'ex', value: 9500, color: '#EF4444' },
-      ],
-    },
-  ]
-
-  // 4. Payment Methods Bar Chart
-  const paymentMethodsBarData = [
-    { label: 'UPI', values: [{ key: 'upi', value: 6032, color: '#10B981' }] },
-    { label: 'Cards', values: [{ key: 'cards', value: 2496, color: '#8B5CF6' }] },
-    { label: 'NetBank', values: [{ key: 'nb', value: 1248, color: '#3B82F6' }] },
-    { label: 'Cash', values: [{ key: 'cash', value: 624, color: '#F59E0B' }] },
-  ]
-
-  // 5. Payment Types (Donut)
-  const paymentTypesDonut = [
-    { name: 'Digital (UPI)', value: 6032, color: '#10B981' },
-    { name: 'Bank & Cards', value: 3744, color: '#8B5CF6' },
-    { name: 'Cash', value: 624, color: '#F59E0B' },
-  ]
-
-  // 6. Weekly Spending Trend (Bar Chart)
-  const weeklyBarData = [
-    { label: 'Week 1', values: [{ key: 'w1', value: 2850, color: '#6366F1' }] },
-    { label: 'Week 2', values: [{ key: 'w2', value: 3100, color: '#6366F1' }] },
-    { label: 'Week 3', values: [{ key: 'w3', value: 2650, color: '#6366F1' }] },
-    { label: 'Week 4', values: [{ key: 'w4', value: 1800, color: '#6366F1' }] },
-  ]
-
-  // 7. Income Sources (Donut)
-  const incomeSourcesDonut = [
-    { name: 'Salary', value: 12500, color: '#10B981' },
-    { name: 'Freelance', value: 2000, color: '#06B6D4' },
-    { name: 'Dividends', value: 600, color: '#8B5CF6' },
-  ]
-
-  // 8. Daily Spending Pattern (Area Chart: Sun - Sat)
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const dailySpendingValues = [1850, 950, 1200, 1400, 800, 2400, 3100]
-
-  // 9. Savings Rate Trend (Line Chart)
-  const savingsRateMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
-  const savingsRateSeries = [
-    { key: 'savingsRate', color: '#06B6D4', values: [35.9, 32.4, 31.0, 26.6, 31.1, 38.7] },
-  ]
+  useEffect(() => {
+    loadInsights()
+  }, [])
 
   const onRefresh = () => {
     setRefreshing(true)
-    setTimeout(() => setRefreshing(false), 800)
+    loadInsights()
   }
 
   const handleCategoryPress = (cat: any) => {
     setSelectedCategory(cat)
     setCategoryModalVisible(true)
   }
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <HeaderBar title="Analytics" onProfilePress={() => navigation?.navigate('Settings')} />
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <AnalyticsSkeleton />
+        </ScrollView>
+      </View>
+    )
+  }
+
+  if (!insights) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <HeaderBar title="Analytics" onProfilePress={() => navigation?.navigate('Settings')} />
+        <View style={styles.emptyState}>
+          <Activity color={colors.textMuted} size={32} />
+          <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+            Couldn't load analytics right now. Pull down to retry.
+          </Text>
+        </View>
+      </View>
+    )
+  }
+
+  const hasAnyData = insights.monthlyTrend.some((m) => m.income > 0 || m.expenses > 0)
+  const months = insights.monthlyTrend.map((m) => m.label)
+  const monthlyTrendSeries = [
+    { key: 'income', color: '#10B981', values: insights.monthlyTrend.map((m) => m.income) },
+    { key: 'expenses', color: '#EF4444', values: insights.monthlyTrend.map((m) => m.expenses) },
+    { key: 'savings', color: '#8B5CF6', values: insights.monthlyTrend.map((m) => m.savings) },
+  ]
+  const savingsRateSeries = [
+    { key: 'savingsRate', color: '#06B6D4', values: insights.monthlyTrend.map((m) => m.savingsRate) },
+  ]
+  const categoryDonutData = insights.categoryBreakdown.map((c) => ({ name: c.name, value: c.amount, color: c.color }))
+  const incomeVsExpenseData = insights.monthlyTrend.map((m) => ({
+    label: m.label,
+    values: [
+      { key: 'in', value: m.income, color: '#10B981' },
+      { key: 'ex', value: m.expenses, color: '#EF4444' },
+    ],
+  }))
+  const paymentMethodsBarData = insights.paymentMethods.map((p) => ({
+    label: p.label,
+    values: [{ key: p.label, value: p.amount, color: p.color }],
+  }))
+  const weeklyBarData = insights.weeklySpending.map((w) => ({
+    label: w.label,
+    values: [{ key: w.label, value: w.amount, color: '#6366F1' }],
+  }))
+  const dailySpendingLabels = insights.dailySpendingPattern.map((d) => d.label)
+  const dailySpendingValues = insights.dailySpendingPattern.map((d) => d.amount)
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -184,9 +139,16 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
+        {!hasAnyData && (
+          <View style={[styles.noticeBanner, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+            <Text style={[styles.noticeText, { color: colors.textSecondary }]}>
+              No expenses or income logged in the last 6 months yet. Add some to see your real trends here.
+            </Text>
+          </View>
+        )}
+
         {/* 1. Top Stat Cards (2x2 Grid) */}
         <View style={styles.twoCardsRow}>
-          {/* Income Card */}
           <View style={[styles.statCardHalf, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.cardHeaderSmall}>
               <View style={[styles.iconBoxSmall, { backgroundColor: '#10B981' }]}>
@@ -197,12 +159,11 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
               </View>
             </View>
             <Text style={[styles.statAmount, { color: '#10B981' }]}>
-              {currencySymbol}15,100
+              {currencySymbol}{insights.currentMonth.income.toLocaleString()}
             </Text>
             <Text style={[styles.statSubText, { color: colors.textMuted }]}>Total Income</Text>
           </View>
 
-          {/* Expenses Card */}
           <View style={[styles.statCardHalf, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.cardHeaderSmall}>
               <View style={[styles.iconBoxSmall, { backgroundColor: '#EF4444' }]}>
@@ -213,14 +174,13 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
               </View>
             </View>
             <Text style={[styles.statAmount, { color: '#EF4444' }]}>
-              {currencySymbol}10,400
+              {currencySymbol}{insights.currentMonth.expenses.toLocaleString()}
             </Text>
             <Text style={[styles.statSubText, { color: colors.textMuted }]}>Total Expenses</Text>
           </View>
         </View>
 
         <View style={styles.twoCardsRow}>
-          {/* Net Savings */}
           <View style={[styles.statCardHalf, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.cardHeaderSmall}>
               <View style={[styles.iconBoxSmall, { backgroundColor: '#3B82F6' }]}>
@@ -231,12 +191,11 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
               </View>
             </View>
             <Text style={[styles.statAmount, { color: '#3B82F6' }]}>
-              {currencySymbol}4,700
+              {currencySymbol}{insights.currentMonth.savings.toLocaleString()}
             </Text>
-            <Text style={[styles.statSubText, { color: colors.textMuted }]}>31.1% Net Rate</Text>
+            <Text style={[styles.statSubText, { color: colors.textMuted }]}>{insights.currentMonth.savingsRate}% Net Rate</Text>
           </View>
 
-          {/* Financial Health */}
           <View style={[styles.statCardHalf, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.cardHeaderSmall}>
               <View style={[styles.iconBoxSmall, { backgroundColor: '#8B5CF6' }]}>
@@ -246,12 +205,12 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
                 <Text style={styles.pillPurpleText}>Score</Text>
               </View>
             </View>
-            <Text style={[styles.statAmount, { color: '#8B5CF6' }]}>70%</Text>
+            <Text style={[styles.statAmount, { color: '#8B5CF6' }]}>{insights.currentMonth.healthScore}%</Text>
             <Text style={[styles.statSubText, { color: colors.textMuted }]}>Financial Health</Text>
           </View>
         </View>
 
-        {/* 2. Monthly Trend (Smooth Multi-Line Curve Chart) */}
+        {/* 2. Monthly Trend */}
         <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           <View style={styles.cardHeader}>
             <View>
@@ -263,7 +222,6 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
           </View>
 
-          {/* Top Legend */}
           <View style={styles.legendContainer}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
@@ -279,67 +237,68 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
           </View>
 
-          <SvgLineChart
-            labels={months}
-            series={monthlyTrendSeries}
-            width={CHART_WIDTH}
-            height={200}
-            textColor={colors.textMuted}
-          />
+          <SvgLineChart labels={months} series={monthlyTrendSeries} width={CHART_WIDTH} height={200} textColor={colors.textMuted} />
         </View>
 
-        {/* 3. Expense Categories (Donut & Details) */}
+        {/* 3. Expense Categories */}
         <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           <View style={styles.cardHeader}>
             <View>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Expense Categories</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>Spending distribution by category</Text>
+              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>Spending distribution this month</Text>
             </View>
             <View style={[styles.chartIconBadge, { backgroundColor: '#8B5CF6' }]}>
               <PieIcon color="#FFFFFF" size={16} />
             </View>
           </View>
 
-          <SvgDonutChart
-            data={categoryDonutData}
-            size={190}
-            centerText={`${currencySymbol}10,400`}
-            centerSubText="Total Spent"
-            textColor={colors.text}
-          />
+          {insights.categoryBreakdown.length === 0 ? (
+            <Text style={[styles.emptyCardText, { color: colors.textSecondary }]}>No expenses logged this month yet.</Text>
+          ) : (
+            <>
+              <SvgDonutChart
+                data={categoryDonutData}
+                size={190}
+                centerText={`${currencySymbol}${insights.currentMonth.expenses.toLocaleString()}`}
+                centerSubText="Total Spent"
+                textColor={colors.text}
+              />
 
-          {/* Category Details List */}
-          <View style={[styles.categoryList, { marginTop: 16 }]}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.name}
-                style={styles.categoryItem}
-                onPress={() => handleCategoryPress(cat)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.categoryLeft}>
-                  <View style={[styles.categoryColorDot, { backgroundColor: cat.color }]} />
-                  <View>
-                    <Text style={[styles.categoryName, { color: colors.text }]}>{cat.name}</Text>
-                    <Text style={[styles.categoryCount, { color: colors.textMuted }]}>
-                      {cat.count} transactions • {cat.percentage}% of total
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.categoryRight}>
-                  <Text style={[styles.categoryAmount, { color: colors.text }]}>
-                    {currencySymbol}{(cat.amount || 0).toLocaleString()}
-                  </Text>
-                  <Text style={[styles.categoryLimit, { color: colors.textMuted }]}>
-                    Limit: {currencySymbol}{(cat.budget || 0).toLocaleString()}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+              <View style={[styles.categoryList, { marginTop: 16 }]}>
+                {insights.categoryBreakdown.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.name}
+                    style={styles.categoryItem}
+                    onPress={() => handleCategoryPress({ name: cat.name, spent: cat.amount, budget: cat.budget, percentage: cat.percentage, color: cat.color })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.categoryLeft}>
+                      <View style={[styles.categoryColorDot, { backgroundColor: cat.color }]} />
+                      <View>
+                        <Text style={[styles.categoryName, { color: colors.text }]}>{cat.name}</Text>
+                        <Text style={[styles.categoryCount, { color: colors.textMuted }]}>
+                          {cat.count} transaction{cat.count === 1 ? '' : 's'} • {cat.percentage}% of total
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.categoryRight}>
+                      <Text style={[styles.categoryAmount, { color: colors.text }]}>
+                        {currencySymbol}{(cat.amount || 0).toLocaleString()}
+                      </Text>
+                      {cat.budget > 0 && (
+                        <Text style={[styles.categoryLimit, { color: colors.textMuted }]}>
+                          Limit: {currencySymbol}{cat.budget.toLocaleString()}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
         </View>
 
-        {/* 4. Income vs Expenses (Dual Bar Chart) */}
+        {/* 4. Income vs Expenses */}
         <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           <View style={styles.cardHeader}>
             <View>
@@ -362,73 +321,66 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
           </View>
 
-          <SvgBarChart
-            data={incomeVsExpenseData}
-            width={CHART_WIDTH}
-            height={190}
-            barWidth={9}
-            gap={3}
-            textColor={colors.textMuted}
-          />
+          <SvgBarChart data={incomeVsExpenseData} width={CHART_WIDTH} height={190} barWidth={9} gap={3} textColor={colors.textMuted} />
         </View>
 
-        {/* 5. Payment Methods (Vertical Bar Chart) */}
+        {/* 5. Payment Methods */}
         <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           <View style={styles.cardHeader}>
             <View>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Payment Methods</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>How you spend your money</Text>
+              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>How you spent this month</Text>
             </View>
             <View style={[styles.chartIconBadge, { backgroundColor: '#F59E0B' }]}>
               <CreditCard color="#FFFFFF" size={16} />
             </View>
           </View>
 
-          <SvgBarChart
-            data={paymentMethodsBarData}
-            width={CHART_WIDTH}
-            height={180}
-            barWidth={24}
-            textColor={colors.textMuted}
-          />
+          {insights.paymentMethods.length === 0 ? (
+            <Text style={[styles.emptyCardText, { color: colors.textSecondary }]}>No expenses logged this month yet.</Text>
+          ) : (
+            <SvgBarChart data={paymentMethodsBarData} width={CHART_WIDTH} height={180} barWidth={24} textColor={colors.textMuted} />
+          )}
         </View>
 
-        {/* 6. Payment Types (Donut Chart) */}
-        <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Payment Types</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>Bank, Digital & Cash distribution</Text>
-            </View>
-            <View style={[styles.chartIconBadge, { backgroundColor: '#3B82F6' }]}>
-              <Landmark color="#FFFFFF" size={16} />
-            </View>
-          </View>
-
-          <SvgDonutChart
-            data={paymentTypesDonut}
-            size={180}
-            centerText="Modes"
-            centerSubText="3 Types"
-            textColor={colors.text}
-          />
-
-          <View style={[styles.ptList, { marginTop: 14 }]}>
-            {paymentTypesDonut.map((pt) => (
-              <View key={pt.name} style={styles.ptItem}>
-                <View style={styles.ptLeft}>
-                  <View style={[styles.categoryColorDot, { backgroundColor: pt.color }]} />
-                  <Text style={[styles.ptName, { color: colors.text }]}>{pt.name}</Text>
-                </View>
-                <Text style={[styles.ptValue, { color: colors.text }]}>
-                  {currencySymbol}{pt.value.toLocaleString()}
-                </Text>
+        {/* 6. Payment Types */}
+        {insights.paymentTypes.length > 0 && (
+          <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Payment Types</Text>
+                <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>Digital, Bank/Card & Cash split</Text>
               </View>
-            ))}
-          </View>
-        </View>
+              <View style={[styles.chartIconBadge, { backgroundColor: '#3B82F6' }]}>
+                <Landmark color="#FFFFFF" size={16} />
+              </View>
+            </View>
 
-        {/* 7. Weekly Spending Trend (Bar Chart) */}
+            <SvgDonutChart
+              data={insights.paymentTypes}
+              size={180}
+              centerText="Modes"
+              centerSubText={`${insights.paymentTypes.length} Type${insights.paymentTypes.length === 1 ? '' : 's'}`}
+              textColor={colors.text}
+            />
+
+            <View style={[styles.ptList, { marginTop: 14 }]}>
+              {insights.paymentTypes.map((pt) => (
+                <View key={pt.name} style={styles.ptItem}>
+                  <View style={styles.ptLeft}>
+                    <View style={[styles.categoryColorDot, { backgroundColor: pt.color }]} />
+                    <Text style={[styles.ptName, { color: colors.text }]}>{pt.name}</Text>
+                  </View>
+                  <Text style={[styles.ptValue, { color: colors.text }]}>
+                    {currencySymbol}{pt.value.toLocaleString()}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 7. Weekly Spending Trend */}
         <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           <View style={styles.cardHeader}>
             <View>
@@ -440,51 +392,47 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
           </View>
 
-          <SvgBarChart
-            data={weeklyBarData}
-            width={CHART_WIDTH}
-            height={180}
-            barWidth={22}
-            textColor={colors.textMuted}
-          />
+          <SvgBarChart data={weeklyBarData} width={CHART_WIDTH} height={180} barWidth={22} textColor={colors.textMuted} />
         </View>
 
-        {/* 8. Income Sources (Donut Chart) */}
-        <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Income Sources</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>Where your money comes from</Text>
-            </View>
-            <View style={[styles.chartIconBadge, { backgroundColor: '#10B981' }]}>
-              <DollarSign color="#FFFFFF" size={16} />
-            </View>
-          </View>
-
-          <SvgDonutChart
-            data={incomeSourcesDonut}
-            size={180}
-            centerText={`${currencySymbol}15,100`}
-            centerSubText="Total Inflow"
-            textColor={colors.text}
-          />
-
-          <View style={[styles.ptList, { marginTop: 14 }]}>
-            {incomeSourcesDonut.map((is) => (
-              <View key={is.name} style={styles.ptItem}>
-                <View style={styles.ptLeft}>
-                  <View style={[styles.categoryColorDot, { backgroundColor: is.color }]} />
-                  <Text style={[styles.ptName, { color: colors.text }]}>{is.name}</Text>
-                </View>
-                <Text style={[styles.ptValue, { color: colors.text }]}>
-                  {currencySymbol}{is.value.toLocaleString()}
-                </Text>
+        {/* 8. Income Sources */}
+        {insights.incomeSources.length > 0 && (
+          <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Income Sources</Text>
+                <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>Where your money came from this month</Text>
               </View>
-            ))}
-          </View>
-        </View>
+              <View style={[styles.chartIconBadge, { backgroundColor: '#10B981' }]}>
+                <DollarSign color="#FFFFFF" size={16} />
+              </View>
+            </View>
 
-        {/* 9. Daily Spending Pattern (Smooth Wave Area Chart) */}
+            <SvgDonutChart
+              data={insights.incomeSources}
+              size={180}
+              centerText={`${currencySymbol}${insights.currentMonth.income.toLocaleString()}`}
+              centerSubText="Total Inflow"
+              textColor={colors.text}
+            />
+
+            <View style={[styles.ptList, { marginTop: 14 }]}>
+              {insights.incomeSources.map((is) => (
+                <View key={is.name} style={styles.ptItem}>
+                  <View style={styles.ptLeft}>
+                    <View style={[styles.categoryColorDot, { backgroundColor: is.color }]} />
+                    <Text style={[styles.ptName, { color: colors.text }]}>{is.name}</Text>
+                  </View>
+                  <Text style={[styles.ptValue, { color: colors.text }]}>
+                    {currencySymbol}{is.value.toLocaleString()}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 9. Daily Spending Pattern */}
         <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           <View style={styles.cardHeader}>
             <View>
@@ -496,17 +444,10 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
           </View>
 
-          <SvgAreaChart
-            labels={daysOfWeek}
-            values={dailySpendingValues}
-            color="#EC4899"
-            width={CHART_WIDTH}
-            height={190}
-            textColor={colors.textMuted}
-          />
+          <SvgAreaChart labels={dailySpendingLabels} values={dailySpendingValues} color="#EC4899" width={CHART_WIDTH} height={190} textColor={colors.textMuted} />
         </View>
 
-        {/* 10. Savings Rate Trend (Line Chart with cyan curve & dots) */}
+        {/* 10. Savings Rate Trend */}
         <View style={[styles.chartCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           <View style={styles.cardHeader}>
             <View>
@@ -518,14 +459,7 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
           </View>
 
-          <SvgLineChart
-            labels={savingsRateMonths}
-            series={savingsRateSeries}
-            width={CHART_WIDTH}
-            height={190}
-            yAxisSuffix="%"
-            textColor={colors.textMuted}
-          />
+          <SvgLineChart labels={months} series={savingsRateSeries} width={CHART_WIDTH} height={190} yAxisSuffix="%" textColor={colors.textMuted} />
         </View>
       </ScrollView>
 
@@ -549,6 +483,34 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 70,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  emptyStateText: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  emptyCardText: {
+    fontSize: 12,
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  noticeBanner: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 14,
+  },
+  noticeText: {
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
   twoCardsRow: {
     flexDirection: 'row',

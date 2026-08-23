@@ -45,16 +45,8 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null)
   const [activeTooltip, setActiveTooltip] = useState<TooltipData | null>(null)
 
-  const [expenses, setExpenses] = useState<Expense[]>([
-    { id: 'e1', userId: 'u1', title: 'Whole Foods Grocery', amount: 4850, category: 'Food', bank: 'HDFC Bank', paymentMode: 'UPI', date: '2026-08-20', notes: 'Weekly organic basket' },
-    { id: 'e2', userId: 'u1', title: 'Uber Prime Ride', amount: 620, category: 'Travel', bank: 'ICICI Bank', paymentMode: 'Credit Card', date: '2026-08-19', notes: 'Airport commute' },
-    { id: 'e3', userId: 'u1', title: 'Cloudflare Workers Hosting', amount: 410, category: 'Utilities', bank: 'SBI', paymentMode: 'Debit Card', date: '2026-08-18', notes: 'Production server hosting' },
-    { id: 'e4', userId: 'u1', title: 'House Maintenance', amount: 3500, category: 'Rent', bank: 'HDFC Bank', paymentMode: 'NetBanking', date: '2026-08-05', notes: 'Monthly building maintenance' },
-  ])
-
-  const [incomes, setIncomes] = useState<Income[]>([
-    { id: 'i1', userId: 'u1', source: 'Monthly Primary Salary', amount: 15100, date: '2026-08-01', notes: 'Corporate monthly payout' },
-  ])
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [incomes, setIncomes] = useState<Income[]>([])
 
   // Modal State
   const [modalVisible, setModalVisible] = useState(false)
@@ -67,11 +59,12 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
 
   const loadData = async () => {
     try {
-      const expList = await api.getExpenses().catch(() => null)
-      if (expList && expList.length) setExpenses(expList)
-
-      const incList = await api.getIncomes().catch(() => null)
-      if (incList && incList.length) setIncomes(incList)
+      const [expList, incList] = await Promise.all([
+        api.getExpenses().catch(() => []),
+        api.getIncomes().catch(() => []),
+      ])
+      setExpenses(expList)
+      setIncomes(incList)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -101,43 +94,46 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
     const amountNum = parseFloat(formAmount)
     const today = new Date().toISOString().split('T')[0]
 
-    if (modalType === 'expense') {
-      const newExp: Expense = {
-        id: 'e_' + Date.now(),
-        userId: user?.id || 'u1',
-        title: formTitle.trim(),
-        amount: amountNum,
-        category: formCategory,
-        bank: formBank,
-        paymentMode: 'UPI',
-        date: today,
-        notes: formNotes.trim(),
+    try {
+      if (modalType === 'expense') {
+        const created = await api.createExpense({
+          title: formTitle.trim(),
+          amount: amountNum,
+          category: formCategory,
+          bank: formBank,
+          paymentMode: 'UPI',
+          date: today,
+          notes: formNotes.trim(),
+        })
+        setExpenses((prev) => [created, ...prev])
+      } else {
+        const created = await api.createIncome({
+          source: formTitle.trim(),
+          amount: amountNum,
+          date: today,
+          notes: formNotes.trim(),
+        })
+        setIncomes((prev) => [created, ...prev])
       }
-      setExpenses((prev) => [newExp, ...prev])
-      await api.createExpense(newExp).catch(() => null)
-    } else {
-      const newInc: Income = {
-        id: 'i_' + Date.now(),
-        userId: user?.id || 'u1',
-        source: formTitle.trim(),
-        amount: amountNum,
-        date: today,
-        notes: formNotes.trim(),
-      }
-      setIncomes((prev) => [newInc, ...prev])
-      await api.createIncome(newInc).catch(() => null)
-    }
 
-    setModalVisible(false)
-    setFormTitle('')
-    setFormAmount('')
-    setFormNotes('')
+      setModalVisible(false)
+      setFormTitle('')
+      setFormAmount('')
+      setFormNotes('')
+    } catch (err: any) {
+      Alert.alert('Could not save', err.message || 'Please try again.')
+    }
   }
 
-  const handleDelete = (id: string) => {
-    setExpenses((prev) => prev.filter((item) => item.id !== id))
-    setIncomes((prev) => prev.filter((item) => item.id !== id))
-    api.deleteExpense(id).catch(() => null)
+  const handleDelete = async (id: string, type: 'expense' | 'income') => {
+    const remove = type === 'expense' ? api.deleteExpense(id) : api.deleteIncome(id)
+    try {
+      await remove
+      if (type === 'expense') setExpenses((prev) => prev.filter((item) => item.id !== id))
+      else setIncomes((prev) => prev.filter((item) => item.id !== id))
+    } catch (err: any) {
+      Alert.alert('Could not delete', err.message || 'Please try again.')
+    }
   }
 
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'
@@ -438,7 +434,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
         transaction={selectedTx}
         currencySymbol={currencySymbol}
         onClose={() => setSelectedTx(null)}
-        onDelete={handleDelete}
+        onDelete={(id) => handleDelete(id, selectedTx?.type === 'income' ? 'income' : 'expense')}
       />
 
       {/* Add Modal */}

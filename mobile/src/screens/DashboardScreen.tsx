@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  Modal,
   Alert,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -18,7 +17,6 @@ import {
   ChevronRight,
   TrendingUp,
   Wallet,
-  BellRing,
   Clock,
   CheckCircle2,
   Moon,
@@ -38,75 +36,114 @@ import { TransactionDetailsModal, TransactionItem } from '../components/Transact
 import { CategoryDetailsModal, CategoryDetailsItem } from '../components/CategoryDetailsModal'
 import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
 import { api } from '../services/api'
+import { BillOccurrence } from '../types'
+
+const CATEGORY_COLORS = ['#8B5CF6', '#10B981', '#06B6D4', '#F59E0B', '#F43F5E']
+
+const daysUntil = (dateStr: string) => {
+  const due = new Date(dateStr)
+  const now = new Date()
+  due.setHours(0, 0, 0, 0)
+  now.setHours(0, 0, 0, 0)
+  return Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+}
 
 export const DashboardScreen = ({ navigation }: { navigation: any }) => {
   const { user } = useAuth()
   const { colors } = useAppTheme()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [billActionBusy, setBillActionBusy] = useState(false)
 
   // Modals & Tooltips
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<CategoryDetailsItem | null>(null)
-  const [showUrgentPopup, setShowUrgentPopup] = useState(false)
   const [activeTooltip, setActiveTooltip] = useState<TooltipData | null>(null)
 
-  // Upcoming Bill Reminder State
-  const [upcomingBill, setUpcomingBill] = useState({
-    id: 'occ_1',
-    title: 'Broadband / Optical Fiber',
-    amount: 1199,
-    category: 'Utilities',
-    dueDate: '2026-08-25',
-    daysLeft: 3,
-    notes: 'High priority multi-channel alert (In-App, Push, Email)',
-    isPaid: false,
-  })
+  const [upcomingBill, setUpcomingBill] = useState<BillOccurrence | null>(null)
 
   const [summary, setSummary] = useState({
-    currentBalance: 4700,
-    monthlyIncome: 15100,
-    incomeGrowth: '+12.5%',
-    monthlyExpense: 10400,
-    expenseGrowth: '-8.3%',
-    healthScore: 70,
-    healthStatus: 'Healthy financial status',
-    recentTransactions: [
-      { id: '1', title: 'Monthly Salary', amount: 15100, type: 'income' as const, date: '2026-08-01', category: 'Salary', bank: 'HDFC Bank', paymentMode: 'Salary Credit', notes: 'Monthly corporate payout' },
-      { id: '2', title: 'House Rent', amount: 4500, type: 'expense' as const, date: '2026-08-05', category: 'Rent', bank: 'HDFC Bank', paymentMode: 'NetBanking', notes: 'Apartment monthly lease' },
-      { id: '3', title: 'Whole Foods Grocery', amount: 3200, type: 'expense' as const, date: '2026-08-12', category: 'Food', bank: 'ICICI Bank', paymentMode: 'UPI', notes: 'Organic basket' },
-      { id: '4', title: 'Netflix & Broadband', amount: 1199, type: 'expense' as const, date: '2026-08-18', category: 'Utilities', bank: 'SBI', paymentMode: 'Credit Card', notes: '4K auto renewal' },
-    ],
+    currentBalance: 0,
+    monthlyIncome: 0,
+    monthlyExpense: 0,
+    savingsRate: 0,
+    healthStatus: 'No activity logged yet',
+    recentTransactions: [] as TransactionItem[],
   })
 
-  const [categories] = useState<CategoryDetailsItem[]>([
-    { name: 'Housing & Rent', spent: 4500, budget: 6000, percentage: 75, color: '#8B5CF6' },
-    { name: 'Food & Groceries', spent: 3200, budget: 5000, percentage: 64, color: '#10B981' },
-    { name: 'Bills & Utilities', spent: 1199, budget: 2000, percentage: 60, color: '#06B6D4' },
-    { name: 'Travel & Commute', spent: 900, budget: 1500, percentage: 60, color: '#F59E0B' },
-  ])
+  const [categories, setCategories] = useState<CategoryDetailsItem[]>([])
+  const [healthScore, setHealthScore] = useState<number | null>(null)
+  const [billCompliance, setBillCompliance] = useState<number | null>(null)
 
-  const handlePayBill = () => {
-    Alert.alert('Payment Recorded ✅', `Marked ${currencySymbol}${upcomingBill.amount} for ${upcomingBill.title} as paid.`)
-    setUpcomingBill((prev) => ({ ...prev, isPaid: true }))
-    setShowUrgentPopup(false)
+  const handlePayBill = async () => {
+    if (!upcomingBill || billActionBusy) return
+    setBillActionBusy(true)
+    try {
+      await api.markBillPaid(upcomingBill.id, { date: new Date().toISOString() })
+      Alert.alert('Payment Recorded ✅', `Marked ${currencySymbol}${upcomingBill.amount.toLocaleString()} for ${upcomingBill.title} as paid.`)
+      loadData()
+    } catch (err: any) {
+      Alert.alert('Could not mark as paid', err.message || 'Please try again.')
+    } finally {
+      setBillActionBusy(false)
+    }
   }
 
-  const handleSnoozeBill = () => {
-    Alert.alert('Reminder Snoozed 💤', `Next alert will notify in 3 days.`)
-    setShowUrgentPopup(false)
+  const handleSnoozeBill = async () => {
+    if (!upcomingBill || billActionBusy) return
+    setBillActionBusy(true)
+    try {
+      await api.snoozeBill(upcomingBill.id, 3)
+      Alert.alert('Reminder Snoozed 💤', `Next alert will notify in 3 days.`)
+      loadData()
+    } catch (err: any) {
+      Alert.alert('Could not snooze reminder', err.message || 'Please try again.')
+    } finally {
+      setBillActionBusy(false)
+    }
   }
 
   const loadData = async () => {
     try {
-      const dashSummary = await api.getDashboardSummary().catch(() => null)
+      const now = new Date()
+      const [dashSummary, score] = await Promise.all([
+        api.getDashboardSummary().catch(() => null),
+        api.getSmartScore(now.getFullYear(), now.getMonth() + 1).catch(() => null),
+      ])
+
       if (dashSummary) {
-        setSummary((prev) => ({
-          ...prev,
-          currentBalance: dashSummary.totalBalance || prev.currentBalance,
-          monthlyIncome: dashSummary.monthlyIncome || prev.monthlyIncome,
-          monthlyExpense: dashSummary.monthlyExpense || prev.monthlyExpense,
-        }))
+        // Defensive: an older/partially-deployed backend may omit newer fields
+        // (recentTransactions, upcomingBill, etc.) — never let a missing field crash the screen.
+        const recentTransactions = (dashSummary.recentTransactions || []) as TransactionItem[]
+        const topCategories = dashSummary.topCategories || []
+
+        setSummary({
+          currentBalance: dashSummary.totalBalance || 0,
+          monthlyIncome: dashSummary.totalIncome || 0,
+          monthlyExpense: dashSummary.totalExpenses || 0,
+          savingsRate: dashSummary.savingsRate || 0,
+          healthStatus: dashSummary.totalIncome > 0 || dashSummary.totalExpenses > 0
+            ? (dashSummary.savingsRate >= 20 ? 'Healthy financial status' : dashSummary.savingsRate >= 0 ? 'Stable, keep tracking' : 'Spending more than you earn')
+            : 'No activity logged yet',
+          recentTransactions,
+        })
+
+        const totalCategorySpend = topCategories.reduce((sum, c) => sum + c.amount, 0) || 1
+        setCategories(
+          topCategories.map((c, idx) => ({
+            name: c.category,
+            spent: c.amount,
+            budget: 0,
+            percentage: Math.round((c.amount / totalCategorySpend) * 100),
+            color: CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
+          }))
+        )
+
+        setUpcomingBill(dashSummary.upcomingBill || null)
+      }
+
+      if (score) {
+        setHealthScore(score.score)
       }
     } finally {
       setLoading(false)
@@ -118,12 +155,32 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
     loadData()
   }, [])
 
+  useEffect(() => {
+    api.getBillOccurrences().then((occs) => {
+      const settled = occs.filter((o) => o.status === 'PAID' || o.status === 'OVERDUE')
+      if (settled.length === 0) {
+        setBillCompliance(null)
+        return
+      }
+      const paid = occs.filter((o) => o.status === 'PAID').length
+      setBillCompliance(Math.round((paid / settled.length) * 100))
+    }).catch(() => setBillCompliance(null))
+  }, [refreshing])
+
   const onRefresh = () => {
     setRefreshing(true)
     loadData()
   }
 
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'
+  const upcomingBillDaysLeft = upcomingBill ? daysUntil(upcomingBill.dueDate) : 0
+  const scoreForGauge = healthScore ?? 0
+  const budgetBurnLabel = summary.savingsRate >= 20 ? 'Safe' : summary.savingsRate >= 5 ? 'Watch' : 'High'
+  const budgetBurnColor = summary.savingsRate >= 20 ? '#10B981' : summary.savingsRate >= 5 ? '#F59E0B' : '#F43F5E'
+  const copilotText =
+    summary.monthlyIncome === 0 && summary.monthlyExpense === 0
+      ? 'Add your first income or expense to start tracking your financial health.'
+      : `You're saving ${summary.savingsRate}% of your income this month.`
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -210,9 +267,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   {currencySymbol}{(summary.monthlyIncome || 0).toLocaleString()}
                 </Text>
 
-                <Text style={[styles.growthTextGreen, { color: colors.textSecondary }]}>
-                  This month • <Text style={{ color: '#10B981', fontWeight: '800' }}>{summary.incomeGrowth}</Text>
-                </Text>
+                <Text style={[styles.growthTextGreen, { color: colors.textSecondary }]}>This month</Text>
               </TouchableOpacity>
 
               {/* Expenses Card */}
@@ -247,14 +302,12 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   {currencySymbol}{(summary.monthlyExpense || 0).toLocaleString()}
                 </Text>
 
-                <Text style={[styles.growthTextRed, { color: colors.textSecondary }]}>
-                  This month • <Text style={{ color: '#F43F5E', fontWeight: '800' }}>{summary.expenseGrowth}</Text>
-                </Text>
+                <Text style={[styles.growthTextRed, { color: colors.textSecondary }]}>This month</Text>
               </TouchableOpacity>
             </View>
 
             {/* 3. Upcoming Bill Reminder Alert Banner / Widget */}
-            {!upcomingBill.isPaid && (
+            {upcomingBill && (
               <View
                 style={[
                   styles.reminderAlertCard,
@@ -278,10 +331,12 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                         <View style={styles.dueSoonPill}>
-                          <Text style={styles.dueSoonText}>{upcomingBill.daysLeft}d left</Text>
+                          <Text style={styles.dueSoonText}>
+                            {upcomingBillDaysLeft < 0 ? `${Math.abs(upcomingBillDaysLeft)}d overdue` : upcomingBillDaysLeft === 0 ? 'Due today' : `${upcomingBillDaysLeft}d left`}
+                          </Text>
                         </View>
                         <Text style={[styles.reminderCardSub, { color: colors.textSecondary, marginTop: 0 }]}>
-                          {currencySymbol}{upcomingBill.amount.toLocaleString()} • Due {upcomingBill.dueDate}
+                          {currencySymbol}{upcomingBill.amount.toLocaleString()} • Due {new Date(upcomingBill.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                         </Text>
                       </View>
                     </View>
@@ -317,7 +372,8 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={handlePayBill}
-                    style={[styles.reminderPayBtn, { backgroundColor: '#10B981' }]}
+                    disabled={billActionBusy}
+                    style={[styles.reminderPayBtn, { backgroundColor: '#10B981', opacity: billActionBusy ? 0.6 : 1 }]}
                   >
                     <CheckCircle2 color="#FFFFFF" size={14} />
                     <Text style={styles.reminderPayBtnText}>1-Click Mark Paid</Text>
@@ -326,7 +382,8 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={handleSnoozeBill}
-                    style={[styles.reminderSnoozeBtn, { borderColor: colors.surfaceGlassBorder }]}
+                    disabled={billActionBusy}
+                    style={[styles.reminderSnoozeBtn, { borderColor: colors.surfaceGlassBorder, opacity: billActionBusy ? 0.6 : 1 }]}
                   >
                     <Moon color={colors.textSecondary} size={14} />
                     <Text style={[styles.reminderSnoozeBtnText, { color: colors.textSecondary }]}>Snooze 3d</Text>
@@ -387,7 +444,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
               >
                 <View style={styles.healthScoreLeft}>
                   <Text style={[styles.healthScoreBig, { color: colors.text }]}>
-                    {summary.healthScore}
+                    {healthScore ?? '—'}
                     <Text style={[styles.healthScoreMax, { color: colors.textMuted }]}>/100</Text>
                   </Text>
                 </View>
@@ -395,7 +452,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                 <View style={styles.healthStatusBadge}>
                   <View style={styles.healthStatusDot} />
                   <Text style={styles.healthStatusText}>
-                    {summary.healthScore >= 80 ? 'EXCELLENT' : summary.healthScore >= 65 ? 'OPTIMAL' : 'ATTENTION'}
+                    {healthScore === null ? 'CALCULATING' : scoreForGauge >= 80 ? 'EXCELLENT' : scoreForGauge >= 65 ? 'OPTIMAL' : scoreForGauge >= 40 ? 'FAIR' : 'ATTENTION'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -409,42 +466,42 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                       colors={['#DC2626', '#EF4444']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
-                      style={[styles.gaugeFill, { width: `${Math.min(100, (summary.healthScore / 40) * 100)}%` }]}
+                      style={[styles.gaugeFill, { width: `${Math.min(100, (scoreForGauge / 40) * 100)}%` }]}
                     />
                   </View>
 
                   {/* Segment 2: 40-65 (Fair - Orange/Amber) */}
                   <View style={[styles.gaugeSegment, { backgroundColor: colors.inputBg }]}>
-                    {summary.healthScore > 40 && (
+                    {scoreForGauge > 40 && (
                       <LinearGradient
                         colors={['#F97316', '#F59E0B']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
-                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((summary.healthScore - 40) / 25) * 100))}%` }]}
+                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((scoreForGauge - 40) / 25) * 100))}%` }]}
                       />
                     )}
                   </View>
 
                   {/* Segment 3: 65-85 (Optimal - Yellow/Lime Green) */}
                   <View style={[styles.gaugeSegment, { backgroundColor: colors.inputBg }]}>
-                    {summary.healthScore > 65 && (
+                    {scoreForGauge > 65 && (
                       <LinearGradient
                         colors={['#F59E0B', '#EAB308', '#84CC16']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
-                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((summary.healthScore - 65) / 20) * 100))}%` }]}
+                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((scoreForGauge - 65) / 20) * 100))}%` }]}
                       />
                     )}
                   </View>
 
                   {/* Segment 4: 85-100 (Excellent - Bright Green) */}
                   <View style={[styles.gaugeSegment, { backgroundColor: colors.inputBg }]}>
-                    {summary.healthScore > 85 && (
+                    {scoreForGauge > 85 && (
                       <LinearGradient
                         colors={['#84CC16', '#10B981']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
-                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((summary.healthScore - 85) / 15) * 100))}%` }]}
+                        style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((scoreForGauge - 85) / 15) * 100))}%` }]}
                       />
                     )}
                   </View>
@@ -452,12 +509,12 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
 
                 {/* Scale Rating Labels Underneath */}
                 <View style={styles.gaugeLabelsRow}>
-                  <Text style={[styles.gaugeLabelText, { color: summary.healthScore < 40 ? '#EF4444' : colors.textMuted }]}>Needs Work</Text>
-                  <Text style={[styles.gaugeLabelText, { color: summary.healthScore >= 40 && summary.healthScore < 65 ? '#F59E0B' : colors.textMuted }]}>Fair</Text>
-                  <Text style={[styles.gaugeLabelText, { color: summary.healthScore >= 65 && summary.healthScore < 85 ? '#84CC16' : colors.textMuted, fontWeight: summary.healthScore >= 65 && summary.healthScore < 85 ? '800' : '600' }]}>
+                  <Text style={[styles.gaugeLabelText, { color: scoreForGauge < 40 ? '#EF4444' : colors.textMuted }]}>Needs Work</Text>
+                  <Text style={[styles.gaugeLabelText, { color: scoreForGauge >= 40 && scoreForGauge < 65 ? '#F59E0B' : colors.textMuted }]}>Fair</Text>
+                  <Text style={[styles.gaugeLabelText, { color: scoreForGauge >= 65 && scoreForGauge < 85 ? '#84CC16' : colors.textMuted, fontWeight: scoreForGauge >= 65 && scoreForGauge < 85 ? '800' : '600' }]}>
                     ● Optimal
                   </Text>
-                  <Text style={[styles.gaugeLabelText, { color: summary.healthScore >= 85 ? '#10B981' : colors.textMuted }]}>Excellent</Text>
+                  <Text style={[styles.gaugeLabelText, { color: scoreForGauge >= 85 ? '#10B981' : colors.textMuted }]}>Excellent</Text>
                 </View>
               </View>
 
@@ -467,7 +524,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   <TrendingUp color="#10B981" size={12} />
                   <View style={{ marginLeft: 6 }}>
                     <Text style={styles.healthSubMetricLabel}>Savings Rate</Text>
-                    <Text style={[styles.healthSubMetricVal, { color: '#10B981' }]}>38%</Text>
+                    <Text style={[styles.healthSubMetricVal, { color: '#10B981' }]}>{summary.savingsRate}%</Text>
                   </View>
                 </View>
 
@@ -475,7 +532,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   <CheckCircle2 color="#06B6D4" size={12} />
                   <View style={{ marginLeft: 6 }}>
                     <Text style={styles.healthSubMetricLabel}>Bills On-Time</Text>
-                    <Text style={[styles.healthSubMetricVal, { color: '#06B6D4' }]}>100%</Text>
+                    <Text style={[styles.healthSubMetricVal, { color: '#06B6D4' }]}>{billCompliance === null ? 'N/A' : `${billCompliance}%`}</Text>
                   </View>
                 </View>
 
@@ -483,7 +540,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   <Activity color="#8B5CF6" size={12} />
                   <View style={{ marginLeft: 6 }}>
                     <Text style={styles.healthSubMetricLabel}>Budget Burn</Text>
-                    <Text style={[styles.healthSubMetricVal, { color: '#8B5CF6' }]}>Safe</Text>
+                    <Text style={[styles.healthSubMetricVal, { color: budgetBurnColor }]}>{budgetBurnLabel}</Text>
                   </View>
                 </View>
               </View>
@@ -496,42 +553,48 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
               >
                 <Sparkles color="#8B5CF6" size={13} style={{ marginRight: 6 }} />
                 <Text numberOfLines={1} style={[styles.healthCopilotText, { color: colors.textSecondary }]}>
-                  Income is steady & spending is 14% below limit.
+                  {copilotText}
                 </Text>
                 <ChevronRight color="#8B5CF6" size={14} style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
             </View>
 
-            {/* 5. Category Budget Breakdown */}
+            {/* 5. Top Spending Categories */}
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Category Budgets</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Top Categories This Month</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Budget')}>
                 <Text style={[styles.seeAllText, { color: colors.primary }]}>Details</Text>
               </TouchableOpacity>
             </View>
 
             <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
-              {categories.map((c, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  activeOpacity={0.7}
-                  onPress={() => setSelectedCategory(c)}
-                  style={styles.categoryRow}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <CategoryIcon name={c.name} color={c.color} size={14} containerSize={28} style={{ marginRight: 10 }} />
-                    <View style={styles.catInfo}>
-                      <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
-                      <Text style={[styles.catSpent, { color: colors.textSecondary }]}>
-                        {currencySymbol}{c.spent.toLocaleString()} <Text style={{ fontSize: 10, color: colors.textMuted }}>/ {currencySymbol}{c.budget.toLocaleString()}</Text>
-                      </Text>
+              {categories.length === 0 ? (
+                <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center', paddingVertical: 8 }}>
+                  No expenses logged yet this month.
+                </Text>
+              ) : (
+                categories.map((c, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    activeOpacity={0.7}
+                    onPress={() => setSelectedCategory(c)}
+                    style={styles.categoryRow}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <CategoryIcon name={c.name} color={c.color} size={14} containerSize={28} style={{ marginRight: 10 }} />
+                      <View style={styles.catInfo}>
+                        <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
+                        <Text style={[styles.catSpent, { color: colors.textSecondary }]}>
+                          {currencySymbol}{c.spent.toLocaleString()} <Text style={{ fontSize: 10, color: colors.textMuted }}>({c.percentage}% of spend)</Text>
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  <View style={[styles.progressTrack, { backgroundColor: colors.inputBg }]}>
-                    <View style={[styles.progressBar, { width: `${c.percentage}%`, backgroundColor: c.color }]} />
-                  </View>
-                </TouchableOpacity>
-              ))}
+                    <View style={[styles.progressTrack, { backgroundColor: colors.inputBg }]}>
+                      <View style={[styles.progressBar, { width: `${c.percentage}%`, backgroundColor: c.color }]} />
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
 
             {/* 6. Recent Transactions */}
@@ -586,65 +649,6 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
         currencySymbol={currencySymbol}
         onClose={() => setSelectedCategory(null)}
       />
-
-      {/* Urgent Payment Due In-App Popup Modal */}
-      <Modal visible={showUrgentPopup} transparent animationType="fade">
-        <View style={styles.popupOverlay}>
-          <View style={[styles.popupCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
-            <View style={styles.popupIconCircle}>
-              <BellRing color="#8B5CF6" size={28} />
-            </View>
-            <Text style={[styles.popupTitle, { color: colors.text }]}>Upcoming Payment Reminder</Text>
-            <Text style={[styles.popupSub, { color: colors.textSecondary }]}>
-              "{upcomingBill.title}" is due in <Text style={{ color: '#F43F5E', fontWeight: '800' }}>{upcomingBill.daysLeft} days</Text> ({upcomingBill.dueDate}).
-            </Text>
-
-            <View style={[styles.popupAmountBox, { backgroundColor: colors.inputBg }]}>
-              <Text style={[styles.popupAmountText, { color: colors.text }]}>
-                {currencySymbol}{upcomingBill.amount.toLocaleString()}
-              </Text>
-              <Text style={[styles.popupCategoryText, { color: colors.textMuted }]}>{upcomingBill.category} • Multi-Channel Alert Active</Text>
-            </View>
-
-            <View style={styles.popupChannelsRow}>
-              <View style={[styles.channelBadge, { backgroundColor: 'rgba(6, 182, 212, 0.12)' }]}>
-                <Smartphone color="#06B6D4" size={11} />
-                <Text style={[styles.channelBadgeText, { color: '#06B6D4' }]}>In-App</Text>
-              </View>
-              <View style={[styles.channelBadge, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
-                <Bell color="#8B5CF6" size={11} />
-                <Text style={[styles.channelBadgeText, { color: '#8B5CF6' }]}>Push</Text>
-              </View>
-              <View style={[styles.channelBadge, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
-                <Mail color="#10B981" size={11} />
-                <Text style={[styles.channelBadgeText, { color: '#10B981' }]}>Email Alert</Text>
-              </View>
-            </View>
-
-            <View style={styles.popupActions}>
-              <TouchableOpacity
-                style={[styles.popupActionBtn, { backgroundColor: '#10B981' }]}
-                onPress={handlePayBill}
-              >
-                <CheckCircle2 color="#FFFFFF" size={16} />
-                <Text style={styles.popupActionBtnText}>1-Click Mark Paid</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.popupSecondaryBtn, { borderColor: colors.inputBorder }]}
-                onPress={handleSnoozeBill}
-              >
-                <Moon color={colors.textSecondary} size={16} />
-                <Text style={[styles.popupSecondaryBtnText, { color: colors.textSecondary }]}>Snooze 3 Days</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity onPress={() => setShowUrgentPopup(false)} style={styles.popupCloseBtn}>
-              <Text style={[styles.popupCloseText, { color: colors.textMuted }]}>Remind Me Later</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* Reusable Interactive Info Tooltip Modal */}
       <InfoTooltipModal

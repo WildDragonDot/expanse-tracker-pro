@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
@@ -17,6 +18,8 @@ import {
   Layers,
 } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
+import { api } from '../services/api'
+import { Expense } from '../types'
 
 export interface CategoryDetailsItem {
   name: string
@@ -40,21 +43,37 @@ export const CategoryDetailsModal: React.FC<Props> = ({
   onClose,
 }) => {
   const { colors } = useAppTheme()
+  const [categoryTransactions, setCategoryTransactions] = useState<Expense[]>([])
+  const [loadingTx, setLoadingTx] = useState(false)
+
+  useEffect(() => {
+    if (!visible || !category) {
+      setCategoryTransactions([])
+      return
+    }
+    setLoadingTx(true)
+    api
+      .getExpenses()
+      .then((all) => {
+        setCategoryTransactions(
+          all
+            .filter((e) => e.category === category.name)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 5)
+        )
+      })
+      .catch(() => setCategoryTransactions([]))
+      .finally(() => setLoadingTx(false))
+  }, [visible, category?.name])
 
   if (!category) return null
 
   const spentAmount = (category as any).spent ?? (category as any).amount ?? 0
   const budgetAmount = (category as any).budget ?? 0
-  const percentageVal = (category as any).percentage ?? Math.round((spentAmount / (budgetAmount || 1)) * 100)
+  const hasBudget = budgetAmount > 0
+  const percentageVal = (category as any).percentage ?? (hasBudget ? Math.round((spentAmount / budgetAmount) * 100) : 0)
   const remaining = Math.max(0, budgetAmount - spentAmount)
-  const isOverBudget = spentAmount > budgetAmount
-
-  // Sample transactions for category
-  const categoryTransactions = [
-    { id: 'ct1', title: `${category.name} - Store Purchase`, amount: Math.round(spentAmount * 0.45), date: '2026-08-18' },
-    { id: 'ct2', title: `${category.name} - Online Payment`, amount: Math.round(spentAmount * 0.35), date: '2026-08-12' },
-    { id: 'ct3', title: `${category.name} - Subscription / Recurring`, amount: Math.round(spentAmount * 0.20), date: '2026-08-05' },
-  ]
+  const isOverBudget = hasBudget && spentAmount > budgetAmount
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -80,42 +99,58 @@ export const CategoryDetailsModal: React.FC<Props> = ({
             <Text style={styles.catName}>{category.name}</Text>
             <Text style={styles.catSpent}>
               {currencySymbol || '₹'}{spentAmount.toLocaleString()}
-              <Text style={styles.catBudget}> of {currencySymbol || '₹'}{budgetAmount.toLocaleString()} Budget</Text>
+              {hasBudget && (
+                <Text style={styles.catBudget}> of {currencySymbol || '₹'}{budgetAmount.toLocaleString()} Budget</Text>
+              )}
             </Text>
 
             {/* Gauge */}
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${Math.min(100, percentageVal)}%`, backgroundColor: '#FFFFFF' }]} />
-            </View>
-            <View style={styles.progressLabelRow}>
-              <Text style={styles.progressLabelText}>{percentageVal}% Utilized</Text>
-              <Text style={styles.progressLabelText}>
-                {isOverBudget ? 'Over Budget' : `${currencySymbol || '₹'}${remaining.toLocaleString()} Remaining`}
-              </Text>
-            </View>
+            {hasBudget && (
+              <>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${Math.min(100, percentageVal)}%`, backgroundColor: '#FFFFFF' }]} />
+                </View>
+                <View style={styles.progressLabelRow}>
+                  <Text style={styles.progressLabelText}>{percentageVal}% Utilized</Text>
+                  <Text style={styles.progressLabelText}>
+                    {isOverBudget ? 'Over Budget' : `${currencySymbol || '₹'}${remaining.toLocaleString()} Remaining`}
+                  </Text>
+                </View>
+              </>
+            )}
           </LinearGradient>
 
           <ScrollView contentContainerStyle={styles.content}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Category Transactions</Text>
-            {categoryTransactions.map((tx) => (
-              <View
-                key={tx.id}
-                style={[styles.txRow, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
-              >
-                <View style={styles.txLeft}>
-                  <View style={[styles.txIcon, { backgroundColor: 'rgba(244, 63, 94, 0.15)' }]}>
-                    <ArrowUpRight color="#F43F5E" size={16} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
+            {loadingTx ? (
+              <ActivityIndicator color={colors.primary} style={{ marginTop: 12 }} />
+            ) : categoryTransactions.length === 0 ? (
+              <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center', paddingVertical: 12 }}>
+                No transactions found in this category yet.
+              </Text>
+            ) : (
+              categoryTransactions.map((tx) => (
+                <View
+                  key={tx.id}
+                  style={[styles.txRow, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
+                >
+                  <View style={styles.txLeft}>
+                    <View style={[styles.txIcon, { backgroundColor: 'rgba(244, 63, 94, 0.15)' }]}>
+                      <ArrowUpRight color="#F43F5E" size={16} />
+                    </View>
+                    <View>
+                      <Text style={[styles.txTitle, { color: colors.text }]}>{tx.title}</Text>
+                      <Text style={[styles.txDate, { color: colors.textSecondary }]}>
+                        {new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={[styles.txTitle, { color: colors.text }]}>{tx.title}</Text>
-                    <Text style={[styles.txDate, { color: colors.textSecondary }]}>{tx.date}</Text>
-                  </View>
+                  <Text style={[styles.txAmount, { color: colors.text }]}>
+                    -{currencySymbol}{tx.amount.toLocaleString()}
+                  </Text>
                 </View>
-                <Text style={[styles.txAmount, { color: colors.text }]}>
-                  -{currencySymbol}{tx.amount.toLocaleString()}
-                </Text>
-              </View>
-            ))}
+              ))
+            )}
           </ScrollView>
         </View>
       </View>

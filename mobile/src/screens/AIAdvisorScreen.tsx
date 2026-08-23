@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -39,10 +39,35 @@ export const AIAdvisorScreen = () => {
     {
       id: 'm1',
       sender: 'ai',
-      text: `Hello ${user?.name || 'there'}! I'm your AI Financial Copilot. I've analyzed your real ledger: your Health Score is 88/100, and you have ₹17,400 in scheduled bills this month. How can I assist your financial goals today?`,
+      text: `Hello ${user?.name || 'there'}! I'm your AI Financial Copilot. Ask me anything about your budget, bills, or spending and I'll pull real numbers from your account.`,
       time: 'Just now',
     },
   ])
+
+  const [healthScore, setHealthScore] = useState<number | null>(null)
+  const [savingsRate, setSavingsRate] = useState(0)
+  const [billCompliance, setBillCompliance] = useState<number | null>(null)
+
+  useEffect(() => {
+    const now = new Date()
+    api.getSmartScore(now.getFullYear(), now.getMonth() + 1)
+      .then((score) => { if (score) setHealthScore(score.score) })
+      .catch(() => setHealthScore(null))
+
+    api.getDashboardSummary()
+      .then((s) => setSavingsRate(s.savingsRate || 0))
+      .catch(() => setSavingsRate(0))
+
+    api.getBillOccurrences()
+      .then((occs) => {
+        const settled = occs.filter((o) => o.status === 'PAID' || o.status === 'OVERDUE')
+        setBillCompliance(settled.length === 0 ? null : Math.round((occs.filter((o) => o.status === 'PAID').length / settled.length) * 100))
+      })
+      .catch(() => setBillCompliance(null))
+  }, [])
+
+  const scoreForGauge = healthScore ?? 0
+  const budgetBurnLabel = savingsRate >= 20 ? 'Safe' : savingsRate >= 5 ? 'Watch' : 'High'
 
   const handleSend = async () => {
     if (!prompt.trim()) return
@@ -60,14 +85,22 @@ export const AIAdvisorScreen = () => {
     setIsThinking(true)
 
     try {
-      const res = await api.askAIChat(query).catch(() => null)
+      const res = await api.askAIChat(query)
       const aiReply: ChatMessage = {
         id: 'ai_' + Date.now(),
         sender: 'ai',
-        text: res?.reply || `Based on your budget patterns, keeping discretionary spend within 15% gives you optimal runway while growing your emergency buffer.`,
+        text: res.reply,
         time: 'Just now',
       }
       setMessages((prev) => [...prev, aiReply])
+    } catch (err: any) {
+      const errorReply: ChatMessage = {
+        id: 'ai_' + Date.now(),
+        sender: 'ai',
+        text: err.message || "Sorry, I couldn't reach the AI assistant right now. Please check your connection and try again.",
+        time: 'Just now',
+      }
+      setMessages((prev) => [...prev, errorReply])
     } finally {
       setIsThinking(false)
     }
@@ -98,54 +131,56 @@ export const AIAdvisorScreen = () => {
 
             <View style={styles.scoreStatusBadge}>
               <View style={styles.scoreStatusDot} />
-              <Text style={styles.scoreStatusText}>EXCELLENT</Text>
+              <Text style={styles.scoreStatusText}>
+                {healthScore === null ? 'CALCULATING' : scoreForGauge >= 80 ? 'EXCELLENT' : scoreForGauge >= 65 ? 'OPTIMAL' : scoreForGauge >= 40 ? 'FAIR' : 'ATTENTION'}
+              </Text>
             </View>
           </View>
 
           <View style={styles.scoreNumberRow}>
             <Text style={styles.scoreNumber}>
-              88<Text style={styles.scoreMax}>/100</Text>
+              {healthScore ?? '—'}<Text style={styles.scoreMax}>/100</Text>
             </Text>
-            <Text style={[styles.scoreScoreSub, { color: colors.textSecondary }]}>Top 5% Financial Discipline</Text>
+            <Text style={[styles.scoreScoreSub, { color: colors.textSecondary }]}>Based on your real transaction history</Text>
           </View>
 
           <Text style={[styles.scoreDesc, { color: colors.textSecondary }]}>
-            Income stability is high, bills are paid on time, and discretionary burn rate is <Text style={{ color: '#10B981', fontWeight: '800' }}>14% below budget limits</Text>.
+            You're currently saving <Text style={{ color: '#10B981', fontWeight: '800' }}>{savingsRate}%</Text> of your income this month.
           </Text>
 
           {/* 4-Segment Gauge */}
           <View style={styles.gaugeSegmentsRow}>
-            {/* Segment 1: Red */}
+            {/* Segment 1: 0-25 */}
             <View style={[styles.gaugeSegment, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
-              <LinearGradient colors={['#DC2626', '#EF4444']} style={[styles.gaugeFill, { width: '100%' }]} />
+              <LinearGradient colors={['#DC2626', '#EF4444']} style={[styles.gaugeFill, { width: `${Math.min(100, (scoreForGauge / 25) * 100)}%` }]} />
             </View>
-            {/* Segment 2: Orange */}
+            {/* Segment 2: 25-50 */}
             <View style={[styles.gaugeSegment, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
-              <LinearGradient colors={['#F97316', '#F59E0B']} style={[styles.gaugeFill, { width: '100%' }]} />
+              <LinearGradient colors={['#F97316', '#F59E0B']} style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((scoreForGauge - 25) / 25) * 100))}%` }]} />
             </View>
-            {/* Segment 3: Yellow */}
+            {/* Segment 3: 50-75 */}
             <View style={[styles.gaugeSegment, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
-              <LinearGradient colors={['#F59E0B', '#84CC16']} style={[styles.gaugeFill, { width: '100%' }]} />
+              <LinearGradient colors={['#F59E0B', '#84CC16']} style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((scoreForGauge - 50) / 25) * 100))}%` }]} />
             </View>
-            {/* Segment 4: Emerald (Active 88%) */}
+            {/* Segment 4: 75-100 */}
             <View style={[styles.gaugeSegment, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
-              <LinearGradient colors={['#84CC16', '#10B981']} style={[styles.gaugeFill, { width: '60%' }]} />
+              <LinearGradient colors={['#84CC16', '#10B981']} style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(0, ((scoreForGauge - 75) / 25) * 100))}%` }]} />
             </View>
           </View>
 
           {/* Metric Pillars 3 Glass Badges */}
           <View style={styles.pillarsGrid}>
             <View style={[styles.pillarItem, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-              <Text style={[styles.pillarValue, { color: '#10B981' }]}>69%</Text>
+              <Text style={[styles.pillarValue, { color: '#10B981' }]}>{savingsRate}%</Text>
               <Text style={styles.pillarLabel}>Savings Rate</Text>
             </View>
             <View style={[styles.pillarItem, { backgroundColor: 'rgba(6, 182, 212, 0.1)' }]}>
-              <Text style={[styles.pillarValue, { color: '#06B6D4' }]}>100%</Text>
+              <Text style={[styles.pillarValue, { color: '#06B6D4' }]}>{billCompliance === null ? 'N/A' : `${billCompliance}%`}</Text>
               <Text style={styles.pillarLabel}>Bill Compliance</Text>
             </View>
             <View style={[styles.pillarItem, { backgroundColor: 'rgba(56, 189, 248, 0.1)' }]}>
-              <Text style={[styles.pillarValue, { color: '#38BDF8' }]}>Low</Text>
-              <Text style={styles.pillarLabel}>Debt Ratio</Text>
+              <Text style={[styles.pillarValue, { color: '#38BDF8' }]}>{budgetBurnLabel}</Text>
+              <Text style={styles.pillarLabel}>Budget Burn</Text>
             </View>
           </View>
         </LinearGradient>

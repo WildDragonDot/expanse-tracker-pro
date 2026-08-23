@@ -11,7 +11,7 @@ interface AuthContextType {
   fcmToken: string | null
   login: (email: string, password: string) => Promise<void>
   register: (data: { name: string; email: string; password: string; salary?: number; billingCycleStartDay?: number }) => Promise<void>
-  loginWithGoogle: (email?: string) => Promise<void>
+  loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   updateProfile: (data: Partial<User>) => Promise<void>
 }
@@ -77,32 +77,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const loginWithGoogle = async (selectedEmail?: string) => {
+  const loginWithGoogle = async () => {
     setLoading(true)
     try {
-      const googleUser = await GoogleAuthService.signInWithGoogle(selectedEmail)
-      const googleAuthUser: User = {
-        id: 'google_usr_' + Date.now(),
-        name: googleUser.name,
-        email: googleUser.email,
-        profileImage: googleUser.photoUrl,
-        salary: 100000,
-        currency: 'INR',
-        billingCycleStartDay: 1,
-        bio: 'Google Verified Account',
-        notificationSettings: {
-          billAlerts: true,
-          budgetWarnings: true,
-          weeklyReports: true,
-          securityAlerts: true,
-        },
-      }
-      const token = googleUser.idToken
-      setToken(token)
-      setUser(googleAuthUser)
-      api.setToken(token)
-      await AsyncStorage.setItem('@auth_token', token)
-      await AsyncStorage.setItem('@user_data', JSON.stringify(googleAuthUser))
+      // Opens the real native Google account picker; returns the ID token Google issued.
+      const googleUser = await GoogleAuthService.signInWithGoogle()
+      // Backend independently re-verifies this token with Google and returns the
+      // actual account (existing or newly created) with a real server-issued session token.
+      const res = await api.loginWithGoogle(googleUser.idToken)
+      setToken(res.token)
+      setUser(res.user)
+      api.setToken(res.token)
+      await AsyncStorage.setItem('@auth_token', res.token)
+      await AsyncStorage.setItem('@user_data', JSON.stringify(res.user))
     } finally {
       setLoading(false)
     }
@@ -114,6 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     api.setToken(null)
     await AsyncStorage.removeItem('@auth_token')
     await AsyncStorage.removeItem('@user_data')
+    await GoogleAuthService.signOut()
   }
 
   const updateProfile = async (data: Partial<User>) => {

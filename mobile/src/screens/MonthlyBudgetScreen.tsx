@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -8,111 +8,204 @@ import {
   Modal,
   TextInput,
   Alert,
+  RefreshControl,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   Calendar,
-  History,
-  FileSpreadsheet,
-  Share2,
   WalletCards,
   ReceiptText,
   PiggyBank,
   Percent,
-  Plus,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   X,
+  Trash2,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 import { MonthlyBudgetSkeleton } from '../components/SkeletonLoader'
+import { api } from '../services/api'
+import { MonthlyBudgetItem } from '../types'
 
-interface BudgetCategory {
-  id: string
-  name: string
-  budget: number
-  spent: number
-  color: string
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+const CATEGORY_COLORS = ['#8B5CF6', '#10B981', '#06B6D4', '#F59E0B', '#F43F5E', '#3B82F6', '#EC4899']
+
+const colorForCategory = (name: string) => {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+  return CATEGORY_COLORS[hash % CATEGORY_COLORS.length]
+}
+
+// Mirrors backend/src/lib/billingCycle.ts so the period shown here matches the
+// same "billing cycle start day" logic the server uses for spend calculations.
+const getBillingPeriod = (month: number, year: number, billingCycleStartDay: number) => {
+  const monthIndex = month - 1
+  const startDate = new Date(year, monthIndex, billingCycleStartDay)
+  const endDate = new Date(year, monthIndex + 1, billingCycleStartDay - 1, 23, 59, 59, 999)
+  return { startDate, endDate }
+}
+
+const getCurrentBillingMonthYear = (billingCycleStartDay: number, now = new Date()) => {
+  const day = now.getDate()
+  const month = now.getMonth() // 0-11
+  const year = now.getFullYear()
+  if (day >= billingCycleStartDay) return { month: month + 1, year }
+  return { month: month === 0 ? 12 : month, year: month === 0 ? year - 1 : year }
 }
 
 export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
   const { user } = useAuth()
   const { colors } = useAppTheme()
+  const billingCycleStartDay = user?.billingCycleStartDay || 1
+  const currentPeriod = getCurrentBillingMonthYear(billingCycleStartDay)
 
-  const [selectedMonth, setSelectedMonth] = useState('August')
-  const [selectedYear, setSelectedYear] = useState('2026')
+  const [selectedMonth, setSelectedMonth] = useState(currentPeriod.month)
+  const [selectedYear, setSelectedYear] = useState(currentPeriod.year)
+  const [monthPickerVisible, setMonthPickerVisible] = useState(false)
 
-  const [categories, setCategories] = useState<BudgetCategory[]>([
-    { id: 'b1', name: 'Housing & Rent', budget: 25000, spent: 25000, color: '#8B5CF6' },
-    { id: 'b2', name: 'Food & Groceries', budget: 18000, spent: 13250, color: '#10B981' },
-    { id: 'b3', name: 'Bills & Utilities', budget: 10000, spent: 8400, color: '#06B6D4' },
-    { id: 'b4', name: 'Travel & Commute', budget: 8000, spent: 5100, color: '#F59E0B' },
-    { id: 'b5', name: 'Entertainment & Leisure', budget: 6000, spent: 3750, color: '#F43F5E' },
-  ])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [categories, setCategories] = useState<MonthlyBudgetItem[]>([])
 
   // Modal
   const [modalVisible, setModalVisible] = useState(false)
   const [catName, setCatName] = useState('')
   const [catBudget, setCatBudget] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'
 
-  const totalBudget = categories.reduce((sum, c) => sum + c.budget, 0)
+  const loadBudgets = async () => {
+    try {
+      const budgets = await api.getMonthlyBudgets(selectedMonth, selectedYear)
+      setCategories(budgets)
+    } catch {
+      setCategories([])
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    setLoading(true)
+    loadBudgets()
+  }, [selectedMonth, selectedYear])
+
+  const onRefresh = () => {
+    setRefreshing(true)
+    loadBudgets()
+  }
+
+  const totalBudget = categories.reduce((sum, c) => sum + c.amount, 0)
   const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0)
   const remaining = Math.max(0, totalBudget - totalSpent)
   const usedPercentage = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0
 
-  const handleAddBudget = () => {
+  const isActivePeriod = selectedMonth === currentPeriod.month && selectedYear === currentPeriod.year
+  const period = getBillingPeriod(selectedMonth, selectedYear, billingCycleStartDay)
+  const now = new Date()
+  const daysLeft = isActivePeriod ? Math.max(0, Math.ceil((period.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0
+  const periodProgress = isActivePeriod
+    ? Math.max(0, Math.min(100, Math.round(((now.getTime() - period.startDate.getTime()) / (period.endDate.getTime() - period.startDate.getTime())) * 100)))
+    : now > period.endDate ? 100 : 0
+  const periodLabel = `${period.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${period.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+
+  const handleAddBudget = async () => {
     if (!catName || !catBudget) {
       Alert.alert('Required', 'Please enter category name and budget limit.')
       return
     }
-
-    const newCat: BudgetCategory = {
-      id: 'b_' + Date.now(),
-      name: catName.trim(),
-      budget: parseFloat(catBudget),
-      spent: 0,
-      color: '#8B5CF6',
+    setSaving(true)
+    try {
+      await api.saveMonthlyBudget({
+        category: catName.trim(),
+        amount: parseFloat(catBudget),
+        month: selectedMonth,
+        year: selectedYear,
+      })
+      setModalVisible(false)
+      setCatName('')
+      setCatBudget('')
+      await loadBudgets()
+    } catch (err: any) {
+      Alert.alert('Could not save budget', err.message || 'Please try again.')
+    } finally {
+      setSaving(false)
     }
+  }
 
-    setCategories((prev) => [...prev, newCat])
-    setModalVisible(false)
-    setCatName('')
-    setCatBudget('')
+  const handleDeleteBudget = (item: MonthlyBudgetItem) => {
+    Alert.alert('Remove Budget?', `Remove the ${currencySymbol}${item.amount.toLocaleString()} limit for "${item.category}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.deleteMonthlyBudget(item.id)
+            setCategories((prev) => prev.filter((c) => c.id !== item.id))
+          } catch (err: any) {
+            Alert.alert('Could not remove budget', err.message || 'Please try again.')
+          }
+        },
+      },
+    ])
+  }
+
+  const goToPreviousMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12)
+      setSelectedYear((y) => y - 1)
+    } else {
+      setSelectedMonth((m) => m - 1)
+    }
+  }
+
+  const goToNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1)
+      setSelectedYear((y) => y + 1)
+    } else {
+      setSelectedMonth((m) => m + 1)
+    }
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderBar title="Monthly Budget" onProfilePress={() => navigation.navigate('Settings')} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 1. Month / Year Selector Card with 3 Icon Buttons */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        {/* 1. Month / Year Selector */}
         <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
           <View style={styles.dropdownRow}>
-            <TouchableOpacity style={[styles.dropdownBtn, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+            <TouchableOpacity onPress={goToPreviousMonth} style={[styles.chevronBtn, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+              <ChevronLeft color={colors.textSecondary} size={16} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setMonthPickerVisible(true)}
+              style={[styles.dropdownBtn, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+            >
               <Calendar color={colors.textSecondary} size={16} />
-              <Text style={[styles.dropdownText, { color: colors.text }]}>{selectedMonth}</Text>
+              <Text style={[styles.dropdownText, { color: colors.text }]}>
+                {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+              </Text>
               <ChevronDown color={colors.textSecondary} size={16} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.dropdownBtn, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-              <Text style={[styles.dropdownText, { color: colors.text }]}>{selectedYear}</Text>
-              <ChevronDown color={colors.textSecondary} size={16} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.iconActionsRow}>
-            <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: 'rgba(255, 255, 255, 0.06)' }]}>
-              <History color={colors.textSecondary} size={16} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
-              <FileSpreadsheet color="#8B5CF6" size={16} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
-              <Share2 color="#3B82F6" size={16} />
+            <TouchableOpacity onPress={goToNextMonth} style={[styles.chevronBtn, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+              <ChevronRight color={colors.textSecondary} size={16} />
             </TouchableOpacity>
           </View>
         </View>
@@ -125,30 +218,39 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
                 <Calendar color="#8B5CF6" size={18} />
               </View>
               <View>
-                <Text style={[styles.periodTitle, { color: colors.text }]}>Current Billing Period</Text>
-                <Text style={[styles.periodDates, { color: colors.textSecondary }]}>Aug 1 - Aug 31, 2026</Text>
+                <Text style={[styles.periodTitle, { color: colors.text }]}>
+                  {isActivePeriod ? 'Current Billing Period' : 'Billing Period'}
+                </Text>
+                <Text style={[styles.periodDates, { color: colors.textSecondary }]}>{periodLabel}</Text>
               </View>
             </View>
             <View style={styles.periodRight}>
-              <Text style={[styles.daysLeftNum, { color: colors.text }]}>10</Text>
-              <Text style={[styles.daysLeftText, { color: colors.textSecondary }]}>days left</Text>
+              {isActivePeriod ? (
+                <>
+                  <Text style={[styles.daysLeftNum, { color: colors.text }]}>{daysLeft}</Text>
+                  <Text style={[styles.daysLeftText, { color: colors.textSecondary }]}>days left</Text>
+                </>
+              ) : (
+                <Text style={[styles.daysLeftText, { color: colors.textSecondary }]}>
+                  {now > period.endDate ? 'Completed' : 'Upcoming'}
+                </Text>
+              )}
             </View>
           </View>
 
           <View style={styles.progressSection}>
             <View style={styles.progressLabelRow}>
               <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Period Progress</Text>
-              <Text style={[styles.progressVal, { color: colors.text }]}>70%</Text>
+              <Text style={[styles.progressVal, { color: colors.text }]}>{periodProgress}%</Text>
             </View>
             <View style={[styles.track, { backgroundColor: colors.inputBg }]}>
-              <View style={[styles.fill, { width: '70%', backgroundColor: '#8B5CF6' }]} />
+              <View style={[styles.fill, { width: `${periodProgress}%`, backgroundColor: '#8B5CF6' }]} />
             </View>
           </View>
         </View>
 
         {/* 3. 4 Budget Metric Cards in 2 Rows of 2 */}
         <View style={styles.twoCardsRow}>
-          {/* Card 1: Total Budget */}
           <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.metricIconCircleBlue}>
               <WalletCards color="#3B82F6" size={16} />
@@ -159,7 +261,6 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
             </Text>
           </View>
 
-          {/* Card 2: Total Spent */}
           <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.metricIconCircleRed}>
               <ReceiptText color="#F43F5E" size={16} />
@@ -172,7 +273,6 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
         </View>
 
         <View style={styles.twoCardsRow}>
-          {/* Card 3: Remaining */}
           <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.metricIconCircleGreen}>
               <PiggyBank color="#10B981" size={16} />
@@ -183,7 +283,6 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
             </Text>
           </View>
 
-          {/* Card 4: Overall Used */}
           <View style={[styles.metricCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.metricIconCirclePurple}>
               <Percent color="#8B5CF6" size={16} />
@@ -201,32 +300,49 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
           </TouchableOpacity>
         </View>
 
-        {categories.map((c) => {
-          const catUsed = Math.round((c.spent / c.budget) * 100)
-          return (
-            <View
-              key={c.id}
-              style={[styles.catRow, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                <CategoryIcon name={c.name} color={c.color} size={14} containerSize={26} style={{ marginRight: 8 }} />
-                <View style={styles.catInfo}>
-                  <Text style={[styles.catName, { color: colors.text }]}>{c.name}</Text>
-                  <Text style={[styles.catAmounts, { color: colors.textSecondary }]}>
-                    {currencySymbol}{c.spent.toLocaleString()} / {currencySymbol}{c.budget.toLocaleString()} ({catUsed}%)
-                  </Text>
+        {loading ? (
+          <MonthlyBudgetSkeleton />
+        ) : categories.length === 0 ? (
+          <View style={styles.emptyState}>
+            <WalletCards color={colors.textMuted} size={28} />
+            <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+              No budgets set for {MONTH_NAMES[selectedMonth - 1]} {selectedYear} yet. Tap "+ Add Budget" to set one.
+            </Text>
+          </View>
+        ) : (
+          categories.map((c) => {
+            const catUsed = c.amount > 0 ? Math.round((c.spent / c.amount) * 100) : 0
+            const color = colorForCategory(c.category)
+            return (
+              <TouchableOpacity
+                key={c.id}
+                onLongPress={() => handleDeleteBudget(c)}
+                activeOpacity={0.8}
+                style={[styles.catRow, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <CategoryIcon name={c.category} color={color} size={14} containerSize={26} style={{ marginRight: 8 }} />
+                  <View style={styles.catInfo}>
+                    <Text style={[styles.catName, { color: colors.text }]}>{c.category}</Text>
+                    <Text style={[styles.catAmounts, { color: colors.textSecondary }]}>
+                      {currencySymbol}{c.spent.toLocaleString()} / {currencySymbol}{c.amount.toLocaleString()} ({catUsed}%)
+                    </Text>
+                  </View>
+                  <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => handleDeleteBudget(c)}>
+                    <Trash2 color={colors.textMuted} size={15} />
+                  </TouchableOpacity>
                 </View>
-              </View>
-              <View style={[styles.track, { backgroundColor: colors.inputBg }]}>
-                <View style={[styles.fill, { width: `${Math.min(100, catUsed)}%`, backgroundColor: c.color }]} />
-              </View>
-            </View>
-          )
-        })}
+                <View style={[styles.track, { backgroundColor: colors.inputBg }]}>
+                  <View style={[styles.fill, { width: `${Math.min(100, catUsed)}%`, backgroundColor: catUsed > 100 ? '#F43F5E' : color }]} />
+                </View>
+              </TouchableOpacity>
+            )
+          })
+        )}
       </ScrollView>
 
       {/* Add Budget Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.modalHeader}>
@@ -259,13 +375,47 @@ export const MonthlyBudgetScreen = ({ navigation }: { navigation: any }) => {
               />
             </View>
 
-            <TouchableOpacity onPress={handleAddBudget} style={styles.submitBtn}>
+            <TouchableOpacity onPress={handleAddBudget} disabled={saving} style={[styles.submitBtn, { opacity: saving ? 0.6 : 1 }]}>
               <LinearGradient colors={colors.primaryGradient} style={styles.submitGradient}>
-                <Text style={styles.submitText}>Save Budget</Text>
+                <Text style={styles.submitText}>{saving ? 'Saving…' : 'Save Budget'}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Month Picker Modal */}
+      <Modal visible={monthPickerVisible} animationType="fade" transparent onRequestClose={() => setMonthPickerVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlayCenter} activeOpacity={1} onPress={() => setMonthPickerVisible(false)}>
+          <View style={[styles.monthPickerCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Month</Text>
+              <TouchableOpacity onPress={() => setMonthPickerVisible(false)}>
+                <X color={colors.textSecondary} size={20} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.monthGrid}>
+              {MONTH_NAMES.map((name, idx) => {
+                const isSelected = idx + 1 === selectedMonth
+                return (
+                  <TouchableOpacity
+                    key={name}
+                    onPress={() => {
+                      setSelectedMonth(idx + 1)
+                      setMonthPickerVisible(false)
+                    }}
+                    style={[
+                      styles.monthChip,
+                      { borderColor: colors.inputBorder, backgroundColor: isSelected ? colors.primary : colors.inputBg },
+                    ]}
+                  >
+                    <Text style={[styles.monthChipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>{name.slice(0, 3)}</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   )
@@ -283,29 +433,39 @@ const styles = StyleSheet.create({
   dropdownRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 12,
+    alignItems: 'center',
+  },
+  chevronBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dropdownBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 8,
     paddingHorizontal: 12,
     height: 42,
     borderRadius: 12,
     borderWidth: 1,
   },
   dropdownText: { fontSize: 13, fontWeight: '700' },
-  iconActionsRow: {
-    flexDirection: 'row',
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
     gap: 10,
   },
-  actionIconBtn: {
-    flex: 1,
-    height: 38,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+  emptyStateText: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   periodHeader: {
     flexDirection: 'row',
@@ -417,6 +577,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
+  },
+  modalOverlayCenter: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  monthPickerCard: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  monthChip: {
+    width: '30%',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  monthChipText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   modalCard: {
     borderTopLeftRadius: 28,

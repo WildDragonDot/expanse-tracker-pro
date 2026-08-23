@@ -131,3 +131,86 @@ export interface NotificationItem {
   isRead: boolean
   actionUrl?: string
 }
+
+export interface MonthlyBudgetItem {
+  id: string
+  userId: string
+  category: string
+  amount: number
+  month: number
+  year: number
+  spent: number
+  payableBank?: string | null
+  isActive: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface UdharRecord {
+  id: string
+  userId: string
+  person: string
+  phoneNumber?: string | null
+  reason: string
+  total: number
+  remaining: number
+  direction: 'given' | 'taken'
+  dueDate?: string | null
+  createdAt: string
+}
+
+export interface ShoppingListItem {
+  id: string
+  userId: string
+  name: string
+  quantity: number
+  unit: string
+  category: string
+  priority: string
+  completed: boolean
+  estimatedPrice?: number | null
+  actualPrice?: number | null
+  expenseId?: string | null
+  notes?: string | null
+  period: string
+  createdAt: string
+}
+
+export interface ShoppingItem {
+  id: string
+  userId: string
+  categoryId?: string | null
+  name: string
+  expectedPrice: number
+  actualPrice?: number | null
+  quantity: number
+  unit: string
+  isBought: boolean
+  expenseId?: string | null
+  notes?: string | null
+  createdAt: string
+}
+
+export interface ExpenseCategoryItem {
+  id: string
+  userId: string
+  name: string
+  icon: string
+  isDefault: boolean
+  createdAt: string
+}
+
+export interface ShoppingCategory {
+  id: string
+  userId: string
+  name: string
+  icon: string
+  color: string
+  expectedCost: number
+  realCost: number
+  membersCount: number
+  isActive: boolean
+  expiryDate?: string | null
+  createdAt: string
+  items: ShoppingItem[]
+}

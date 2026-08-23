@@ -69,6 +69,7 @@ import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
+import { api } from '../services/api'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const MODAL_WIDTH = SCREEN_WIDTH - 32
@@ -193,17 +194,32 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
   const scrollX = useRef(new Animated.Value(0)).current
   const calendarFlatListRef = useRef<FlatList>(null)
 
-  // Custom Categories
-  const [categoriesList, setCategoriesList] = useState([
-    { id: '1', name: 'Housing & Rent', color: '#8B5CF6', icon: 'housing' },
-    { id: '2', name: 'Food & Groceries', color: '#10B981', icon: 'food' },
-    { id: '3', name: 'Bills & Utilities', color: '#06B6D4', icon: 'utilities' },
-    { id: '4', name: 'Travel & Commute', color: '#F59E0B', icon: 'travel' },
-    { id: '5', name: 'Subscriptions', color: '#EC4899', icon: 'subscriptions' },
-    { id: '6', name: 'Health & Medical', color: '#EF4444', icon: 'health' },
-    { id: '7', name: 'Investments & SIP', color: '#3B82F6', icon: 'investments' },
-  ])
+  // Custom Categories — loaded from the real backend (which seeds sensible defaults
+  // for a brand-new user the first time this is fetched)
+  const CATEGORY_COLORS = ['#8B5CF6', '#10B981', '#06B6D4', '#F59E0B', '#EC4899', '#EF4444', '#3B82F6']
+  const colorForCategory = (name: string) => {
+    let hash = 0
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+    return CATEGORY_COLORS[hash % CATEGORY_COLORS.length]
+  }
+  const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; color: string; icon: string }[]>([])
   const [newCatName, setNewCatName] = useState('')
+
+  useEffect(() => {
+    api.getExpenseCategories()
+      .then((cats) => setCategoriesList(cats.map((c) => ({ id: c.id, name: c.name, color: colorForCategory(c.name), icon: c.icon }))))
+      .catch(() => setCategoriesList([]))
+  }, [])
+
+  // Real live metrics for the hero card (net savings this month, financial health score)
+  const [netSavings, setNetSavings] = useState<number | null>(null)
+  const [healthScore, setHealthScore] = useState<number | null>(null)
+
+  useEffect(() => {
+    const now = new Date()
+    api.getDashboardSummary().then((s) => setNetSavings(s.totalIncome - s.totalExpenses)).catch(() => setNetSavings(null))
+    api.getSmartScore(now.getFullYear(), now.getMonth() + 1).then((score) => { if (score) setHealthScore(score.score) }).catch(() => setHealthScore(null))
+  }, [])
 
   const currencies = [
     { code: 'INR', symbol: '₹', label: 'Indian Rupee (INR)', flag: '🇮🇳' },
@@ -241,23 +257,25 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
     ])
   }
 
-  const handleAddCategory = () => {
-    if (!newCatName.trim()) return
-    setCategoriesList((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        name: newCatName.trim(),
-        color: '#8B5CF6',
-        icon: 'tag',
-      },
-    ])
-    setNewCatName('')
-    Alert.alert('Category Added', `Created category "${newCatName.trim()}".`)
+  const handleAddCategory = async () => {
+    const name = newCatName.trim()
+    if (!name) return
+    try {
+      const created = await api.createExpenseCategory({ name })
+      setCategoriesList((prev) => [...prev, { id: created.id, name: created.name, color: colorForCategory(created.name), icon: created.icon }])
+      setNewCatName('')
+    } catch (err: any) {
+      Alert.alert('Could not add category', err.message || 'Please try again.')
+    }
   }
 
-  const handleDeleteCategory = (id: string) => {
-    setCategoriesList((prev) => prev.filter((c) => c.id !== id))
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      await api.deleteExpenseCategory(id)
+      setCategoriesList((prev) => prev.filter((c) => c.id !== id))
+    } catch (err: any) {
+      Alert.alert('Could not delete category', err.message || 'Default categories cannot be removed.')
+    }
   }
 
   return (
@@ -338,12 +356,14 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
               style={styles.metricsStrip}
             >
               <View style={styles.metricItem}>
-                <Text style={[styles.metricVal, { color: '#10B981' }]}>₹4,700</Text>
+                <Text style={[styles.metricVal, { color: '#10B981' }]}>
+                  {netSavings === null ? '—' : `${user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : '₹'}${netSavings.toLocaleString()}`}
+                </Text>
                 <Text style={styles.metricLbl}>Net Savings</Text>
               </View>
               <View style={styles.metricDivider} />
               <View style={styles.metricItem}>
-                <Text style={[styles.metricVal, { color: '#06B6D4' }]}>70%</Text>
+                <Text style={[styles.metricVal, { color: '#06B6D4' }]}>{healthScore === null ? '—' : `${healthScore}%`}</Text>
                 <Text style={styles.metricLbl}>Health Score</Text>
               </View>
               <View style={styles.metricDivider} />
