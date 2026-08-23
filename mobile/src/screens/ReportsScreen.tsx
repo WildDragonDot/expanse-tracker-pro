@@ -11,7 +11,9 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native'
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import {
   Download,
   Share2,
@@ -235,6 +237,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
   const [showCustomModal, setShowCustomModal] = useState(false)
   const [tempFrom, setTempFrom] = useState(defaultStartDate)
   const [tempTo, setTempTo] = useState(defaultEndDate)
+  const [showDatePickerType, setShowDatePickerType] = useState<'from' | 'to' | null>(null)
 
   // Export / Send Email Modal State
   const [showEmailModal, setShowEmailModal] = useState(false)
@@ -427,6 +430,47 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
       Alert.alert('Email Notice', err.message || 'Could not dispatch statement email.')
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  // Date Helpers for Custom Range Picker
+  const parseDateString = (str: string): Date => {
+    if (!str) return new Date()
+    const parts = str.split('-')
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10)
+      const month = parseInt(parts[1], 10) - 1
+      const day = parseInt(parts[2], 10)
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        return new Date(year, month, day)
+      }
+    }
+    return new Date()
+  }
+
+  const formatDisplayDate = (dateStr: string): string => {
+    if (!dateStr) return 'Select Date'
+    try {
+      const parts = dateStr.split('-')
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      }
+    } catch {}
+    return dateStr
+  }
+
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePickerType(null)
+    }
+    if (event.type === 'set' && selectedDate) {
+      const formatted = formatLocalDate(selectedDate)
+      if (showDatePickerType === 'from') {
+        setTempFrom(formatted)
+      } else if (showDatePickerType === 'to') {
+        setTempTo(formatted)
+      }
     }
   }
 
@@ -696,50 +740,72 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
               </View>
             </View>
 
-            {/* Action Buttons Row: Email PDF, Print PDF, Export CSV, Share */}
-            <View style={styles.actionsContainer}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setShowEmailModal(true)}
-                style={[styles.actionBtn, { backgroundColor: '#8B5CF6' }]}
-              >
-                <Mail color="#FFFFFF" size={15} />
-                <Text style={styles.actionBtnText}>Email PDF</Text>
-              </TouchableOpacity>
+            {/* Action Buttons 2x2 Grid: Email PDF, Print PDF, Export CSV, Share */}
+            <View style={styles.actionsGrid}>
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setShowEmailModal(true)}
+                  style={[styles.actionBtn, { backgroundColor: '#8B5CF6' }]}
+                >
+                  <View style={styles.actionBtnIconCircle}>
+                    <Mail color="#FFFFFF" size={16} />
+                  </View>
+                  <View style={styles.actionBtnTextWrap}>
+                    <Text style={styles.actionBtnTitle}>Email PDF</Text>
+                    <Text style={styles.actionBtnSub}>Send to Inbox / CA</Text>
+                  </View>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={handlePrintPDF}
-                disabled={generatingPdf}
-                style={[styles.actionBtn, { backgroundColor: '#0284C7' }]}
-              >
-                {generatingPdf ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Printer color="#FFFFFF" size={15} />
-                    <Text style={styles.actionBtnText}>Print PDF</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handlePrintPDF}
+                  disabled={generatingPdf}
+                  style={[styles.actionBtn, { backgroundColor: '#0284C7' }]}
+                >
+                  <View style={styles.actionBtnIconCircle}>
+                    {generatingPdf ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Printer color="#FFFFFF" size={16} />
+                    )}
+                  </View>
+                  <View style={styles.actionBtnTextWrap}>
+                    <Text style={styles.actionBtnTitle}>Print PDF</Text>
+                    <Text style={styles.actionBtnSub}>Official Statement</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={handleExportCSV}
-                style={[styles.actionBtn, { backgroundColor: '#4F46E5' }]}
-              >
-                <Download color="#FFFFFF" size={15} />
-                <Text style={styles.actionBtnText}>CSV</Text>
-              </TouchableOpacity>
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleExportCSV}
+                  style={[styles.actionBtn, { backgroundColor: '#4F46E5' }]}
+                >
+                  <View style={styles.actionBtnIconCircle}>
+                    <Download color="#FFFFFF" size={16} />
+                  </View>
+                  <View style={styles.actionBtnTextWrap}>
+                    <Text style={styles.actionBtnTitle}>Export CSV</Text>
+                    <Text style={styles.actionBtnSub}>Spreadsheet Data</Text>
+                  </View>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={handleShareReport}
-                style={[styles.actionBtn, { backgroundColor: '#10B981' }]}
-              >
-                <Share2 color="#FFFFFF" size={15} />
-                <Text style={styles.actionBtnText}>Share</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleShareReport}
+                  style={[styles.actionBtn, { backgroundColor: '#059669' }]}
+                >
+                  <View style={styles.actionBtnIconCircle}>
+                    <Share2 color="#FFFFFF" size={16} />
+                  </View>
+                  <View style={styles.actionBtnTextWrap}>
+                    <Text style={styles.actionBtnTitle}>Share Report</Text>
+                    <Text style={styles.actionBtnSub}>Quick Summary</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Category Breakdown Section */}
@@ -1019,28 +1085,64 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
               ))}
             </View>
 
-            {/* From Date Input */}
+            {/* From Date Picker Trigger */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>From Date (YYYY-MM-DD)</Text>
-              <TextInput
-                value={tempFrom}
-                onChangeText={setTempFrom}
-                placeholder="2026-01-01"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.dateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
-              />
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Start Date (From)</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setShowDatePickerType('from')}
+                style={[
+                  styles.datePickerTrigger,
+                  { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                ]}
+              >
+                <View style={styles.datePickerTriggerLeft}>
+                  <View style={styles.calendarIconCircle}>
+                    <Calendar color="#8B5CF6" size={16} />
+                  </View>
+                  <View>
+                    <Text style={[styles.datePickerPrimaryText, { color: colors.text }]}>
+                      {formatDisplayDate(tempFrom)}
+                    </Text>
+                    <Text style={[styles.datePickerSubText, { color: colors.textSecondary }]}>
+                      {tempFrom}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.datePickerPill}>
+                  <Text style={styles.datePickerPillText}>Select Date 📅</Text>
+                </View>
+              </TouchableOpacity>
             </View>
 
-            {/* To Date Input */}
+            {/* To Date Picker Trigger */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>To Date (YYYY-MM-DD)</Text>
-              <TextInput
-                value={tempTo}
-                onChangeText={setTempTo}
-                placeholder="2026-12-31"
-                placeholderTextColor={colors.textMuted}
-                style={[styles.dateInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
-              />
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>End Date (To)</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setShowDatePickerType('to')}
+                style={[
+                  styles.datePickerTrigger,
+                  { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                ]}
+              >
+                <View style={styles.datePickerTriggerLeft}>
+                  <View style={styles.calendarIconCircle}>
+                    <Calendar color="#8B5CF6" size={16} />
+                  </View>
+                  <View>
+                    <Text style={[styles.datePickerPrimaryText, { color: colors.text }]}>
+                      {formatDisplayDate(tempTo)}
+                    </Text>
+                    <Text style={[styles.datePickerSubText, { color: colors.textSecondary }]}>
+                      {tempTo}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.datePickerPill}>
+                  <Text style={styles.datePickerPillText}>Select Date 📅</Text>
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* Apply Button */}
@@ -1055,6 +1157,18 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Native Material Calendar DatePicker Dialog */}
+      {showDatePickerType && (
+        <DateTimePicker
+          value={parseDateString(showDatePickerType === 'from' ? tempFrom : tempTo)}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateChange}
+          maximumDate={showDatePickerType === 'from' && tempTo ? parseDateString(tempTo) : new Date(2035, 11, 31)}
+          minimumDate={showDatePickerType === 'to' && tempFrom ? parseDateString(tempFrom) : new Date(2020, 0, 1)}
+        />
+      )}
     </View>
   )
 }
@@ -1154,17 +1268,50 @@ const styles = StyleSheet.create({
   pillBadgeText: { fontSize: 9, fontWeight: '800' },
   gridAmount: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
   gridLabel: { fontSize: 10, fontWeight: '600' },
-  actionsContainer: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  actionsGrid: {
+    gap: 10,
+    marginBottom: 20,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
     paddingVertical: 12,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  actionBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  actionBtnIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnTextWrap: {
+    flex: 1,
+  },
+  actionBtnTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  actionBtnSub: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
   sectionTitle: { fontSize: 15, fontWeight: '800', marginBottom: 12 },
   emptyCard: { padding: 24, borderRadius: 16, borderWidth: 1, alignItems: 'center', marginBottom: 20 },
   emptyText: { fontSize: 13, fontWeight: '500' },
@@ -1295,6 +1442,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 13,
     fontWeight: '600',
+  },
+  datePickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  datePickerTriggerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  calendarIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerPrimaryText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  datePickerSubText: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  datePickerPill: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  datePickerPillText: {
+    color: '#8B5CF6',
+    fontSize: 10,
+    fontWeight: '700',
   },
   applyRangeBtn: {
     backgroundColor: '#8B5CF6',
