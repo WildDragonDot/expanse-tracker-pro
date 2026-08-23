@@ -92,8 +92,8 @@ ssh -o StrictHostKeyChecking=no -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" bash -s 
 EOF
 
 echo -e "\n${CYAN}🔍 4/4 Verifying Production Endpoints Health...${NC}"
-sleep 3
-HEALTH_STATUS=$(curl -s -m 8 "$DOMAIN/api/health" || echo "failed")
+sleep 5
+HEALTH_STATUS=$(ssh -o StrictHostKeyChecking=no -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" "curl -s http://127.0.0.1:3001/api/health" || echo "failed")
 
 if echo "$HEALTH_STATUS" | grep -q '"status":"healthy"'; then
     echo -e "${GREEN}${BOLD}======================================================"
