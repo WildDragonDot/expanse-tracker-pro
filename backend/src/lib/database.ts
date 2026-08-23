@@ -1130,29 +1130,31 @@ export function computeHealthScore(summary: {
   let score = 0
 
   if (summary.totalIncome > 0) {
-    const savingsRate = (summary.savings / summary.totalIncome) * 100
-    metrics.savingsRate = Math.max(0, Math.min(100, savingsRate))
+    const savingsRate = Math.max(0, (summary.savings / summary.totalIncome) * 100)
+    metrics.savingsRate = Math.min(100, Math.round(savingsRate))
+
     metrics.budgetAdherence =
       summary.totalExpenses <= summary.totalIncome
         ? 100
         : Math.max(0, Math.round((1 - (summary.totalExpenses - summary.totalIncome) / summary.totalIncome) * 100))
-    metrics.incomeStability = summary.incomeCount > 0 ? 85 : 0
-    metrics.expenseVariability = summary.topCategories.length > 1 ? 75 : 50
+
+    metrics.incomeStability = summary.incomeCount > 0 ? (summary.incomeCount >= 2 ? 100 : 85) : 50
+    metrics.expenseVariability = summary.topCategories.length > 2 ? 90 : summary.topCategories.length > 0 ? 80 : 50
 
     score = Math.round(
-      metrics.savingsRate * 0.4 + metrics.budgetAdherence * 0.3 + metrics.incomeStability * 0.2 + metrics.expenseVariability * 0.1
+      metrics.savingsRate * 0.4 +
+      metrics.budgetAdherence * 0.3 +
+      metrics.incomeStability * 0.2 +
+      metrics.expenseVariability * 0.1
     )
-    if (summary.totalExpenses === 0) {
-      metrics.budgetAdherence = 0
-      metrics.incomeStability = 0
-      metrics.expenseVariability = 0
-      score = 0
-    } else {
-      metrics.budgetAdherence = 20
-      metrics.incomeStability = 0
-      metrics.expenseVariability = 30
-      score = 15
-    }
+  } else if (summary.totalExpenses > 0) {
+    metrics.savingsRate = 0
+    metrics.budgetAdherence = 20
+    metrics.incomeStability = 0
+    metrics.expenseVariability = 40
+    score = 15
+  } else {
+    score = 0
   }
 
   score = Math.max(0, Math.min(100, score))
