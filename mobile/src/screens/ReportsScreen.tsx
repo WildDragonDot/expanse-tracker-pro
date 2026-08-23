@@ -398,7 +398,13 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
       </ScrollView>
 
       {/* Custom Date Range Selection Modal */}
-      <Modal visible={showCustomModal} animationType="slide" transparent onRequestClose={() => setShowCustomModal(false)}>
+      <Modal
+        visible={showCustomModal}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setShowCustomModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
             <View style={styles.modalHeader}>
