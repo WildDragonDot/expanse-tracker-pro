@@ -102,7 +102,13 @@ export async function sendEmail({ to, subject, html, text, attachments }: EmailO
             } else {
               buffer = att.content
             }
-            formData.append('attachment', new Blob([new Uint8Array(buffer)]), att.filename || 'financial-report.pdf')
+            const mimeType = att.filename?.endsWith('.pdf')
+              ? 'application/pdf'
+              : att.filename?.endsWith('.png')
+              ? 'image/png'
+              : 'image/jpeg'
+            const file = new File([new Uint8Array(buffer)], att.filename || 'financial-report.pdf', { type: mimeType })
+            formData.append('attachment', file)
           }
         }
       }
@@ -144,7 +150,13 @@ export async function sendEmail({ to, subject, html, text, attachments }: EmailO
                 let buffer: Buffer = typeof att.content === 'string'
                   ? Buffer.from(att.content, att.encoding === 'base64' ? 'base64' : 'utf-8')
                   : att.content
-                fallbackForm.append('attachment', new Blob([new Uint8Array(buffer)]), att.filename || 'financial-report.pdf')
+                const mimeType = att.filename?.endsWith('.pdf')
+                  ? 'application/pdf'
+                  : att.filename?.endsWith('.png')
+                  ? 'image/png'
+                  : 'image/jpeg'
+                const file = new File([new Uint8Array(buffer)], att.filename || 'financial-report.pdf', { type: mimeType })
+                fallbackForm.append('attachment', file)
               }
             }
           }

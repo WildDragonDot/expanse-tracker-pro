@@ -18,6 +18,9 @@ import DateTimePicker, {
   DateTimePickerAndroid,
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker'
+import * as FileSystem from 'expo-file-system/legacy'
+import * as Sharing from 'expo-sharing'
+import * as Print from 'expo-print'
 
 LogBox.ignoreLogs(['DateTimePicker: `onChange` is deprecated'])
 import {
@@ -359,25 +362,42 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
     }
   }
 
-  // Action: Export CSV
+  // Action: Export CSV File
   const handleExportCSV = async () => {
     const rows = [
       ['Category', 'Amount', '% of Spend'],
       ...reportData.topCategories.map((c) => [c.category, c.amount.toString(), `${c.percentage}%`]),
     ]
     const csv = rows.map((r) => r.join(',')).join('\n')
+    const filename = `Statement-${activePeriod.startDate}_to_${activePeriod.endDate}.csv`
 
     try {
+      const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory
+      if (baseDir) {
+        const fileUri = `${baseDir}${filename}`
+        await FileSystem.writeAsStringAsync(fileUri, csv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        })
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'text/csv',
+            dialogTitle: `Export CSV: ${filename}`,
+            UTI: 'public.comma-separated-values-text',
+          })
+          return
+        }
+      }
+      // Fallback
       await Share.share({
         message: csv,
-        title: `Statement-${activePeriod.startDate}_${activePeriod.endDate}.csv`,
+        title: filename,
       })
     } catch {
       Alert.alert('Error', 'Unable to export CSV.')
     }
   }
 
-  // Action: Print / Preview PDF
+  // Action: Print / Preview / Export PDF Document
   const handlePrintPDF = async () => {
     setGeneratingPdf(true)
     try {
@@ -390,15 +410,32 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
       })
 
       if (res.success && res.pdfBase64) {
-        // Share PDF Statement
-        await Share.share({
-          message: `Official Financial Statement (${activePeriod.label}): ${currencySymbol}${reportData.totalIncome.toLocaleString()} Inflow, ${currencySymbol}${reportData.totalExpenses.toLocaleString()} Outflow. Net Balance: ${currencySymbol}${reportData.savings.toLocaleString()}`,
-          title: res.filename || `Financial-Statement-${activePeriod.startDate}.pdf`,
-        })
+        const filename = res.filename || `Financial-Statement-${activePeriod.startDate}-to-${activePeriod.endDate}.pdf`
+        const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory
+        
+        if (baseDir) {
+          const fileUri = `${baseDir}${filename}`
+          await FileSystem.writeAsStringAsync(fileUri, res.pdfBase64, {
+            encoding: FileSystem.EncodingType.Base64,
+          })
+
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'application/pdf',
+              dialogTitle: `Print / Save Statement: ${filename}`,
+              UTI: 'com.adobe.pdf',
+            })
+          } else {
+            await Print.printAsync({ uri: fileUri })
+          }
+        } else {
+          Alert.alert('Notice', 'Storage directory not accessible for PDF.')
+        }
       } else {
-        Alert.alert('Notice', 'Unable to generate PDF preview right now.')
+        Alert.alert('Notice', res.message || 'Unable to generate PDF document right now.')
       }
     } catch (err: any) {
+      console.error('Print PDF Error:', err)
       Alert.alert('Print Notice', err.message || 'Could not generate printable PDF.')
     } finally {
       setGeneratingPdf(false)
