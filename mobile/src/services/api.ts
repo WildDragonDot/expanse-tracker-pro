@@ -15,8 +15,8 @@ import {
   ExpenseCategoryItem,
 } from '../types'
 
-// Dedicated Production API Subdomain with HTTPS SSL
-const DEFAULT_API_URL = 'https://api.expensetracker.chandandev.online'
+// Production Live Domain with Cloudflare Universal HTTPS SSL
+const DEFAULT_API_URL = 'https://expensetracker.chandandev.online'
 
 export class MobileApiClient {
   private baseUrl: string = DEFAULT_API_URL
