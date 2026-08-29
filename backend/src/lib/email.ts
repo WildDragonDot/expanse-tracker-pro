@@ -39,15 +39,13 @@ const getEmailConfig = () => {
 const emailConfig = getEmailConfig()
 
 console.log('📧 Email Configuration:', {
-  type: (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN)
+  type: process.env.SMTP_HOST
+    ? `Zoho Mail SMTP (${process.env.SMTP_HOST})`
+    : (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN)
     ? 'Mailgun HTTP API (Ultra-Fast)'
-    : process.env.MAILGUN_LOGIN
-    ? 'Mailgun SMTP'
-    : process.env.SMTP_HOST
-    ? 'SMTP'
     : 'Gmail',
-  host: process.env.MAILGUN_DOMAIN || emailConfig.host || 'gmail',
-  user: (process.env.MAILGUN_API_KEY || emailConfig.auth?.user) ? '✅ Set' : '❌ Not set',
+  host: process.env.SMTP_HOST || process.env.MAILGUN_DOMAIN || 'smtp.zoho.in',
+  user: (process.env.SMTP_USER || process.env.MAILGUN_API_KEY) ? '✅ Set' : '❌ Not set',
 })
 
 const transporter = nodemailer.createTransport(emailConfig)
@@ -67,6 +65,8 @@ export interface EmailOptions {
 export async function sendEmail({ to, subject, html, text, attachments }: EmailOptions) {
   try {
     const fromEmail =
+      process.env.SMTP_FROM ||
+      (process.env.SMTP_USER ? `"ExpenseTracker Pro" <${process.env.SMTP_USER}>` : null) ||
       process.env.MAILGUN_FROM ||
       (process.env.MAILGUN_DOMAIN ? `postmaster@${process.env.MAILGUN_DOMAIN}` : null) ||
       process.env.SMTP_USER ||
