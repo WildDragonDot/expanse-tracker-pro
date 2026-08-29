@@ -465,13 +465,39 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         type: filterType,
         recipientEmail: target,
         includeBillAttachments: includeReceipts,
+        returnPdfBase64: true,
       })
 
       setShowEmailModal(false)
       if (res.success) {
         Alert.alert(
           'Email Dispatched! 📄',
-          `Your official PDF Invoice & Financial Statement with bill receipts was sent to ${target}.`
+          `Financial Statement PDF was dispatched to ${target}.\n\nWould you like to open or save the PDF directly on your phone?`,
+          [
+            {
+              text: '📥 Open / Save PDF',
+              onPress: async () => {
+                if (res.pdfBase64) {
+                  const filename = `Financial-Statement-${activePeriod.startDate}-to-${activePeriod.endDate}.pdf`
+                  const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory
+                  if (baseDir) {
+                    const fileUri = `${baseDir}${filename}`
+                    await FileSystem.writeAsStringAsync(fileUri, res.pdfBase64, {
+                      encoding: FileSystem.EncodingType.Base64,
+                    })
+                    if (await Sharing.isAvailableAsync()) {
+                      await Sharing.shareAsync(fileUri, {
+                        mimeType: 'application/pdf',
+                        dialogTitle: `Save Statement: ${filename}`,
+                        UTI: 'com.adobe.pdf',
+                      })
+                    }
+                  }
+                }
+              },
+            },
+            { text: 'Done', style: 'cancel' },
+          ]
         )
       } else {
         Alert.alert('Notice', res.message || 'Unable to deliver report right now.')
