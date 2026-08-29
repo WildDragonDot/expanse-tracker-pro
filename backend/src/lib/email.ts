@@ -174,12 +174,12 @@ export async function sendEmail({ to, subject, html, text, attachments }: EmailO
           }
         }
 
-        throw new Error(errData.message || `Mailgun API error status ${response.status}`)
+        console.warn('Mailgun API request failed:', errData.message || `Status ${response.status}`)
+      } else {
+        const data = await response.json().catch(() => ({}))
+        console.log('✅ Email sent via Mailgun API successfully:', data.id)
+        return { success: true, messageId: data.id }
       }
-
-      const data = await response.json().catch(() => ({}))
-      console.log('✅ Email sent via Mailgun API successfully:', data.id)
-      return { success: true, messageId: data.id }
     }
 
     // Priority 2: Nodemailer SMTP Transport

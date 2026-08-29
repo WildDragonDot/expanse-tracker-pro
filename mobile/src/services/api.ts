@@ -410,6 +410,7 @@ export class MobileApiClient {
     type?: string
     recipientEmail?: string
     includeBillAttachments?: boolean
+    onlyPdf?: boolean
     returnPdfBase64?: boolean
   }): Promise<{ success: boolean; message: string; pdfBase64?: string; filename?: string; stats?: any }> {
     return this.request<{ success: boolean; message: string; pdfBase64?: string; filename?: string; stats?: any }>('/reports/email', {

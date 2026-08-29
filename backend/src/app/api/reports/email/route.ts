@@ -82,8 +82,8 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
 
     const pdfBase64 = pdfBuffer.toString('base64')
 
-    // If client just wants the generated PDF for printing / downloading
-    if (returnPdfBase64) {
+    // If client strictly requested PDF generation only (e.g. for print/preview without email)
+    if (body.onlyPdf === true || type === 'pdfOnly') {
       return NextResponse.json({
         success: true,
         pdfBase64,

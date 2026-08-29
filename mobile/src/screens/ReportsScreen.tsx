@@ -409,7 +409,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         dateTo: activePeriod.endDate,
         type: filterType,
         includeBillAttachments: true,
-        returnPdfBase64: true,
+        onlyPdf: true,
       })
 
       if (res.success && res.pdfBase64) {
@@ -465,7 +465,6 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         type: filterType,
         recipientEmail: target,
         includeBillAttachments: includeReceipts,
-        returnPdfBase64: true,
       })
 
       setShowEmailModal(false)
