@@ -15,6 +15,9 @@ import {
   ExpenseCategoryItem,
   ExpenseBankItem,
   ExpensePaymentModeItem,
+  SavingsGoal,
+  SplitGroup,
+  SplitExpense,
 } from '../types'
 
 // Production Live Domain with Cloudflare Universal HTTPS SSL
@@ -413,6 +416,105 @@ export class MobileApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     })
+  }
+
+  // --- SAVINGS GOALS & WEALTH ---
+  async getSavingsGoals(): Promise<{
+    goals: SavingsGoal[]
+    stats: { totalGoals: number; completedGoals: number; totalTarget: number; totalSaved: number; overallProgress: number }
+  }> {
+    return this.request('/savings-goals')
+  }
+
+  async createSavingsGoal(data: {
+    name: string
+    targetAmount: number
+    currentAmount?: number
+    targetDate?: string | null
+    category?: string
+    icon?: string
+    color?: string
+  }): Promise<SavingsGoal> {
+    return this.request('/savings-goals', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async depositSavingsGoal(id: string, amount: number, action: 'deposit' | 'withdraw' = 'deposit'): Promise<{ success: boolean; goal: SavingsGoal; message: string }> {
+    return this.request(`/savings-goals/${id}/deposit`, { method: 'POST', body: JSON.stringify({ amount, action }) })
+  }
+
+  async deleteSavingsGoal(id: string): Promise<{ success: boolean }> {
+    return this.request(`/savings-goals/${id}`, { method: 'DELETE' })
+  }
+
+  // --- SPLIT GROUPS (SPLITWISE STYLE) ---
+  async getSplitGroups(): Promise<{ groups: SplitGroup[] }> {
+    return this.request('/split-groups')
+  }
+
+  async getSplitGroupDetails(id: string): Promise<{
+    group: SplitGroup
+    totalSpend: number
+    balances: Record<string, number>
+    yourBalance: number
+    settlements: { from: string; to: string; amount: number }[]
+  }> {
+    return this.request(`/split-groups/${id}`)
+  }
+
+  async createSplitGroup(data: { name: string; type?: string; members: string[] }): Promise<SplitGroup> {
+    return this.request('/split-groups', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async createSplitExpense(groupId: string, data: {
+    title: string
+    amount: number
+    paidBy: string
+    splitBetween: string[]
+    date?: string
+    notes?: string
+  }): Promise<SplitExpense> {
+    return this.request(`/split-groups/${groupId}/expenses`, { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async deleteSplitGroup(id: string): Promise<{ success: boolean }> {
+    return this.request(`/split-groups/${id}`, { method: 'DELETE' })
+  }
+
+  // --- AI RECEIPT OCR SCANNER ---
+  async scanReceiptOCR(imageBase64: string): Promise<{
+    success: boolean
+    scannedData: {
+      title: string
+      amount: number
+      date: string
+      category: string
+      paymentMode: string
+      bank: string
+      confidence: number
+      notes: string
+    }
+  }> {
+    return this.request('/ai/scan-receipt', { method: 'POST', body: JSON.stringify({ imageBase64 }) })
+  }
+
+  // --- SMS BANK TRANSACTION PARSER ---
+  async parseBankSMS(text: string): Promise<{
+    success: boolean
+    transaction: {
+      raw: string
+      isTransaction: boolean
+      type: 'expense' | 'income'
+      amount: number | null
+      merchant: string | null
+      bank: string
+      paymentMode: string
+      date: string
+      referenceNumber: string | null
+      accountLast4: string | null
+      balance: number | null
+    }
+  }> {
+    return this.request('/sms-parser', { method: 'POST', body: JSON.stringify({ text }) })
   }
 }
 

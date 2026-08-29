@@ -28,6 +28,8 @@ import { ShoppingScreen } from '../screens/ShoppingScreen'
 import { ReportsScreen } from '../screens/ReportsScreen'
 import { EventPlanningScreen } from '../screens/EventPlanningScreen'
 import { NotificationsScreen } from '../screens/NotificationsScreen'
+import { SavingsGoalsScreen } from '../screens/SavingsGoalsScreen'
+import { SplitExpensesScreen } from '../screens/SplitExpensesScreen'
 import { MoreFeaturesDrawer } from '../components/MoreFeaturesDrawer'
 
 const Tab = createBottomTabNavigator()
@@ -190,6 +192,28 @@ export const AppNavigator = () => {
             options={{
               headerShown: true,
               title: 'Event & Trip Planning',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            }}
+          />
+          <Stack.Screen
+            name="SavingsGoals"
+            component={SavingsGoalsScreen}
+            options={{
+              headerShown: true,
+              title: 'Savings & Wealth Goals',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '800', fontSize: 16 },
+            }}
+          />
+          <Stack.Screen
+            name="SplitExpenses"
+            component={SplitExpensesScreen}
+            options={{
+              headerShown: true,
+              title: 'Split Expenses & Bills',
               headerStyle: { backgroundColor: colors.background },
               headerTintColor: colors.text,
               headerTitleStyle: { fontWeight: '800', fontSize: 16 },

@@ -56,6 +56,100 @@ function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
     notes: '',
   })
 
+  // Quick Tools State
+  const [isScanning, setIsScanning] = useState(false)
+  const [showSmsBox, setShowSmsBox] = useState(false)
+  const [smsInput, setSmsInput] = useState('')
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsScanning(true)
+
+    try {
+      const reader = new FileReader()
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(',')[1]
+        const res = await apiFetch('/api/ai/scan-receipt', {
+          method: 'POST',
+          body: JSON.stringify({ imageBase64: base64 }),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.scannedData) {
+            setFormData((prev) => ({
+              ...prev,
+              title: data.scannedData.title || prev.title,
+              amount: data.scannedData.amount ? String(data.scannedData.amount) : prev.amount,
+              category: data.scannedData.category || prev.category,
+              date: data.scannedData.date || prev.date,
+              paymentMode: data.scannedData.paymentMode || prev.paymentMode,
+              notes: data.scannedData.notes || prev.notes,
+            }))
+            addNotification({
+              type: 'success',
+              title: 'Receipt Scanned!',
+              message: `Auto-filled details for ${data.scannedData.title}`,
+              duration: 3000,
+            })
+          }
+        }
+        setIsScanning(false)
+      }
+      reader.readAsDataURL(file)
+    } catch {
+      setIsScanning(false)
+      addNotification({
+        type: 'error',
+        title: 'Scan Error',
+        message: 'Could not parse receipt. Please enter manually.',
+        duration: 3000,
+      })
+    }
+  }
+
+  const handleParseSms = async () => {
+    if (!smsInput.trim()) return
+    try {
+      const res = await apiFetch('/api/sms-parser', {
+        method: 'POST',
+        body: JSON.stringify({ text: smsInput.trim() }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.transaction) {
+          const t = data.transaction
+          setFormData((prev) => ({
+            ...prev,
+            title: t.merchant || prev.title,
+            amount: t.amount ? String(t.amount) : prev.amount,
+            bank: t.bank || prev.bank,
+            paymentMode: t.paymentMode || prev.paymentMode,
+            date: t.date || prev.date,
+            notes: `SMS Ref: ${t.referenceNumber || 'N/A'}`,
+          }))
+          setShowSmsBox(false)
+          setSmsInput('')
+          addNotification({
+            type: 'success',
+            title: 'SMS Parsed!',
+            message: `Detected ${t.merchant || 'transaction'} of ₹${t.amount}`,
+            duration: 3000,
+          })
+        }
+      }
+    } catch {
+      addNotification({
+        type: 'error',
+        title: 'Parse Error',
+        message: 'Could not parse SMS format.',
+        duration: 3000,
+      })
+    }
+  }
+
   const loadCategoriesAndBanks = useCallback(async () => {
     try {
       const token = localStorage.getItem('token')
@@ -178,6 +272,63 @@ function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+          {/* Smart Auto-Fill Tools */}
+          <div className="p-3 rounded-2xl bg-gradient-to-r from-rose-500/10 via-purple-500/10 to-indigo-500/10 border border-white/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">⚡ AI Smart Auto-Fill</span>
+              {isScanning && <span className="text-[11px] text-rose-400 font-semibold animate-pulse">Scanning receipt...</span>}
+            </div>
+            <div className="flex gap-2">
+              <label className="flex-1 cursor-pointer py-2 px-3 rounded-xl bg-secondary/80 hover:bg-secondary border border-border/40 text-xs font-semibold text-foreground flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                <span>📸</span>
+                <span>Scan Receipt</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isScanning}
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => setShowSmsBox(!showSmsBox)}
+                className="flex-1 py-2 px-3 rounded-xl bg-secondary/80 hover:bg-secondary border border-border/40 text-xs font-semibold text-foreground flex items-center justify-center gap-1.5 transition-all active:scale-95"
+              >
+                <span>📲</span>
+                <span>Paste SMS</span>
+              </button>
+            </div>
+
+            {showSmsBox && (
+              <div className="pt-2 space-y-2 animate-slide-in">
+                <textarea
+                  placeholder="Paste bank debit alert SMS (e.g. Rs 450 debited from HDFC to Starbucks on 29-Aug...)"
+                  value={smsInput}
+                  onChange={(e) => setSmsInput(e.target.value)}
+                  className="input-premium w-full p-2.5 text-xs h-20"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSmsBox(false)}
+                    className="px-3 py-1 rounded-lg bg-secondary text-xs text-muted-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleParseSms}
+                    className="px-3 py-1 rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs transition-all"
+                  >
+                    Auto-Fill Form
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">Amount *</label>
             <div className="relative">

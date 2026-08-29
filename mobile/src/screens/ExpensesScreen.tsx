@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { LinearGradient } from 'expo-linear-gradient'
+import * as ImagePicker from 'expo-image-picker'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -28,6 +29,9 @@ import {
   X,
   PlusCircle,
   ArrowUpCircle,
+  Camera,
+  Sparkles,
+  MessageSquare,
 } from 'lucide-react-native'
 import { HeaderBar } from '../components/HeaderBar'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -133,6 +137,68 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
       navigation?.setParams({ openModal: undefined })
     }
   }, [route?.params?.openModal])
+
+  const [isScanning, setIsScanning] = useState(false)
+  const [smsModalVisible, setSmsModalVisible] = useState(false)
+  const [smsText, setSmsText] = useState('')
+
+  const handleScanReceipt = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!permission.granted) {
+        Alert.alert('Permission Denied', 'Camera roll permission is required to scan receipt.')
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        base64: true,
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets && result.assets[0]?.base64) {
+        setIsScanning(true)
+        try {
+          const res = await api.scanReceiptOCR(result.assets[0].base64)
+          if (res.scannedData) {
+            if (res.scannedData.title) setFormTitle(res.scannedData.title)
+            if (res.scannedData.amount) setFormAmount(String(res.scannedData.amount))
+            if (res.scannedData.category) setFormCategory(res.scannedData.category)
+            if (res.scannedData.paymentMode) setFormMode(res.scannedData.paymentMode)
+            Alert.alert('📸 Receipt Scanned!', `Auto-filled details for ${res.scannedData.title}`)
+          }
+        } catch {
+          Alert.alert('Scan Failed', 'Could not extract text. Please enter details manually.')
+        } finally {
+          setIsScanning(false)
+        }
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not pick image.')
+      setIsScanning(false)
+    }
+  }
+
+  const handleParseSms = async () => {
+    if (!smsText.trim()) return
+    try {
+      const res = await api.parseBankSMS(smsText.trim())
+      if (res.transaction && res.transaction.amount) {
+        const t = res.transaction
+        if (t.merchant) setFormTitle(t.merchant)
+        setFormAmount(String(t.amount))
+        if (t.bank) setFormBank(t.bank)
+        if (t.paymentMode) setFormMode(t.paymentMode)
+        setSmsModalVisible(false)
+        setSmsText('')
+        Alert.alert('📲 SMS Parsed!', `Auto-filled ₹${t.amount} from ${t.bank}`)
+      } else {
+        Alert.alert('Parse Note', 'Could not detect an amount in this SMS. Please check.')
+      }
+    } catch {
+      Alert.alert('Parse Failed', 'Could not identify bank transaction in pasted SMS.')
+    }
+  }
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -514,6 +580,39 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              {/* Smart Auto-Fill Quick Tools */}
+              {modalType === 'expense' && (
+                <View style={[styles.smartToolsCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Sparkles color="#F43F5E" size={14} />
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: colors.text }}>AI SMART AUTO-FILL</Text>
+                    </View>
+                    {isScanning && <Text style={{ fontSize: 10, color: '#F43F5E', fontWeight: '700' }}>Scanning...</Text>}
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={handleScanReceipt}
+                      style={[styles.smartToolBtn, { backgroundColor: 'rgba(244, 63, 94, 0.12)', borderColor: 'rgba(244, 63, 94, 0.3)' }]}
+                    >
+                      <Camera color="#F43F5E" size={15} />
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#F43F5E' }}>Scan Receipt</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={() => setSmsModalVisible(true)}
+                      style={[styles.smartToolBtn, { backgroundColor: 'rgba(99, 102, 241, 0.12)', borderColor: 'rgba(99, 102, 241, 0.3)' }]}
+                    >
+                      <MessageSquare color="#6366F1" size={15} />
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#6366F1' }}>Paste Bank SMS</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               {/* Category Selector (Expense only) */}
               {modalType === 'expense' && (
                 <View style={styles.modalInputGroup}>
@@ -666,6 +765,36 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Quick SMS Paste Modal */}
+      <Modal visible={smsModalVisible} animationType="fade" transparent onRequestClose={() => setSmsModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSmsModalVisible(false)} />
+          <View style={[styles.smsModalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Paste Bank SMS Alert</Text>
+              <TouchableOpacity onPress={() => setSmsModalVisible(false)}>
+                <X color={colors.textSecondary} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              multiline
+              numberOfLines={4}
+              style={[styles.smsTextArea, { color: colors.text, borderColor: colors.surfaceGlassBorder }]}
+              placeholder="Paste SMS here (e.g. Rs 450.00 debited from HDFC Bank to Swiggy on 29-Aug...)"
+              placeholderTextColor={colors.textMuted}
+              value={smsText}
+              onChangeText={setSmsText}
+              autoFocus
+            />
+
+            <TouchableOpacity style={styles.smsParseBtn} onPress={handleParseSms}>
+              <Text style={styles.smsParseBtnText}>Auto-Fill Expense Form</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       {/* Info Tooltip Modal */}
@@ -925,6 +1054,47 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipTextActive: {
+    fontWeight: '800',
+  },
+  smartToolsCard: {
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  smartToolBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  smsModalCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+  },
+  smsTextArea: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    fontSize: 13,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginVertical: 12,
+  },
+  smsParseBtn: {
+    backgroundColor: '#6366F1',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  smsParseBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
   },
 })

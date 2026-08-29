@@ -41,6 +41,8 @@ model User {
   expenseBanks        ExpenseBank[]
   expensePaymentModes ExpensePaymentMode[]
   monthlyBudgets      MonthlyBudget[]
+  savingsGoals        SavingsGoal[]
+  splitGroups         SplitGroup[]
 }
 
 model Expense {
@@ -383,4 +385,53 @@ model BudgetHistory {
   @@index([userId])
   @@index([budgetId])
   @@index([userId, month, year])
+}
+
+model SavingsGoal {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  targetAmount  Int
+  currentAmount Int       @default(0)
+  targetDate    DateTime?
+  category      String    @default("General")
+  icon          String    @default("🎯")
+  color         String    @default("#10B981")
+  isCompleted   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model SplitGroup {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  type      String         @default("trip") // trip, home, couple, project, other
+  members   String[]       // Member names e.g. ["You", "Rahul", "Pooja"]
+  currency  String         @default("INR")
+  expenses  SplitExpense[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([userId])
+}
+
+model SplitExpense {
+  id           String     @id @default(cuid())
+  groupId      String
+  group        SplitGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title        String
+  amount       Int
+  paidBy       String     // Member name who paid
+  splitBetween String[]   // Member names sharing the bill
+  splitType    String     @default("EQUAL") // EQUAL, EXACT, PERCENTAGE
+  date         DateTime   @default(now())
+  notes        String?
+  createdAt    DateTime   @default(now())
+
+  @@index([groupId])
 }

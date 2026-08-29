@@ -232,3 +232,43 @@ export interface ShoppingCategory {
   createdAt: string
   items: ShoppingItem[]
 }
+
+export interface SavingsGoal {
+  id: string
+  userId?: string
+  name: string
+  targetAmount: number
+  currentAmount: number
+  targetDate?: string | null
+  category: string
+  icon: string
+  color: string
+  isCompleted: boolean
+  createdAt: string
+}
+
+export interface SplitExpense {
+  id: string
+  groupId: string
+  title: string
+  amount: number
+  paidBy: string
+  splitBetween: string[]
+  splitType: string
+  date: string
+  notes?: string
+  createdAt?: string
+}
+
+export interface SplitGroup {
+  id: string
+  name: string
+  type: string
+  members: string[]
+  currency: string
+  totalSpend?: number
+  expensesCount?: number
+  expenses?: SplitExpense[]
+  createdAt?: string
+  updatedAt?: string
+}

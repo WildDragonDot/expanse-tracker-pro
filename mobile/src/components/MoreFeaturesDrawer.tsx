@@ -16,6 +16,8 @@ import {
   BrainCircuit,
   SlidersHorizontal,
   BellRing,
+  Target,
+  Users,
   X,
 } from 'lucide-react-native'
 import { useAppTheme } from '../context/ThemeContext'
@@ -65,6 +67,22 @@ export const MoreFeaturesDrawer: React.FC<Props> = ({
       icon: <HandCoins color="#FFFFFF" size={20} strokeWidth={2} />,
       iconBg: '#F43F5E', // Pink/Rose
       screen: 'Udhar',
+    },
+    {
+      id: 'savings',
+      title: 'Savings Goals',
+      desc: 'Track targets, milestones & wealth funds',
+      icon: <Target color="#FFFFFF" size={20} strokeWidth={2} />,
+      iconBg: '#10B981', // Emerald
+      screen: 'SavingsGoals',
+    },
+    {
+      id: 'split',
+      title: 'Split Expenses',
+      desc: 'Splitwise style group bills & settle-ups',
+      icon: <Users color="#FFFFFF" size={20} strokeWidth={2} />,
+      iconBg: '#6366F1', // Indigo
+      screen: 'SplitExpenses',
     },
     {
       id: 'reports',
