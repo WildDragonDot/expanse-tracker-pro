@@ -93,7 +93,7 @@ async function generateCategoryPDF(category: any, expenses: any[], userEmail?: s
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(59, 130, 246)
-  doc.text(`INR ${category.expectedCost.toLocaleString('en-IN')}`, 20, 118)
+  doc.text(`₹ ${category.expectedCost.toLocaleString('en-IN')}`, 20, 118)
   
   doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
@@ -102,7 +102,7 @@ async function generateCategoryPDF(category: any, expenses: any[], userEmail?: s
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(16, 185, 129)
-  doc.text(`INR ${category.realCost.toLocaleString('en-IN')}`, 20 + colWidth, 118)
+  doc.text(`₹ ${category.realCost.toLocaleString('en-IN')}`, 20 + colWidth, 118)
   
   const variance = category.realCost - category.expectedCost
   doc.setFontSize(8)
@@ -112,7 +112,7 @@ async function generateCategoryPDF(category: any, expenses: any[], userEmail?: s
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(variance > 0 ? 239 : 34, variance > 0 ? 68 : 197, variance > 0 ? 68 : 94)
-  doc.text(`${variance > 0 ? '+' : ''}INR ${Math.abs(variance).toLocaleString('en-IN')}`, 20 + colWidth * 2, 118)
+  doc.text(`${variance > 0 ? '+' : ''}₹ ${Math.abs(variance).toLocaleString('en-IN')}`, 20 + colWidth * 2, 118)
   
   // Transaction Details
   doc.setTextColor(0, 0, 0)
@@ -134,7 +134,7 @@ async function generateCategoryPDF(category: any, expenses: any[], userEmail?: s
     }),
     expense.title,
     expense.description || '-',
-    `INR ${expense.amount.toLocaleString('en-IN')}`,
+    `₹ ${expense.amount.toLocaleString('en-IN')}`,
     expense.isCompleted ? 'Yes' : 'No'
   ])
   

@@ -409,14 +409,14 @@ export async function exportToPDF(
   doc.text('Total Income:', 25, summaryY)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(34, 197, 94)
-  doc.text(`INR ${report.summary.totalIncome.toLocaleString('en-IN')}`, 80, summaryY)
+  doc.text(`₹ ${report.summary.totalIncome.toLocaleString('en-IN')}`, 80, summaryY)
   
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(0, 0, 0)
   doc.text('Total Expenses:', 120, summaryY)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(239, 68, 68)
-  doc.text(`INR ${report.summary.totalExpenses.toLocaleString('en-IN')}`, 175, summaryY)
+  doc.text(`₹ ${report.summary.totalExpenses.toLocaleString('en-IN')}`, 175, summaryY)
 
   // Row 2
   doc.setFont('helvetica', 'normal')
@@ -424,7 +424,7 @@ export async function exportToPDF(
   doc.text('Net Balance:', 25, summaryY + 10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(report.summary.savings >= 0 ? 34 : 239, report.summary.savings >= 0 ? 197 : 68, report.summary.savings >= 0 ? 94 : 68)
-  doc.text(`INR ${Math.abs(report.summary.savings).toLocaleString('en-IN')}`, 80, summaryY + 10)
+  doc.text(`₹ ${Math.abs(report.summary.savings).toLocaleString('en-IN')}`, 80, summaryY + 10)
   doc.text(report.summary.savings >= 0 ? '(Surplus)' : '(Deficit)', 140, summaryY + 10)
 
   // Row 3
@@ -450,7 +450,7 @@ export async function exportToPDF(
                new Date(Math.min(...expenses.map(e => new Date(e.date).getTime()))).getTime()) / (1000 * 60 * 60 * 24)) : 1)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(102, 126, 234)
-  doc.text(`INR ${avgDaily.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, 80, summaryY + 30)
+  doc.text(`₹ ${avgDaily.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, 80, summaryY + 30)
   
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(0, 0, 0)
@@ -516,7 +516,7 @@ export async function exportToPDF(
         ((amount / report.summary.totalExpenses) * 100).toFixed(1) : '0'
       return [
         category, 
-        `INR ${amount.toLocaleString('en-IN')}`, 
+        `₹ ${amount.toLocaleString('en-IN')}`, 
         `${percentage}%`,
         '|'.repeat(Math.min(Math.floor(parseFloat(percentage) / 5), 10)) // Visual bar
       ]
@@ -524,7 +524,7 @@ export async function exportToPDF(
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Category', 'Amount (INR)', 'Share', 'Distribution']],
+      head: [['Category', 'Amount (₹)', 'Share', 'Distribution']],
       body: categoryData,
       theme: 'grid',
       headStyles: { 
@@ -570,7 +570,7 @@ export async function exportToPDF(
         ((amount / report.summary.totalExpenses) * 100).toFixed(1) : '0'
       return [
         mode, 
-        `INR ${amount.toLocaleString('en-IN')}`, 
+        `₹ ${amount.toLocaleString('en-IN')}`, 
         `${percentage}%`,
         '='.repeat(Math.min(Math.floor(parseFloat(percentage) / 3), 15))
       ]
@@ -578,7 +578,7 @@ export async function exportToPDF(
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Payment Mode', 'Amount (INR)', 'Usage %', 'Distribution']],
+      head: [['Payment Mode', 'Amount (₹)', 'Usage %', 'Distribution']],
       body: paymentModeData,
       theme: 'grid',
       headStyles: { 
@@ -626,12 +626,12 @@ export async function exportToPDF(
         expense.title || 'N/A',
         expense.category || 'Uncategorized',
         expense.paymentMode || 'Cash',
-        `INR ${expense.amount.toLocaleString('en-IN')}`
+        `₹ ${expense.amount.toLocaleString('en-IN')}`
       ])
 
       autoTable(doc, {
         startY: yPosition,
-        head: [['Date', 'Description', 'Category', 'Payment', 'Amount (INR)']],
+        head: [['Date', 'Description', 'Category', 'Payment', 'Amount (₹)']],
         body: expenseData,
         theme: 'striped',
         headStyles: { 
@@ -677,12 +677,12 @@ export async function exportToPDF(
         new Date(income.date).toLocaleDateString('en-IN'),
         income.source || 'N/A',
         income.notes || '-',
-        `INR ${income.amount.toLocaleString('en-IN')}`
+        `₹ ${income.amount.toLocaleString('en-IN')}`
       ])
 
       autoTable(doc, {
         startY: yPosition,
-        head: [['Date', 'Source', 'Notes', 'Amount (INR)']],
+        head: [['Date', 'Source', 'Notes', 'Amount (₹)']],
         body: incomeData,
         theme: 'striped',
         headStyles: { 

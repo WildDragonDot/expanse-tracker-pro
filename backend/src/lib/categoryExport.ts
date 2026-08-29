@@ -155,7 +155,7 @@ export async function exportCategoryToPDF(category: any, expenses: any[], userEm
     }),
     expense.title,
     expense.description || '-',
-    `INR ${expense.amount.toLocaleString('en-IN')}`,
+    `₹ ${expense.amount.toLocaleString('en-IN')}`,
     expense.isCompleted ? 'Yes' : 'No'
   ])
   
@@ -427,7 +427,7 @@ async function generateCategoryPDF(category: any, expenses: any[], userEmail?: s
     }),
     expense.title,
     expense.description || '-',
-    `INR ${expense.amount.toLocaleString('en-IN')}`,
+    `₹ ${expense.amount.toLocaleString('en-IN')}`,
     expense.isCompleted ? 'Yes' : 'No'
   ])
   

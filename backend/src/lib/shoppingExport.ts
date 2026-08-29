@@ -85,7 +85,7 @@ export async function exportShoppingCategoryToPDF(category: any, items: any[], u
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(59, 130, 246)
-  doc.text(`INR ${category.expectedCost.toLocaleString('en-IN')}`, 20, 110)
+  doc.text(`₹ ${category.expectedCost.toLocaleString('en-IN')}`, 20, 110)
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(120, 120, 120)
@@ -99,7 +99,7 @@ export async function exportShoppingCategoryToPDF(category: any, items: any[], u
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(16, 185, 129)
-  doc.text(`INR ${category.realCost.toLocaleString('en-IN')}`, 20 + colWidth, 110)
+  doc.text(`₹ ${category.realCost.toLocaleString('en-IN')}`, 20 + colWidth, 110)
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(120, 120, 120)
@@ -114,7 +114,7 @@ export async function exportShoppingCategoryToPDF(category: any, items: any[], u
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(variance > 0 ? 239 : 34, variance > 0 ? 68 : 197, variance > 0 ? 68 : 94)
-  doc.text(`${variance > 0 ? '+' : ''}INR ${Math.abs(variance).toLocaleString('en-IN')}`, 20 + colWidth * 2, 110)
+  doc.text(`${variance > 0 ? '+' : ''}₹ ${Math.abs(variance).toLocaleString('en-IN')}`, 20 + colWidth * 2, 110)
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(120, 120, 120)
@@ -137,8 +137,8 @@ export async function exportShoppingCategoryToPDF(category: any, items: any[], u
     item.name,
     `${item.quantity} ${item.unit}`,
     item.notes || '-',
-    `INR ${item.expectedPrice.toLocaleString('en-IN')}`,
-    item.actualPrice ? `INR ${item.actualPrice.toLocaleString('en-IN')}` : '-',
+    `₹ ${item.expectedPrice.toLocaleString('en-IN')}`,
+    item.actualPrice ? `₹ ${item.actualPrice.toLocaleString('en-IN')}` : '-',
     item.isBought ? 'Yes' : 'No'
   ])
   

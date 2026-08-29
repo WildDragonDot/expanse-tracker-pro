@@ -329,14 +329,14 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
   doc.text('Total Income:', 25, summaryY)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(34, 197, 94)
-  doc.text(`INR ${data.totalIncomes.toLocaleString('en-IN')}`, 80, summaryY)
+  doc.text(`₹ ${data.totalIncomes.toLocaleString('en-IN')}`, 80, summaryY)
   
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(0, 0, 0)
   doc.text('Total Expenses:', 120, summaryY)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(239, 68, 68)
-  doc.text(`INR ${data.totalExpenses.toLocaleString('en-IN')}`, 175, summaryY)
+  doc.text(`₹ ${data.totalExpenses.toLocaleString('en-IN')}`, 175, summaryY)
 
   // Row 2
   doc.setFont('helvetica', 'normal')
@@ -344,7 +344,7 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
   doc.text('Net Balance:', 25, summaryY + 10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(data.balance >= 0 ? 34 : 239, data.balance >= 0 ? 197 : 68, data.balance >= 0 ? 94 : 68)
-  doc.text(`INR ${Math.abs(data.balance).toLocaleString('en-IN')}`, 80, summaryY + 10)
+  doc.text(`₹ ${Math.abs(data.balance).toLocaleString('en-IN')}`, 80, summaryY + 10)
   doc.text(data.balance >= 0 ? '(Surplus)' : '(Deficit)', 140, summaryY + 10)
 
   // Row 3
@@ -373,7 +373,7 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
                new Date(Math.min(...data.expenses.map((e: any) => new Date(e.date).getTime()))).getTime()) / (1000 * 60 * 60 * 24)) : 1)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(102, 126, 234)
-  doc.text(`INR ${avgDaily.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, 80, summaryY + 40)
+  doc.text(`₹ ${avgDaily.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, 80, summaryY + 40)
   
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(0, 0, 0)
@@ -411,7 +411,7 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
           ((amount / data.totalExpenses) * 100).toFixed(1) : '0'
         return [
           category, 
-          `INR ${amount.toLocaleString('en-IN')}`, 
+          `₹ ${amount.toLocaleString('en-IN')}`, 
           `${percentage}%`,
           '|'.repeat(Math.min(Math.floor(parseFloat(percentage) / 5), 10))
         ]
@@ -419,7 +419,7 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Category', 'Amount (INR)', 'Share', 'Distribution']],
+      head: [['Category', 'Amount (₹)', 'Share', 'Distribution']],
       body: categoryData,
       theme: 'grid',
       headStyles: { 
@@ -471,7 +471,7 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
         ((amount / data.totalExpenses) * 100).toFixed(1) : '0'
       return [
         mode, 
-        `INR ${amount.toLocaleString('en-IN')}`, 
+        `₹ ${amount.toLocaleString('en-IN')}`, 
         `${percentage}%`,
         '='.repeat(Math.min(Math.floor(parseFloat(percentage) / 3), 15))
       ]
@@ -479,7 +479,7 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Payment Mode', 'Amount (INR)', 'Usage %', 'Distribution']],
+      head: [['Payment Mode', 'Amount (₹)', 'Usage %', 'Distribution']],
       body: paymentModeData,
       theme: 'grid',
       headStyles: { 
@@ -525,12 +525,12 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
       expense.title || 'N/A',
       expense.category || 'Uncategorized',
       expense.paymentMode || 'Cash',
-      `INR ${expense.amount.toLocaleString('en-IN')}`
+      `₹ ${expense.amount.toLocaleString('en-IN')}`
     ])
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Date', 'Description', 'Category', 'Payment', 'Amount (INR)']],
+      head: [['Date', 'Description', 'Category', 'Payment', 'Amount (₹)']],
       body: expenseRows,
       theme: 'striped',
       headStyles: { 
@@ -576,12 +576,12 @@ async function generatePremiumPDFReport(data: any): Promise<Buffer> {
       new Date(income.date).toLocaleDateString('en-IN'),
       income.source || 'N/A',
       income.notes || '-',
-      `INR ${income.amount.toLocaleString('en-IN')}`
+      `₹ ${income.amount.toLocaleString('en-IN')}`
     ])
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Date', 'Source', 'Notes', 'Amount (INR)']],
+      head: [['Date', 'Source', 'Notes', 'Amount (₹)']],
       body: incomeRows,
       theme: 'striped',
       headStyles: { 
@@ -997,7 +997,7 @@ function generateEmailHTML(data: any): string {
               </div>
               <div>
                 <span style="color: #0369a1; font-weight: 500;">Currency:</span><br>
-                <strong>Indian Rupees (INR)</strong>
+                <strong>Indian Rupees (₹)</strong>
               </div>
             </div>
           </div>
@@ -1008,19 +1008,19 @@ function generateEmailHTML(data: any): string {
             <div class="stats-grid">
               <div class="stat-card">
                 <div class="stat-label">Total Income</div>
-                <div class="stat-value positive">INR ${data.totalIncomes.toLocaleString('en-IN')}</div>
+                <div class="stat-value positive">₹${data.totalIncomes.toLocaleString('en-IN')}</div>
               </div>
               
               <div class="stat-card">
                 <div class="stat-label">Total Expenses</div>
-                <div class="stat-value negative">INR ${data.totalExpenses.toLocaleString('en-IN')}</div>
+                <div class="stat-value negative">₹${data.totalExpenses.toLocaleString('en-IN')}</div>
               </div>
             </div>
             
             <div class="balance-section">
               <div class="balance-label">Net Balance</div>
               <div class="balance-value ${data.balance >= 0 ? 'positive' : 'negative'}">
-                INR ${Math.abs(data.balance).toLocaleString('en-IN')}
+                ₹${Math.abs(data.balance).toLocaleString('en-IN')}
               </div>
               <div class="balance-subtitle">
                 ${data.balance >= 0 ? '✅ Surplus' : '⚠️ Deficit'} • Savings Rate: ${savingsRate}%
@@ -1033,9 +1033,9 @@ function generateEmailHTML(data: any): string {
             <div class="highlights-list">
               • <strong>Total Transactions:</strong> ${data.expenseCount} expenses, ${data.incomeCount} incomes<br>
               • <strong>Financial Health Score:</strong> ${parseFloat(savingsRate) >= 20 ? 'Excellent (80+)' : parseFloat(savingsRate) >= 10 ? 'Good (60-79)' : 'Needs Improvement (<60)'}<br>
-              • <strong>Average Daily Spending:</strong> INR ${Math.round(data.totalExpenses / Math.max(1, 30)).toLocaleString('en-IN')}<br>
+              • <strong>Average Daily Spending:</strong> ₹${Math.round(data.totalExpenses / Math.max(1, 30)).toLocaleString('en-IN')}<br>
               • <strong>Savings Efficiency:</strong> ${parseFloat(savingsRate)}% of income saved<br>
-              • <strong>Report Features:</strong> Premium Analysis with Bill Attachments & INR Formatting<br>
+              • <strong>Report Features:</strong> Premium Analysis with Bill Attachments & ₹ Symbol Formatting<br>
               • <strong>Document Security:</strong> Watermarked & Confidential<br>
               • <strong>Export Format:</strong> Professional PDF with Charts & Analytics
             </div>
