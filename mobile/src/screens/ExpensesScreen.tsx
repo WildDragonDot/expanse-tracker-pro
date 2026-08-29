@@ -36,9 +36,37 @@ import { useAppTheme } from '../context/ThemeContext'
 import { ExpensesSkeleton, TransactionSkeleton } from '../components/SkeletonLoader'
 import { TransactionDetailsModal, TransactionItem } from '../components/TransactionDetailsModal'
 import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
-import { Expense, Income } from '../types'
+import { Expense, Income, ExpenseCategoryItem, ExpenseBankItem, ExpensePaymentModeItem } from '../types'
 import { api } from '../services/api'
 import { formatTransactionDate } from '../utils/dateUtils'
+
+const DEFAULT_CATEGORIES = [
+  { id: 'c1', name: 'Food', icon: '🍔' },
+  { id: 'c2', name: 'Transport', icon: '🚗' },
+  { id: 'c3', name: 'Shopping', icon: '🛍️' },
+  { id: 'c4', name: 'Bills', icon: '📄' },
+  { id: 'c5', name: 'Entertainment', icon: '🎬' },
+  { id: 'c6', name: 'Healthcare', icon: '🏥' },
+  { id: 'c7', name: 'Education', icon: '📚' },
+  { id: 'c8', name: 'Other', icon: '📁' },
+]
+
+const DEFAULT_MODES = [
+  { id: 'm1', name: 'Cash', icon: '💵' },
+  { id: 'm2', name: 'UPI', icon: '📱' },
+  { id: 'm3', name: 'Net Banking', icon: '🏦' },
+  { id: 'm4', name: 'Udhar', icon: '🤝' },
+  { id: 'm5', name: 'Card', icon: '💳' },
+  { id: 'm6', name: 'Wallet', icon: '👛' },
+]
+
+const DEFAULT_BANKS = [
+  { id: 'b1', name: 'Cash', icon: '💵' },
+  { id: 'b2', name: 'HDFC Bank', icon: '🏦' },
+  { id: 'b3', name: 'SBI', icon: '🏦' },
+  { id: 'b4', name: 'ICICI Bank', icon: '🏦' },
+  { id: 'b5', name: 'Axis Bank', icon: '🏦' },
+]
 
 export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?: any }) => {
   const { user } = useAuth()
@@ -51,6 +79,9 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
 
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
+  const [categoriesList, setCategoriesList] = useState<Array<{ id: string; name: string; icon: string }>>(DEFAULT_CATEGORIES)
+  const [modesList, setModesList] = useState<Array<{ id: string; name: string; icon: string }>>(DEFAULT_MODES)
+  const [banksList, setBanksList] = useState<Array<{ id: string; name: string; icon: string }>>(DEFAULT_BANKS)
 
   // Modal State
   const [modalVisible, setModalVisible] = useState(false)
@@ -58,17 +89,31 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
   const [formTitle, setFormTitle] = useState('')
   const [formAmount, setFormAmount] = useState('')
   const [formCategory, setFormCategory] = useState('Food')
+  const [formMode, setFormMode] = useState('UPI')
   const [formBank, setFormBank] = useState('HDFC Bank')
   const [formNotes, setFormNotes] = useState('')
 
   const loadData = async () => {
     try {
-      const [expList, incList] = await Promise.all([
+      const [expList, incList, cats, modes, banks] = await Promise.all([
         api.getExpenses().catch(() => []),
         api.getIncomes().catch(() => []),
+        api.getExpenseCategories().catch(() => []),
+        api.getExpensePaymentModes().catch(() => []),
+        api.getExpenseBanks().catch(() => []),
       ])
       setExpenses(expList)
       setIncomes(incList)
+      if (Array.isArray(cats) && cats.length > 0) {
+        setCategoriesList(cats.map(c => ({ id: c.id, name: c.name, icon: c.icon })))
+        if (!formCategory) setFormCategory(cats[0].name)
+      }
+      if (Array.isArray(modes) && modes.length > 0) {
+        setModesList(modes.map(m => ({ id: m.id, name: m.name, icon: m.icon })))
+      }
+      if (Array.isArray(banks) && banks.length > 0) {
+        setBanksList(banks.map(b => ({ id: b.id, name: b.name, icon: b.icon })))
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -110,7 +155,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
           amount: amountNum,
           category: formCategory,
           bank: formBank,
-          paymentMode: 'UPI',
+          paymentMode: formMode,
           date: currentTimestamp,
           notes: formNotes.trim(),
         })
@@ -469,6 +514,111 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+              {/* Category Selector (Expense only) */}
+              {modalType === 'expense' && (
+                <View style={styles.modalInputGroup}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    {categoriesList.map((cat) => {
+                      const isSelected = formCategory.toLowerCase() === cat.name.toLowerCase()
+                      return (
+                        <TouchableOpacity
+                          key={cat.id || cat.name}
+                          activeOpacity={0.75}
+                          onPress={() => setFormCategory(cat.name)}
+                          style={[
+                            styles.chip,
+                            { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                            isSelected && [styles.chipActive, { backgroundColor: 'rgba(244, 63, 94, 0.15)', borderColor: '#F43F5E' }],
+                          ]}
+                        >
+                          <Text style={styles.chipIcon}>{cat.icon || '📁'}</Text>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              { color: colors.textSecondary },
+                              isSelected && [styles.chipTextActive, { color: '#F43F5E' }],
+                            ]}
+                          >
+                            {cat.name}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Transaction / Payment Mode Selector (Expense only) */}
+              {modalType === 'expense' && (
+                <View style={styles.modalInputGroup}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>TRANSACTION MODE</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    {modesList.map((mode) => {
+                      const isSelected = formMode.toLowerCase() === mode.name.toLowerCase()
+                      return (
+                        <TouchableOpacity
+                          key={mode.id || mode.name}
+                          activeOpacity={0.75}
+                          onPress={() => setFormMode(mode.name)}
+                          style={[
+                            styles.chip,
+                            { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                            isSelected && [styles.chipActive, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: '#F59E0B' }],
+                          ]}
+                        >
+                          <Text style={styles.chipIcon}>{mode.icon || '💳'}</Text>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              { color: colors.textSecondary },
+                              isSelected && [styles.chipTextActive, { color: '#F59E0B' }],
+                            ]}
+                          >
+                            {mode.name}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Bank / Account Selector (Expense only) */}
+              {modalType === 'expense' && (
+                <View style={styles.modalInputGroup}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>ACCOUNT / BANK</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    {banksList.map((b) => {
+                      const isSelected = formBank.toLowerCase() === b.name.toLowerCase()
+                      return (
+                        <TouchableOpacity
+                          key={b.id || b.name}
+                          activeOpacity={0.75}
+                          onPress={() => setFormBank(b.name)}
+                          style={[
+                            styles.chip,
+                            { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                            isSelected && [styles.chipActive, { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: '#3B82F6' }],
+                          ]}
+                        >
+                          <Text style={styles.chipIcon}>{b.icon || '🏦'}</Text>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              { color: colors.textSecondary },
+                              isSelected && [styles.chipTextActive, { color: '#3B82F6' }],
+                            ]}
+                          >
+                            {b.name}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
               <View style={styles.modalInputGroup}>
                 <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
                   {modalType === 'expense' ? 'MERCHANT / DESCRIPTION' : 'INCOME SOURCE'}
@@ -748,6 +898,33 @@ const styles = StyleSheet.create({
   modalSubmitText: {
     color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: '800',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 6,
+  },
+  chipActive: {
+    borderWidth: 1.5,
+  },
+  chipIcon: {
+    fontSize: 14,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chipTextActive: {
     fontWeight: '800',
   },
 })

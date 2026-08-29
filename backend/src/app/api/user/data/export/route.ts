@@ -43,6 +43,7 @@ export const GET = withAuth(async (request: NextRequest, { userId }) => {
       shoppingItems,
       expenseCategories,
       expenseBanks,
+      expensePaymentModes,
       smartScores
     ] = await Promise.all([
       prisma.expense.findMany({ where: { userId } }),
@@ -56,6 +57,7 @@ export const GET = withAuth(async (request: NextRequest, { userId }) => {
       prisma.shoppingItem.findMany({ where: { userId } }),
       prisma.expenseCategory.findMany({ where: { userId } }),
       prisma.expenseBank.findMany({ where: { userId } }),
+      prisma.expensePaymentMode.findMany({ where: { userId } }),
       prisma.smartScore.findMany({ where: { userId } })
     ])
 
@@ -83,6 +85,7 @@ export const GET = withAuth(async (request: NextRequest, { userId }) => {
         shoppingItems,
         expenseCategories,
         expenseBanks,
+        expensePaymentModes,
         smartScores
       }
     }

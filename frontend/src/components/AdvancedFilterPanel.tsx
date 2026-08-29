@@ -165,7 +165,7 @@ export default function AdvancedFilterPanel({
 
         {/* Bank Filter */}
         <div className="space-y-1.5 md:space-y-2">
-          <label className="text-[10px] md:text-xs font-medium text-foreground">Payment Method</label>
+          <label className="text-[10px] md:text-xs font-medium text-foreground">Bank / Account</label>
           <select
             value={filters.bank || 'All'}
             onChange={(e) => handleFilterChange('bank', e.target.value === 'All' ? undefined : e.target.value)}
@@ -239,6 +239,24 @@ export default function AdvancedFilterPanel({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Payment Mode Filter */}
+          <div className="space-y-1.5 md:space-y-2">
+            <label className="text-[10px] md:text-xs font-medium text-foreground">Transaction / Payment Mode</label>
+            <select
+              value={filters.paymentMode || 'All'}
+              onChange={(e) => handleFilterChange('paymentMode', e.target.value === 'All' ? undefined : e.target.value)}
+              className="input-premium w-full px-3 py-2.5 text-sm font-medium"
+            >
+              <option value="All">All Modes</option>
+              <option value="Cash">💵 Cash</option>
+              <option value="UPI">📱 UPI</option>
+              <option value="Net Banking">🏦 Net Banking</option>
+              <option value="Udhar">🤝 Udhar</option>
+              <option value="Card">💳 Card</option>
+              <option value="Wallet">👛 Wallet</option>
+            </select>
           </div>
 
           {/* Receipt Filter */}

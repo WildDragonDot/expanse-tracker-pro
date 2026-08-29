@@ -27,6 +27,7 @@ import {
   Moon,
   Sun,
   Bell,
+  CreditCard,
   Download,
   ShieldAlert,
   ShieldCheck,
@@ -97,6 +98,7 @@ type SettingsModalType =
   | 'billing'
   | 'currency'
   | 'categories'
+  | 'modes'
   | 'data'
   | 'danger'
   | 'haptics'
@@ -207,10 +209,21 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
   const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; color: string; icon: string }[]>([])
   const [newCatName, setNewCatName] = useState('')
 
+  // Transaction / Payment Modes
+  const [modesList, setModesList] = useState<{ id: string; name: string; icon: string; isDefault: boolean }[]>([])
+  const [newModeName, setNewModeName] = useState('')
+  const [newModeIcon, setNewModeIcon] = useState('💳')
+
+  const modeIconOptions = ['💵', '📱', '🏦', '🤝', '💳', '👛', '🪙', '💻', '⚡', '🧾']
+
   useEffect(() => {
     api.getExpenseCategories()
       .then((cats) => setCategoriesList(cats.map((c) => ({ id: c.id, name: c.name, color: colorForCategory(c.name), icon: c.icon }))))
       .catch(() => setCategoriesList([]))
+
+    api.getExpensePaymentModes()
+      .then((modes) => setModesList(modes.map((m) => ({ id: m.id, name: m.name, icon: m.icon, isDefault: m.isDefault }))))
+      .catch(() => setModesList([]))
   }, [])
 
   // Real live metrics for the hero card (net savings this month, financial health score)
@@ -277,6 +290,27 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
       setCategoriesList((prev) => prev.filter((c) => c.id !== id))
     } catch (err: any) {
       Alert.alert('Could not delete category', err.message || 'Default categories cannot be removed.')
+    }
+  }
+
+  const handleAddMode = async () => {
+    const name = newModeName.trim()
+    if (!name) return
+    try {
+      const created = await api.createExpensePaymentMode({ name, icon: newModeIcon })
+      setModesList((prev) => [...prev, { id: created.id, name: created.name, icon: created.icon, isDefault: created.isDefault }])
+      setNewModeName('')
+    } catch (err: any) {
+      Alert.alert('Could not add payment mode', err.message || 'Please try again.')
+    }
+  }
+
+  const handleDeleteMode = async (id: string) => {
+    try {
+      await api.deleteExpensePaymentMode(id)
+      setModesList((prev) => prev.filter((m) => m.id !== id))
+    } catch (err: any) {
+      Alert.alert('Could not delete mode', err.message || 'Default modes cannot be removed.')
     }
   }
 
@@ -488,7 +522,7 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => setActiveModal('categories')}
-            style={styles.menuRow}
+            style={[styles.menuRow, { borderBottomColor: colors.surfaceGlassBorder, borderBottomWidth: 1 }]}
           >
             <View style={[styles.menuIconBox, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
               <Layers color="#6366F1" size={18} />
@@ -501,6 +535,27 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
             </View>
             <View style={styles.badgePillPurple}>
               <Text style={styles.badgePillPurpleText}>{categoriesList.length} Active</Text>
+            </View>
+            <ChevronRight color={colors.textMuted} size={16} />
+          </TouchableOpacity>
+
+          {/* Transaction Modes */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setActiveModal('modes')}
+            style={styles.menuRow}
+          >
+            <View style={[styles.menuIconBox, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+              <CreditCard color="#F59E0B" size={18} />
+            </View>
+            <View style={styles.menuMeta}>
+              <Text style={[styles.menuTitle, { color: colors.text }]}>Transaction Modes</Text>
+              <Text style={[styles.menuSub, { color: colors.textMuted }]}>
+                {modesList.length} payment modes (Cash, UPI, Udhar, Bank...)
+              </Text>
+            </View>
+            <View style={styles.badgePillAmber}>
+              <Text style={styles.badgePillAmberText}>{modesList.length} Modes</Text>
             </View>
             <ChevronRight color={colors.textMuted} size={16} />
           </TouchableOpacity>
@@ -1166,6 +1221,83 @@ export const SettingsScreen = ({ navigation }: { navigation?: any }) => {
                   <TouchableOpacity onPress={() => handleDeleteCategory(cat.id)}>
                     <Trash2 color="#EF4444" size={16} />
                   </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity style={styles.modalActionBtn} onPress={() => setActiveModal(null)}>
+              <Text style={styles.modalActionBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL: Transaction / Payment Modes Modal */}
+      <Modal visible={activeModal === 'modes'} animationType="slide" transparent onRequestClose={() => setActiveModal(null)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setActiveModal(null)} />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceGlassBorder }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Transaction Modes</Text>
+              <TouchableOpacity onPress={() => setActiveModal(null)} style={styles.closeBtn}>
+                <X color={colors.text} size={18} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.toggleDesc, { color: colors.textMuted, marginBottom: 10 }]}>
+              Add custom modes (e.g. Udhar, Sodexo, Crypto, Splitwise, Forex) or use standard modes:
+            </Text>
+
+            {/* Icon picker for new mode */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 12 }}>
+              {modeIconOptions.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  onPress={() => setNewModeIcon(emoji)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 12,
+                    borderWidth: newModeIcon === emoji ? 2 : 1,
+                    borderColor: newModeIcon === emoji ? '#F59E0B' : colors.surfaceGlassBorder,
+                    backgroundColor: newModeIcon === emoji ? 'rgba(245, 158, 11, 0.2)' : colors.surfaceGlass,
+                  }}
+                >
+                  <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.addCatRow}>
+              <TextInput
+                style={[styles.addCatInput, { color: colors.text, borderColor: colors.surfaceGlassBorder }]}
+                placeholder="New transaction mode name..."
+                placeholderTextColor={colors.textMuted}
+                value={newModeName}
+                onChangeText={setNewModeName}
+              />
+              <TouchableOpacity onPress={handleAddMode} style={[styles.addCatBtn, { backgroundColor: '#F59E0B' }]}>
+                <Plus color="#FFFFFF" size={16} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
+              {modesList.map((mode) => (
+                <View key={mode.id} style={[styles.catRowItem, { borderColor: colors.surfaceGlassBorder }]}>
+                  <View style={styles.catRowLeft}>
+                    <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(245, 158, 11, 0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                      <Text style={{ fontSize: 14 }}>{mode.icon || '💳'}</Text>
+                    </View>
+                    <View>
+                      <Text style={[styles.catRowName, { color: colors.text }]}>{mode.name}</Text>
+                      <Text style={{ fontSize: 10, color: colors.textMuted }}>{mode.isDefault ? 'Default Mode' : 'Custom Mode'}</Text>
+                    </View>
+                  </View>
+                  {!mode.isDefault && (
+                    <TouchableOpacity onPress={() => handleDeleteMode(mode.id)}>
+                      <Trash2 color="#EF4444" size={16} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))}
             </ScrollView>

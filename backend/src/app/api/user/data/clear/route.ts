@@ -64,6 +64,8 @@ export const DELETE = withAuth(async (request: NextRequest, { userId }) => {
       prisma.expenseCategory.deleteMany({ where: { userId } }),
       // Delete all expense banks
       prisma.expenseBank.deleteMany({ where: { userId } }),
+      // Delete all expense payment modes
+      prisma.expensePaymentMode.deleteMany({ where: { userId } }),
       // Delete all smart scores
       prisma.smartScore.deleteMany({ where: { userId } }),
       // Delete all bank accounts and transactions

@@ -119,6 +119,11 @@ export function applyAdvancedFilters(transactions: any[], filters: AdvancedExpen
     if (filters.bank && filters.bank !== 'All' && transaction.bank !== filters.bank) {
       return false
     }
+
+    // Payment mode filter
+    if (filters.paymentMode && filters.paymentMode !== 'All' && transaction.paymentMode !== filters.paymentMode) {
+      return false
+    }
     
     // Date range filter
     if (filters.startDate || filters.endDate) {
@@ -247,6 +252,10 @@ export function getFilterSummary(filters: AdvancedExpenseFilters): string[] {
   
   if (filters.bank && filters.bank !== 'All') {
     summary.push(`Bank: ${filters.bank}`)
+  }
+
+  if (filters.paymentMode && filters.paymentMode !== 'All') {
+    summary.push(`Mode: ${filters.paymentMode}`)
   }
   
   if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {

@@ -82,7 +82,7 @@ export const RecurringBillsScreen = () => {
   const [newAmount, setNewAmount] = useState('')
   const [newCategory, setNewCategory] = useState('Utilities')
   const [newFrequency, setNewFrequency] = useState<BillFrequency>('MONTHLY')
-  const [newDate, setNewDate] = useState('2026-09-01')
+  const [newDate, setNewDate] = useState(() => new Date().toISOString().split('T')[0])
   const [isTrial, setIsTrial] = useState(false)
   const [isAutoDebit, setIsAutoDebit] = useState(false)
 

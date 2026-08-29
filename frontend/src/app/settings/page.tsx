@@ -85,8 +85,8 @@ const sections: Array<{ title: string; items: SettingsItem[] }> = [
       },
       {
         id: 'categories',
-        title: 'Categories',
-        description: 'Customize expense categories',
+        title: 'Categories & Payment Modes',
+        description: 'Customize categories, banks & transaction modes',
         icon: '📊',
         iconClassName: 'bg-indigo-500/12 text-indigo-600 dark:bg-indigo-500/18 dark:text-indigo-300',
       },

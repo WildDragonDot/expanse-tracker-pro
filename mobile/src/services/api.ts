@@ -13,6 +13,8 @@ import {
   ShoppingCategory,
   ShoppingItem,
   ExpenseCategoryItem,
+  ExpenseBankItem,
+  ExpensePaymentModeItem,
 } from '../types'
 
 // Production Live Domain with Cloudflare Universal HTTPS SSL
@@ -297,12 +299,20 @@ export class MobileApiClient {
     return this.request<ShoppingCategory>('/shopping-categories', { method: 'POST', body: JSON.stringify(data) })
   }
 
+  async deleteShoppingCategory(id: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(`/shopping-categories/${id}`, { method: 'DELETE' })
+  }
+
   async createShoppingItem(data: { name: string; expectedPrice: number; categoryId?: string; quantity?: number; unit?: string; notes?: string }): Promise<ShoppingItem> {
     return this.request<ShoppingItem>('/shopping-items', { method: 'POST', body: JSON.stringify(data) })
   }
 
   async updateShoppingItem(id: string, data: Partial<{ isBought: boolean; actualPrice: number }>): Promise<ShoppingItem> {
     return this.request<ShoppingItem>(`/shopping-items/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+  }
+
+  async deleteShoppingItem(id: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(`/shopping-items/${id}`, { method: 'DELETE' })
   }
 
   // --- EXPENSE CATEGORIES (Settings) ---
@@ -316,6 +326,32 @@ export class MobileApiClient {
 
   async deleteExpenseCategory(id: string): Promise<{ message: string }> {
     return this.request<{ message: string }>(`/expense-categories/${id}`, { method: 'DELETE' })
+  }
+
+  // --- EXPENSE BANKS (Settings) ---
+  async getExpenseBanks(): Promise<ExpenseBankItem[]> {
+    return this.request<ExpenseBankItem[]>('/expense-banks')
+  }
+
+  async createExpenseBank(data: { name: string; icon?: string }): Promise<ExpenseBankItem> {
+    return this.request<ExpenseBankItem>('/expense-banks', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async deleteExpenseBank(id: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/expense-banks/${id}`, { method: 'DELETE' })
+  }
+
+  // --- EXPENSE PAYMENT / TRANSACTION MODES (Settings) ---
+  async getExpensePaymentModes(): Promise<ExpensePaymentModeItem[]> {
+    return this.request<ExpensePaymentModeItem[]>('/expense-payment-modes')
+  }
+
+  async createExpensePaymentMode(data: { name: string; icon?: string }): Promise<ExpensePaymentModeItem> {
+    return this.request<ExpensePaymentModeItem>('/expense-payment-modes', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async deleteExpensePaymentMode(id: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/expense-payment-modes/${id}`, { method: 'DELETE' })
   }
 
   // --- AI SMART SCORE & CHAT ---

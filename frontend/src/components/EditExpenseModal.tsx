@@ -25,10 +25,26 @@ interface Bank {
   icon: string
 }
 
+interface PaymentMode {
+  id: string
+  name: string
+  icon: string
+}
+
+const DEFAULT_MODES: PaymentMode[] = [
+  { id: '1', name: 'Cash', icon: '💵' },
+  { id: '2', name: 'UPI', icon: '📱' },
+  { id: '3', name: 'Net Banking', icon: '🏦' },
+  { id: '4', name: 'Udhar', icon: '🤝' },
+  { id: '5', name: 'Card', icon: '💳' },
+  { id: '6', name: 'Wallet', icon: '👛' },
+]
+
 export default function EditExpenseModal({ isOpen, onClose, onSave, expense }: EditExpenseModalProps) {
   const { addNotification } = useNotification()
   const [categories, setCategories] = useState<Category[]>([])
   const [banks, setBanks] = useState<Bank[]>([])
+  const [paymentModes, setPaymentModes] = useState<PaymentMode[]>(DEFAULT_MODES)
   const [formData, setFormData] = useState({
     date: '',
     title: '',
@@ -65,13 +81,16 @@ export default function EditExpenseModal({ isOpen, onClose, onSave, expense }: E
     try {
       const token = localStorage.getItem('token')
       
-      const [categoriesRes, banksRes] = await Promise.all([
+      const [categoriesRes, banksRes, modesRes] = await Promise.all([
         apiFetch('/api/expense-categories', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         apiFetch('/api/expense-banks', {
           headers: { 'Authorization': `Bearer ${token}` }
-        })
+        }),
+        apiFetch('/api/expense-payment-modes', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => null)
       ])
 
       if (categoriesRes.ok && banksRes.ok) {
@@ -79,6 +98,13 @@ export default function EditExpenseModal({ isOpen, onClose, onSave, expense }: E
         const banksData = await banksRes.json()
         setCategories(categoriesData)
         setBanks(banksData)
+      }
+
+      if (modesRes && modesRes.ok) {
+        const modesData = await modesRes.json()
+        if (Array.isArray(modesData) && modesData.length > 0) {
+          setPaymentModes(modesData)
+        }
       }
     } catch (error) {
       console.error('Error loading categories and banks:', error)
@@ -218,10 +244,11 @@ export default function EditExpenseModal({ isOpen, onClose, onSave, expense }: E
                 onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
                 className="input-premium w-full px-3 py-2.5 sm:py-3 text-sm sm:text-base"
               >
-                <option>Cash</option>
-                <option>UPI</option>
-                <option>Card</option>
-                <option>Wallet</option>
+                {paymentModes.map((mode) => (
+                  <option key={mode.id} value={mode.name}>
+                    {mode.icon} {mode.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

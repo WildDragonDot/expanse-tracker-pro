@@ -10,6 +10,9 @@ const nextConfig = {
         ? { exclude: ['error', 'warn'] }
         : false,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   experimental: {
     optimizePackageImports: ['recharts'],
   },

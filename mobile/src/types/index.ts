@@ -200,6 +200,24 @@ export interface ExpenseCategoryItem {
   createdAt: string
 }
 
+export interface ExpenseBankItem {
+  id: string
+  userId: string
+  name: string
+  icon: string
+  isDefault: boolean
+  createdAt: string
+}
+
+export interface ExpensePaymentModeItem {
+  id: string
+  userId: string
+  name: string
+  icon: string
+  isDefault: boolean
+  createdAt: string
+}
+
 export interface ShoppingCategory {
   id: string
   userId: string

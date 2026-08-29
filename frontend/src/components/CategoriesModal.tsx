@@ -10,14 +10,7 @@ interface CategoriesModalProps {
   onClose: () => void
 }
 
-interface Category {
-  id: string
-  name: string
-  icon: string
-  isDefault: boolean
-}
-
-interface Bank {
+interface ItemRecord {
   id: string
   name: string
   icon: string
@@ -26,14 +19,15 @@ interface Bank {
 
 export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProps) {
   const { addNotification } = useNotification()
-  const [activeTab, setActiveTab] = useState<'categories' | 'banks'>('categories')
-  const [categories, setCategories] = useState<Category[]>([])
-  const [banks, setBanks] = useState<Bank[]>([])
+  const [activeTab, setActiveTab] = useState<'categories' | 'banks' | 'modes'>('categories')
+  const [categories, setCategories] = useState<ItemRecord[]>([])
+  const [banks, setBanks] = useState<ItemRecord[]>([])
+  const [modes, setModes] = useState<ItemRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [newCategory, setNewCategory] = useState({ name: '', icon: '📝' })
   const [newBank, setNewBank] = useState({ name: '', icon: '🏦' })
+  const [newMode, setNewMode] = useState({ name: '', icon: '💳' })
   const [showAddForm, setShowAddForm] = useState(false)
-  const [editingItem, setEditingItem] = useState<any>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -46,13 +40,16 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
     try {
       const token = localStorage.getItem('token')
       
-      const [categoriesRes, banksRes] = await Promise.all([
+      const [categoriesRes, banksRes, modesRes] = await Promise.all([
         apiFetch('/api/expense-categories', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         apiFetch('/api/expense-banks', {
           headers: { 'Authorization': `Bearer ${token}` }
-        })
+        }),
+        apiFetch('/api/expense-payment-modes', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => null)
       ])
 
       if (categoriesRes.ok && banksRes.ok) {
@@ -61,12 +58,19 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
         setCategories(categoriesData)
         setBanks(banksData)
       }
+
+      if (modesRes && modesRes.ok) {
+        const modesData = await modesRes.json()
+        if (Array.isArray(modesData)) {
+          setModes(modesData)
+        }
+      }
     } catch (error) {
       console.error('Error loading data:', error)
       addNotification({
         type: 'error',
         title: 'Load Failed',
-        message: 'Failed to load categories and banks',
+        message: 'Failed to load categories, banks, and transaction modes',
         duration: 4000
       })
     } finally {
@@ -149,6 +153,45 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
         type: 'error',
         title: 'Failed',
         message: error.message || 'Failed to add bank',
+        duration: 4000
+      })
+    }
+  }
+
+  const addMode = async () => {
+    if (!newMode.name.trim()) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await apiFetch('/api/expense-payment-modes', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newMode)
+      })
+
+      if (response.ok) {
+        const created = await response.json()
+        setModes(prev => [...prev, created])
+        setNewMode({ name: '', icon: '💳' })
+        setShowAddForm(false)
+        addNotification({
+          type: 'success',
+          title: 'Mode Added',
+          message: `${newMode.name} mode has been created.`,
+          duration: 3000
+        })
+      } else {
+        const error = await response.json()
+        throw new Error(error.error)
+      }
+    } catch (error: any) {
+      addNotification({
+        type: 'error',
+        title: 'Failed',
+        message: error.message || 'Failed to add transaction mode',
         duration: 4000
       })
     }
@@ -238,12 +281,57 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
     }
   }
 
+  const deleteMode = async (id: string, isDefault: boolean) => {
+    if (isDefault) {
+      addNotification({
+        type: 'error',
+        title: 'Cannot Delete',
+        message: 'Default transaction modes cannot be deleted',
+        duration: 3000
+      })
+      return
+    }
+
+    if (!confirm('Delete this transaction mode?')) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await apiFetch(`/api/expense-payment-modes/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        setModes(prev => prev.filter(m => m.id !== id))
+        addNotification({
+          type: 'success',
+          title: 'Deleted',
+          message: 'Transaction mode has been removed.',
+          duration: 3000
+        })
+      } else {
+        const error = await response.json()
+        throw new Error(error.error)
+      }
+    } catch (error: any) {
+      addNotification({
+        type: 'error',
+        title: 'Failed',
+        message: error.message || 'Failed to delete transaction mode',
+        duration: 4000
+      })
+    }
+  }
+
   const categoryEmojiOptions = ['🍔', '🚗', '🛍️', '🎬', '📄', '🏥', '📚', '✈️', '💪', '🎁']
   const bankEmojiOptions = ['💵', '🏦', '💳', '💰', '🏧', '💸', '🪙', '💴', '💶', '💷']
+  const modeEmojiOptions = ['💵', '📱', '🏦', '🤝', '💳', '👛', '🪙', '💻', '⚡', '🧾']
+
+  const currentItems = activeTab === 'categories' ? categories : activeTab === 'banks' ? banks : modes
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4">
-      <div className="glass w-full sm:max-w-lg rounded-xl sm:rounded-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col border border-border shadow-premium-lg animate-scale-in">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+      <div className="glass w-full sm:max-w-lg rounded-xl sm:rounded-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col border border-border shadow-premium-lg animate-scale-in overflow-hidden">
         <div className="flex-shrink-0 glass-premium border-b border-border px-4 py-3 sm:px-6 sm:py-4 rounded-t-xl sm:rounded-t-2xl">
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -252,7 +340,7 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
               </div>
-              <h2 className="text-sm sm:text-base font-semibold text-foreground">Manage Expense Settings</h2>
+              <h2 className="text-sm sm:text-base font-semibold text-foreground">Expense & Payment Settings</h2>
             </div>
             <button 
               onClick={onClose} 
@@ -265,10 +353,10 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 glass-premium rounded-lg p-1">
+          <div className="flex gap-1.5 sm:gap-2 glass-premium rounded-lg p-1">
             <button
               onClick={() => { setActiveTab('categories'); setShowAddForm(false); }}
-              className={`flex-1 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+              className={`flex-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'categories'
                   ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
                   : 'text-muted-foreground hover:bg-secondary/50'
@@ -278,7 +366,7 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
             </button>
             <button
               onClick={() => { setActiveTab('banks'); setShowAddForm(false); }}
-              className={`flex-1 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+              className={`flex-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'banks'
                   ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg'
                   : 'text-muted-foreground hover:bg-secondary/50'
@@ -286,10 +374,20 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
             >
               Banks
             </button>
+            <button
+              onClick={() => { setActiveTab('modes'); setShowAddForm(false); }}
+              className={`flex-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                activeTab === 'modes'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg'
+                  : 'text-muted-foreground hover:bg-secondary/50'
+              }`}
+            >
+              Modes
+            </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -305,17 +403,24 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
                           <span className="text-base">📁</span>
                           Expense Categories
                         </>
-                      ) : (
+                      ) : activeTab === 'banks' ? (
                         <>
                           <span className="text-base">🏦</span>
-                          Banks
+                          Banks & Accounts
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-base">💳</span>
+                          Transaction & Payment Modes
                         </>
                       )}
                     </h3>
                     <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                       {activeTab === 'categories' 
                         ? `${categories.length} categories available` 
-                        : `${banks.length} banks available`
+                        : activeTab === 'banks'
+                        ? `${banks.length} banks available`
+                        : `${modes.length} payment modes (UPI, Cash, Udhar, Net Banking...)`
                       }
                     </p>
                   </div>
@@ -324,7 +429,9 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
                     className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all hover:scale-105 active:scale-95 shadow-md hover:shadow-lg ${
                       activeTab === 'categories'
                         ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white'
-                        : 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white'
+                        : activeTab === 'banks'
+                        ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white'
+                        : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white'
                     }`}
                   >
                     <span className="flex items-center gap-1.5">
@@ -337,36 +444,38 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
                 </div>
 
                 {showAddForm && (
-                  <div className="mb-4 sm:mb-6 p-3 sm:p-4 border border-border rounded-lg sm:rounded-xl bg-secondary/20">
+                  <div className="mb-4 sm:mb-6 p-3 sm:p-4 border border-border rounded-lg sm:rounded-xl bg-secondary/20 animate-slide-in">
                     <div className="space-y-3 sm:space-y-4">
                       <div>
                         <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">
-                          {activeTab === 'categories' ? 'Category Name' : 'Bank Name'}
+                          {activeTab === 'categories' ? 'Category Name' : activeTab === 'banks' ? 'Bank Name' : 'Transaction Mode Name'}
                         </label>
                         <input
                           type="text"
-                          value={activeTab === 'categories' ? newCategory.name : newBank.name}
-                          onChange={(e) => activeTab === 'categories' 
-                            ? setNewCategory({ ...newCategory, name: e.target.value })
-                            : setNewBank({ ...newBank, name: e.target.value })
-                          }
+                          value={activeTab === 'categories' ? newCategory.name : activeTab === 'banks' ? newBank.name : newMode.name}
+                          onChange={(e) => {
+                            if (activeTab === 'categories') setNewCategory({ ...newCategory, name: e.target.value })
+                            else if (activeTab === 'banks') setNewBank({ ...newBank, name: e.target.value })
+                            else setNewMode({ ...newMode, name: e.target.value })
+                          }}
                           className="input-premium w-full px-3 py-2 sm:py-2.5 text-sm sm:text-base"
-                          placeholder={activeTab === 'categories' ? 'Enter category name' : 'Enter bank name'}
+                          placeholder={activeTab === 'categories' ? 'e.g. Shopping' : activeTab === 'banks' ? 'e.g. Axis Bank' : 'e.g. Udhar, Crypto, Sodexo'}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">Icon</label>
+                        <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">Select Icon</label>
                         <div className="flex gap-1.5 sm:gap-2 flex-wrap">
-                          {(activeTab === 'categories' ? categoryEmojiOptions : bankEmojiOptions).map((emoji) => (
+                          {(activeTab === 'categories' ? categoryEmojiOptions : activeTab === 'banks' ? bankEmojiOptions : modeEmojiOptions).map((emoji) => (
                             <button
                               key={emoji}
-                              onClick={() => activeTab === 'categories'
-                                ? setNewCategory({ ...newCategory, icon: emoji })
-                                : setNewBank({ ...newBank, icon: emoji })
-                              }
+                              onClick={() => {
+                                if (activeTab === 'categories') setNewCategory({ ...newCategory, icon: emoji })
+                                else if (activeTab === 'banks') setNewBank({ ...newBank, icon: emoji })
+                                else setNewMode({ ...newMode, icon: emoji })
+                              }}
                               className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-base sm:text-lg transition-colors ${
-                                (activeTab === 'categories' ? newCategory.icon : newBank.icon) === emoji 
-                                  ? 'bg-primary text-white' 
+                                (activeTab === 'categories' ? newCategory.icon : activeTab === 'banks' ? newBank.icon : newMode.icon) === emoji 
+                                  ? 'bg-primary text-white scale-110 shadow-md' 
                                   : 'bg-secondary hover:bg-secondary/80'
                               }`}
                             >
@@ -377,7 +486,7 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={activeTab === 'categories' ? addCategory : addBank}
+                          onClick={activeTab === 'categories' ? addCategory : activeTab === 'banks' ? addBank : addMode}
                           className="px-3 py-1.5 sm:px-4 sm:py-2 bg-primary text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium hover:bg-primary/90 transition-colors"
                         >
                           Add
@@ -395,110 +504,67 @@ export default function CategoriesModal({ isOpen, onClose }: CategoriesModalProp
               </div>
 
               <div className="space-y-2">
-                {activeTab === 'categories' ? (
-                  categories.length > 0 ? (
-                    categories.map((category, index) => (
-                      <div
-                        key={category.id}
-                        className="group flex items-center justify-between p-2.5 sm:p-3 rounded-lg border border-border/50 bg-gradient-to-r from-background to-background/50 hover:from-blue-50/50 hover:to-indigo-50/50 dark:hover:from-blue-900/10 dark:hover:to-indigo-900/10 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] hover:border-blue-300/50 dark:hover:border-blue-700/50 animate-slide-in"
-                        style={{ animationDelay: `${index * 50}ms` }}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg blur-md opacity-50 group-hover:opacity-75 transition-opacity"></div>
-                            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <span className="text-base sm:text-lg">{category.icon}</span>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{category.name}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                                category.isDefault 
-                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
-                                  : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                              }`}>
-                                {category.isDefault ? '⭐ Default' : '✨ Custom'}
-                              </span>
-                            </div>
+                {currentItems.length > 0 ? (
+                  currentItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="group flex items-center justify-between p-2.5 sm:p-3 rounded-lg border border-border/50 bg-gradient-to-r from-background to-background/50 hover:from-primary/5 hover:to-secondary/20 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] animate-slide-in"
+                      style={{ animationDelay: `${index * 40}ms` }}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative">
+                          <div className={`absolute inset-0 rounded-lg blur-md opacity-40 group-hover:opacity-75 transition-opacity ${
+                            activeTab === 'categories' 
+                              ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                              : activeTab === 'banks'
+                              ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+                              : 'bg-gradient-to-br from-amber-500 to-orange-600'
+                          }`}></div>
+                          <div className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform ${
+                            activeTab === 'categories' 
+                              ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                              : activeTab === 'banks'
+                              ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+                              : 'bg-gradient-to-br from-amber-500 to-orange-600'
+                          }`}>
+                            <span className="text-base sm:text-lg">{item.icon}</span>
                           </div>
                         </div>
-                        {!category.isDefault && (
-                          <button
-                            onClick={() => deleteCategory(category.id, category.isDefault)}
-                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all hover:scale-110 active:scale-95 opacity-0 group-hover:opacity-100"
-                            title="Delete category"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
+                        <div>
+                          <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{item.name}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                              item.isDefault 
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
+                                : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                            }`}>
+                              {item.isDefault ? '⭐ Default' : '✨ Custom'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                      </div>
-                      <p className="text-muted-foreground text-sm">No categories yet</p>
-                      <p className="text-xs text-muted-foreground/70 mt-1">Click "Add New" to create one</p>
+                      {!item.isDefault && (
+                        <button
+                          onClick={() => {
+                            if (activeTab === 'categories') deleteCategory(item.id, item.isDefault)
+                            else if (activeTab === 'banks') deleteBank(item.id, item.isDefault)
+                            else deleteMode(item.id, item.isDefault)
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all hover:scale-110 active:scale-95 opacity-0 group-hover:opacity-100"
+                          title="Delete item"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
-                  )
+                  ))
                 ) : (
-                  banks.length > 0 ? (
-                    banks.map((bank, index) => (
-                      <div
-                        key={bank.id}
-                        className="group flex items-center justify-between p-2.5 sm:p-3 rounded-lg border border-border/50 bg-gradient-to-r from-background to-background/50 hover:from-emerald-50/50 hover:to-green-50/50 dark:hover:from-emerald-900/10 dark:hover:to-green-900/10 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] hover:border-emerald-300/50 dark:hover:border-emerald-700/50 animate-slide-in"
-                        style={{ animationDelay: `${index * 50}ms` }}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg blur-md opacity-50 group-hover:opacity-75 transition-opacity"></div>
-                            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <span className="text-base sm:text-lg">{bank.icon}</span>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{bank.name}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                                bank.isDefault 
-                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' 
-                                  : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                              }`}>
-                                {bank.isDefault ? '⭐ Default' : '✨ Custom'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        {!bank.isDefault && (
-                          <button
-                            onClick={() => deleteBank(bank.id, bank.isDefault)}
-                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all hover:scale-110 active:scale-95 opacity-0 group-hover:opacity-100"
-                            title="Delete bank"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/20 dark:to-green-900/20 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <p className="text-muted-foreground text-sm">No banks yet</p>
-                      <p className="text-xs text-muted-foreground/70 mt-1">Click "Add New" to create one</p>
-                    </div>
-                  )
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground text-sm">No items yet</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">Click "Add New" to create one</p>
+                  </div>
                 )}
               </div>
 
