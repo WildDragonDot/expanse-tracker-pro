@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
-import nodemailer from 'nodemailer'
+import { verifyToken } from '@/lib/database'
+import { sendEmail } from '@/lib/email'
 
 // Force dynamic rendering - uses request headers
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string, email: string }
+    const decoded = verifyToken(token) as { userId: string; email?: string } | null
+    if (!decoded || !decoded.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
     const { category, expenses, userEmail, pdfAttachment, pdfFilename } = body
 
@@ -39,126 +42,102 @@ export async function POST(request: NextRequest) {
       <!DOCTYPE html>
       <html>
       <head>
-        <meta charset="utf-8">
-        <title>Category Expense Report</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; border-radius: 12px 12px 0 0; text-align: center; }
+          .header h1 { margin: 0 0 10px 0; font-size: 24px; }
+          .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+          .content { background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+          .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+          .metric-card { background: #f9fafb; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #f3f4f6; }
+          .metric-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+          .metric-value { font-size: 18px; font-weight: bold; margin-top: 5px; }
+          .progress-bar-bg { background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden; margin: 20px 0; }
+          .progress-bar-fill { background: ${variance > 0 ? '#ef4444' : '#10b981'}; height: 100%; width: ${Math.min(Number(progress), 100)}%; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+          th { background: #f9fafb; padding: 12px; text-align: left; font-weight: 600; color: #4b5563; border-bottom: 2px solid #e5e7eb; }
+          .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #6b7280; border: 1px solid #e5e7eb; border-top: none; }
+        </style>
       </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px;">
-          <h1 style="margin: 0; font-size: 28px;">${category.icon} ${category.name}</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">Category Expense Report</p>
-        </div>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>${category.name}</h1>
+            <span class="badge">Expense Planning Report</span>
+          </div>
+          <div class="content">
+            <p>Here is your comprehensive expense report for the <strong>${category.name}</strong> category.</p>
+            
+            <div class="metrics">
+              <div class="metric-card">
+                <div class="metric-label">Expected Budget</div>
+                <div class="metric-value" style="color: #3b82f6;">₹${category.expectedCost.toLocaleString()}</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Actual Spent</div>
+                <div class="metric-value" style="color: #10b981;">₹${category.realCost.toLocaleString()}</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Variance</div>
+                <div class="metric-value" style="color: ${variance > 0 ? '#ef4444' : '#10b981'};">
+                  ${variance > 0 ? '+' : ''}₹${Math.abs(variance).toLocaleString()}
+                </div>
+              </div>
+            </div>
 
-        <div style="background: #f9fafb; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-          <h2 style="margin-top: 0; color: #667eea;">Summary</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 8px 0;"><strong>Category Type:</strong></td>
-              <td style="padding: 8px 0; text-align: right;">${category.type}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0;"><strong>Expected Cost:</strong></td>
-              <td style="padding: 8px 0; text-align: right; color: #3b82f6;">₹${category.expectedCost.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0;"><strong>Real Cost:</strong></td>
-              <td style="padding: 8px 0; text-align: right; color: #10b981;">₹${category.realCost.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0;"><strong>Variance:</strong></td>
-              <td style="padding: 8px 0; text-align: right; color: ${variance > 0 ? '#ef4444' : '#10b981'};">
-                ${variance > 0 ? '+' : ''}₹${variance.toLocaleString()}
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0;"><strong>Progress:</strong></td>
-              <td style="padding: 8px 0; text-align: right;">${progress}%</td>
-            </tr>
-            ${category.startDate ? `
-            <tr>
-              <td style="padding: 8px 0;"><strong>Start Date:</strong></td>
-              <td style="padding: 8px 0; text-align: right;">${new Date(category.startDate).toLocaleDateString()}</td>
-            </tr>
-            ` : ''}
-            ${category.endDate ? `
-            <tr>
-              <td style="padding: 8px 0;"><strong>End Date:</strong></td>
-              <td style="padding: 8px 0; text-align: right;">${new Date(category.endDate).toLocaleDateString()}</td>
-            </tr>
-            ` : ''}
-          </table>
-        </div>
+            <div style="margin: 20px 0;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-bottom: 5px;">
+                <span>Budget Utilization</span>
+                <span>${progress}%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill"></div>
+              </div>
+            </div>
 
-        <div style="margin-bottom: 20px;">
-          <h2 style="color: #667eea;">Expenses (${expenses.length})</h2>
-          <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <thead>
-              <tr style="background: #667eea; color: white;">
-                <th style="padding: 12px; text-align: left;">Date</th>
-                <th style="padding: 12px; text-align: left;">Title</th>
-                <th style="padding: 12px; text-align: right;">Expected</th>
-                <th style="padding: 12px; text-align: right;">Actual</th>
-                <th style="padding: 12px; text-align: center;">Completed</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${expensesHTML}
-            </tbody>
-          </table>
-        </div>
-
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb; text-align: center; color: #6b7280;">
-          <p>Generated from Expense Tracker on ${new Date().toLocaleDateString()}</p>
+            <h3 style="margin-top: 30px; margin-bottom: 10px; color: #111827;">Transaction Details</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th style="text-align: right;">Amount</th>
+                  <th style="text-align: right;">Actual</th>
+                  <th style="text-align: center;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${expensesHTML}
+              </tbody>
+            </table>
+          </div>
+          <div class="footer">
+            <p>Generated by Expense Tracker Pro • Attached PDF contains full documentation</p>
+          </div>
         </div>
       </body>
       </html>
     `
 
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
+    const attachments: Array<{ filename: string; content: string; encoding: string }> = []
+    if (pdfAttachment && pdfFilename) {
+      attachments.push({
+        filename: pdfFilename,
+        content: pdfAttachment,
+        encoding: 'base64'
+      })
+    }
+
+    const recipient = userEmail || decoded.email || 'work@chandandev.online'
+    const result = await sendEmail({
+      to: recipient,
+      subject: `Expense Report: ${category.name}`,
+      html: emailHTML,
+      attachments
     })
 
-    // Verify transporter configuration
-    try {
-      await transporter.verify()
-      console.log('SMTP connection verified successfully')
-    } catch (verifyError) {
-      console.error('SMTP verification failed:', verifyError)
-      throw new Error('SMTP configuration error. Please check your email settings.')
-    }
-
-    // Prepare email with PDF attachment
-    const mailOptions: any = {
-      from: `"Expense Tracker" <${process.env.SMTP_USER}>`,
-      to: userEmail || decoded.email,
-      subject: `Expense Report: ${category.name}`,
-      html: emailHTML
-    }
-
-    // Add PDF attachment if provided
-    if (pdfAttachment && pdfFilename) {
-      mailOptions.attachments = [
-        {
-          filename: pdfFilename,
-          content: pdfAttachment,
-          encoding: 'base64'
-        }
-      ]
-    }
-
-    const info = await transporter.sendMail(mailOptions)
-    console.log('Email sent successfully:', info.messageId)
-
-    return NextResponse.json({ success: true, messageId: info.messageId })
+    return NextResponse.json({ success: true, messageId: result.messageId })
   } catch (error: any) {
     console.error('Error sending category email:', error)
     const errorMessage = error.message || 'Failed to send email'
