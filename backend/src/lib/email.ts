@@ -2,6 +2,19 @@ import nodemailer from 'nodemailer'
 
 // Email configuration - supports Mailgun API (recommended for EC2/Cloud), Mailgun SMTP, Gmail, and generic SMTP
 const getEmailConfig = () => {
+  if (process.env.SMTP_HOST) {
+    const port = parseInt(process.env.SMTP_PORT || '465')
+    return {
+      host: process.env.SMTP_HOST,
+      port,
+      secure: port === 465,
+      auth: {
+        user: process.env.SMTP_USER || process.env.GMAIL_USER,
+        pass: process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD,
+      },
+    }
+  }
+
   if (process.env.MAILGUN_LOGIN && process.env.MAILGUN_PASSWORD) {
     return {
       host: 'smtp.mailgun.org',
@@ -10,18 +23,6 @@ const getEmailConfig = () => {
       auth: {
         user: process.env.MAILGUN_LOGIN,
         pass: process.env.MAILGUN_PASSWORD,
-      },
-    }
-  }
-
-  if (process.env.SMTP_HOST) {
-    return {
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
-      auth: {
-        user: process.env.SMTP_USER || process.env.GMAIL_USER,
-        pass: process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD,
       },
     }
   }
@@ -79,7 +80,22 @@ export async function sendEmail({ to, subject, html, text, attachments }: EmailO
 
     console.log(`📧 Sending email to ${to}: ${subject}`)
 
-    // Priority 1: Direct Mailgun HTTP REST API (Bypasses all ISP/EC2 SMTP port firewalls)
+    // Priority 1: Direct SMTP Transport (Zoho Mail / Custom Domain SMTP)
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && (process.env.SMTP_PASS || process.env.SMTP_PASSWORD)) {
+      const sender = fromEmail?.includes('<') ? fromEmail : `"ExpenseTracker Pro" <${process.env.SMTP_USER}>`
+      const info = await transporter.sendMail({
+        from: sender,
+        to,
+        subject,
+        html,
+        text: text || html.replace(/<[^>]*>/g, ''),
+        attachments,
+      })
+      console.log('✅ Email sent via Zoho/Custom SMTP successfully:', info.messageId)
+      return { success: true, messageId: info.messageId }
+    }
+
+    // Priority 2: Direct Mailgun HTTP REST API
     if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
       const apiKey = process.env.MAILGUN_API_KEY
       const domain = process.env.MAILGUN_DOMAIN
