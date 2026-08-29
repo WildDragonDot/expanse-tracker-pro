@@ -4,11 +4,10 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/database'
 
 const DEFAULT_BANKS = [
-  { name: 'Cash', icon: '💵' },
   { name: 'HDFC', icon: '🏦' },
+  { name: 'SBI', icon: '🏦' },
   { name: 'ICICI', icon: '🏦' },
   { name: 'Axis', icon: '🏦' },
-  { name: 'SBI', icon: '🏦' },
   { name: 'Kotak', icon: '🏦' },
 ]
 

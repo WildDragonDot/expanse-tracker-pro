@@ -22,6 +22,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "permissions": [
+        "CAMERA",
         "INTERNET",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",

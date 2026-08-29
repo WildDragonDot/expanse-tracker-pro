@@ -30,6 +30,7 @@ import {
   PlusCircle,
   ArrowUpCircle,
   Camera,
+  Image as LucideImage,
   Sparkles,
   MessageSquare,
 } from 'lucide-react-native'
@@ -65,7 +66,6 @@ const DEFAULT_MODES = [
 ]
 
 const DEFAULT_BANKS = [
-  { id: 'b1', name: 'Cash', icon: '💵' },
   { id: 'b2', name: 'HDFC Bank', icon: '🏦' },
   { id: 'b3', name: 'SBI', icon: '🏦' },
   { id: 'b4', name: 'ICICI Bank', icon: '🏦' },
@@ -138,43 +138,91 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
     }
   }, [route?.params?.openModal])
 
+  const handlePaymentModeChange = (modeName: string) => {
+    setFormMode(modeName)
+    const lowerMode = modeName.toLowerCase()
+    if (lowerMode === 'cash') {
+      setFormBank('Cash')
+    } else if (lowerMode === 'udhar') {
+      setFormBank('Udhar')
+    } else {
+      // If current bank is Cash or Udhar, switch to first real bank
+      if (!formBank || formBank.toLowerCase() === 'cash' || formBank.toLowerCase() === 'udhar') {
+        const firstBank = banksList.find((b) => b.name.toLowerCase() !== 'cash' && b.name.toLowerCase() !== 'udhar')
+        if (firstBank) {
+          setFormBank(firstBank.name)
+        } else {
+          setFormBank('HDFC Bank')
+        }
+      }
+    }
+  }
+
   const [isScanning, setIsScanning] = useState(false)
   const [smsModalVisible, setSmsModalVisible] = useState(false)
   const [smsText, setSmsText] = useState('')
 
-  const handleScanReceipt = async () => {
+  const processReceiptBase64 = async (base64: string) => {
+    setIsScanning(true)
+    try {
+      const res = await api.scanReceiptOCR(base64)
+      if (res.scannedData) {
+        if (res.scannedData.title) setFormTitle(res.scannedData.title)
+        if (res.scannedData.amount) setFormAmount(String(res.scannedData.amount))
+        if (res.scannedData.category) setFormCategory(res.scannedData.category)
+        if (res.scannedData.paymentMode) handlePaymentModeChange(res.scannedData.paymentMode)
+        Alert.alert('📸 Receipt Scanned!', `Auto-filled details for ${res.scannedData.title}`)
+      }
+    } catch {
+      Alert.alert('Scan Failed', 'Could not extract text from receipt. Please enter details manually.')
+    } finally {
+      setIsScanning(false)
+    }
+  }
+
+  const handleCameraScan = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync()
+      if (!permission.granted) {
+        Alert.alert('Camera Permission Required', 'Please grant camera permission to scan receipts live.')
+        return
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        base64: true,
+        quality: 0.85,
+        allowsEditing: true,
+      })
+
+      if (!result.canceled && result.assets && result.assets[0]?.base64) {
+        await processReceiptBase64(result.assets[0].base64)
+      }
+    } catch (e: any) {
+      Alert.alert('Camera Error', e.message || 'Could not open camera.')
+      setIsScanning(false)
+    }
+  }
+
+  const handleGalleryScan = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
       if (!permission.granted) {
-        Alert.alert('Permission Denied', 'Camera roll permission is required to scan receipt.')
+        Alert.alert('Permission Denied', 'Gallery permission is required to choose receipt image.')
         return
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         base64: true,
-        quality: 0.8,
+        quality: 0.85,
       })
 
       if (!result.canceled && result.assets && result.assets[0]?.base64) {
-        setIsScanning(true)
-        try {
-          const res = await api.scanReceiptOCR(result.assets[0].base64)
-          if (res.scannedData) {
-            if (res.scannedData.title) setFormTitle(res.scannedData.title)
-            if (res.scannedData.amount) setFormAmount(String(res.scannedData.amount))
-            if (res.scannedData.category) setFormCategory(res.scannedData.category)
-            if (res.scannedData.paymentMode) setFormMode(res.scannedData.paymentMode)
-            Alert.alert('📸 Receipt Scanned!', `Auto-filled details for ${res.scannedData.title}`)
-          }
-        } catch {
-          Alert.alert('Scan Failed', 'Could not extract text. Please enter details manually.')
-        } finally {
-          setIsScanning(false)
-        }
+        await processReceiptBase64(result.assets[0].base64)
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Could not pick image.')
+      Alert.alert('Gallery Error', e.message || 'Could not pick image.')
       setIsScanning(false)
     }
   }
@@ -591,14 +639,23 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
                     {isScanning && <Text style={{ fontSize: 10, color: '#F43F5E', fontWeight: '700' }}>Scanning...</Text>}
                   </View>
 
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
                     <TouchableOpacity
                       activeOpacity={0.75}
-                      onPress={handleScanReceipt}
+                      onPress={handleCameraScan}
                       style={[styles.smartToolBtn, { backgroundColor: 'rgba(244, 63, 94, 0.12)', borderColor: 'rgba(244, 63, 94, 0.3)' }]}
                     >
-                      <Camera color="#F43F5E" size={15} />
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#F43F5E' }}>Scan Receipt</Text>
+                      <Camera color="#F43F5E" size={13} />
+                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#F43F5E' }}>Camera Scan</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={handleGalleryScan}
+                      style={[styles.smartToolBtn, { backgroundColor: 'rgba(168, 85, 247, 0.12)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}
+                    >
+                      <LucideImage color="#A855F7" size={13} />
+                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#A855F7' }}>Gallery Bill</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -606,8 +663,8 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
                       onPress={() => setSmsModalVisible(true)}
                       style={[styles.smartToolBtn, { backgroundColor: 'rgba(99, 102, 241, 0.12)', borderColor: 'rgba(99, 102, 241, 0.3)' }]}
                     >
-                      <MessageSquare color="#6366F1" size={15} />
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#6366F1' }}>Paste Bank SMS</Text>
+                      <MessageSquare color="#6366F1" size={13} />
+                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#6366F1' }}>Paste SMS</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -659,7 +716,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
                         <TouchableOpacity
                           key={mode.id || mode.name}
                           activeOpacity={0.75}
-                          onPress={() => setFormMode(mode.name)}
+                          onPress={() => handlePaymentModeChange(mode.name)}
                           style={[
                             styles.chip,
                             { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
@@ -683,38 +740,59 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
                 </View>
               )}
 
-              {/* Bank / Account Selector (Expense only) */}
-              {modalType === 'expense' && (
+              {/* Bank / Account Selector (Only for digital modes: UPI, Net Banking, Card, Wallet) */}
+              {modalType === 'expense' && formMode.toLowerCase() !== 'cash' && formMode.toLowerCase() !== 'udhar' && (
                 <View style={styles.modalInputGroup}>
-                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>ACCOUNT / BANK</Text>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                    {formMode.toUpperCase()} LINKED BANK / ACCOUNT
+                  </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                    {banksList.map((b) => {
-                      const isSelected = formBank.toLowerCase() === b.name.toLowerCase()
-                      return (
-                        <TouchableOpacity
-                          key={b.id || b.name}
-                          activeOpacity={0.75}
-                          onPress={() => setFormBank(b.name)}
-                          style={[
-                            styles.chip,
-                            { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
-                            isSelected && [styles.chipActive, { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: '#3B82F6' }],
-                          ]}
-                        >
-                          <Text style={styles.chipIcon}>{b.icon || '🏦'}</Text>
-                          <Text
+                    {banksList
+                      .filter((b) => b.name.toLowerCase() !== 'cash' && b.name.toLowerCase() !== 'udhar')
+                      .map((b) => {
+                        const isSelected = formBank.toLowerCase() === b.name.toLowerCase()
+                        return (
+                          <TouchableOpacity
+                            key={b.id || b.name}
+                            activeOpacity={0.75}
+                            onPress={() => setFormBank(b.name)}
                             style={[
-                              styles.chipText,
-                              { color: colors.textSecondary },
-                              isSelected && [styles.chipTextActive, { color: '#3B82F6' }],
+                              styles.chip,
+                              { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                              isSelected && [styles.chipActive, { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: '#3B82F6' }],
                             ]}
                           >
-                            {b.name}
-                          </Text>
-                        </TouchableOpacity>
-                      )
-                    })}
+                            <Text style={styles.chipIcon}>{b.icon || '🏦'}</Text>
+                            <Text
+                              style={[
+                                styles.chipText,
+                                { color: colors.textSecondary },
+                                isSelected && [styles.chipTextActive, { color: '#3B82F6' }],
+                              ]}
+                            >
+                              {b.name}
+                            </Text>
+                          </TouchableOpacity>
+                        )
+                      })}
                   </ScrollView>
+                </View>
+              )}
+
+              {/* Context Info for Cash and Udhar */}
+              {modalType === 'expense' && formMode.toLowerCase() === 'cash' && (
+                <View style={[styles.infoBanner, { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.25)' }]}>
+                  <Text style={[styles.infoBannerText, { color: '#10B981' }]}>
+                    💵 Paid directly via Physical Cash (No bank debit)
+                  </Text>
+                </View>
+              )}
+
+              {modalType === 'expense' && formMode.toLowerCase() === 'udhar' && (
+                <View style={[styles.infoBanner, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.25)' }]}>
+                  <Text style={[styles.infoBannerText, { color: '#EF4444' }]}>
+                    🤝 Logged as Udhar / Due (Pay later debt)
+                  </Text>
                 </View>
               )}
 
@@ -1096,5 +1174,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  infoBanner: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  infoBannerText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 })

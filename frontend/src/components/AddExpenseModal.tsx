@@ -150,6 +150,28 @@ function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
     }
   }
 
+  const handlePaymentModeChange = (modeName: string) => {
+    const lowerMode = modeName.toLowerCase()
+    let newBank = formData.bank
+
+    if (lowerMode === 'cash') {
+      newBank = 'Cash'
+    } else if (lowerMode === 'udhar') {
+      newBank = 'Udhar'
+    } else {
+      if (!newBank || newBank.toLowerCase() === 'cash' || newBank.toLowerCase() === 'udhar') {
+        const firstRealBank = banks.find((b) => b.name.toLowerCase() !== 'cash' && b.name.toLowerCase() !== 'udhar')
+        newBank = firstRealBank ? firstRealBank.name : 'HDFC Bank'
+      }
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      paymentMode: modeName,
+      bank: newBank,
+    }))
+  }
+
   const loadCategoriesAndBanks = useCallback(async () => {
     try {
       const token = localStorage.getItem('token')
@@ -279,9 +301,22 @@ function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
               {isScanning && <span className="text-[11px] text-rose-400 font-semibold animate-pulse">Scanning receipt...</span>}
             </div>
             <div className="flex gap-2">
-              <label className="flex-1 cursor-pointer py-2 px-3 rounded-xl bg-secondary/80 hover:bg-secondary border border-border/40 text-xs font-semibold text-foreground flex items-center justify-center gap-1.5 transition-all active:scale-95">
-                <span>📸</span>
-                <span>Scan Receipt</span>
+              <label className="flex-1 cursor-pointer py-2 px-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-xs font-semibold text-rose-400 flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                <span>📷</span>
+                <span>Camera Scan</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isScanning}
+                />
+              </label>
+
+              <label className="flex-1 cursor-pointer py-2 px-2.5 rounded-xl bg-secondary/80 hover:bg-secondary border border-border/40 text-xs font-semibold text-foreground flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                <span>🖼️</span>
+                <span>Upload Bill</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -294,7 +329,7 @@ function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
               <button
                 type="button"
                 onClick={() => setShowSmsBox(!showSmsBox)}
-                className="flex-1 py-2 px-3 rounded-xl bg-secondary/80 hover:bg-secondary border border-border/40 text-xs font-semibold text-foreground flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                className="flex-1 py-2 px-2.5 rounded-xl bg-secondary/80 hover:bg-secondary border border-border/40 text-xs font-semibold text-foreground flex items-center justify-center gap-1.5 transition-all active:scale-95"
               >
                 <span>📲</span>
                 <span>Paste SMS</span>
@@ -389,29 +424,10 @@ function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">Bank</label>
-              <select
-                value={formData.bank}
-                onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
-                className="input-premium w-full px-3 py-2.5 sm:py-3 text-sm sm:text-base"
-              >
-                {banks.length === 0 ? (
-                  <option>Loading...</option>
-                ) : (
-                  banks.map((bank) => (
-                    <option key={bank.id} value={bank.name}>
-                      {bank.icon} {bank.name}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            <div>
               <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">Payment Mode</label>
               <select
                 value={formData.paymentMode}
-                onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
+                onChange={(e) => handlePaymentModeChange(e.target.value)}
                 className="input-premium w-full px-3 py-2.5 sm:py-3 text-sm sm:text-base"
               >
                 {paymentModes.map((mode) => (
@@ -421,6 +437,43 @@ function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
                 ))}
               </select>
             </div>
+
+            {formData.paymentMode.toLowerCase() !== 'cash' && formData.paymentMode.toLowerCase() !== 'udhar' ? (
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">
+                  {formData.paymentMode} Linked Bank / Account
+                </label>
+                <select
+                  value={formData.bank}
+                  onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
+                  className="input-premium w-full px-3 py-2.5 sm:py-3 text-sm sm:text-base"
+                >
+                  {banks
+                    .filter((b) => b.name.toLowerCase() !== 'cash' && b.name.toLowerCase() !== 'udhar')
+                    .map((bank) => (
+                      <option key={bank.id} value={bank.name}>
+                        {bank.icon} {bank.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            ) : formData.paymentMode.toLowerCase() === 'cash' ? (
+              <div className="flex flex-col justify-end">
+                <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">Account Source</label>
+                <div className="px-3 py-2.5 sm:py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs sm:text-sm font-medium flex items-center gap-2">
+                  <span>💵</span>
+                  <span>Physical Cash In Hand</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col justify-end">
+                <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">Account Source</label>
+                <div className="px-3 py-2.5 sm:py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs sm:text-sm font-medium flex items-center gap-2">
+                  <span>🤝</span>
+                  <span>Udhar / Due (Debt)</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
