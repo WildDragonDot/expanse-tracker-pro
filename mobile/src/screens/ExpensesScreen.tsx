@@ -603,6 +603,7 @@ export const ExpensesScreen = ({ navigation, route }: { navigation?: any; route?
         currencySymbol={currencySymbol}
         onClose={() => setSelectedTx(null)}
         onDelete={(id) => handleDelete(id, selectedTx?.type === 'income' ? 'income' : 'expense')}
+        onUpdate={loadData}
       />
 
       {/* Add Modal */}

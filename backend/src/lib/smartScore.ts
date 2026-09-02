@@ -16,7 +16,11 @@ export async function calculateSmartScore(userId: string, year?: number, month?:
 
   let period
   if (year && month) {
-    period = getBillingPeriodForMonth(month, year, billingDay)
+    if (year === now.getFullYear() && month === (now.getMonth() + 1)) {
+      period = getCurrentBillingPeriod(billingDay, now)
+    } else {
+      period = getBillingPeriodForMonth(month, year, billingDay)
+    }
   } else {
     period = getCurrentBillingPeriod(billingDay, now)
   }

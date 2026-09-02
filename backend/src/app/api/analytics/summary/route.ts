@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getFinancialSummary, getBillOccurrences, prisma } from '@/lib/database'
+import { getFinancialSummary, computeHealthScore, getBillOccurrences, prisma } from '@/lib/database'
 import { withAuth } from '@/lib/auth'
 
 // Force dynamic rendering - requires authentication
@@ -26,6 +26,8 @@ export const GET = withAuth(async (request: NextRequest, { userId }) => {
       // Use the active billing cycle for this specific user
       summary = await getFinancialSummary(userId)
     }
+
+    const { score: healthScore } = computeHealthScore(summary)
 
     // Extra fields below are additive (existing consumers of this endpoint keep working
     // unchanged) and power the mobile dashboard, which otherwise has nothing real to show.
@@ -70,6 +72,7 @@ export const GET = withAuth(async (request: NextRequest, { userId }) => {
 
     return NextResponse.json({
       ...summary,
+      healthScore,
       totalBalance,
       recentTransactions,
       upcomingBillsTotal,

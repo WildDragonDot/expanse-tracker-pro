@@ -134,6 +134,19 @@ export class MobileApiClient {
     return res
   }
 
+  async updateProfile(data: Partial<User>): Promise<User> {
+    const res = await this.request<User>('/user/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+    await AsyncStorage.setItem('@user_data', JSON.stringify(res))
+    return res
+  }
+
+  async getProfile(): Promise<User> {
+    return this.request<User>('/user/profile')
+  }
+
   // --- DASHBOARD & SUMMARY ---
   async getDashboardSummary() {
     return this.request<{
@@ -141,6 +154,7 @@ export class MobileApiClient {
       totalIncome: number
       totalExpenses: number
       savingsRate: number
+      healthScore?: number
       upcomingBillsTotal: number
       upcomingBill: BillOccurrence | null
       recentTransactions: Array<{ id: string; title: string; amount: number; type: 'expense' | 'income'; date: string; category: string }>
@@ -168,6 +182,13 @@ export class MobileApiClient {
     })
   }
 
+  async updateExpense(id: string, expense: Partial<Expense>): Promise<Expense> {
+    return this.request<Expense>(`/expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(expense),
+    })
+  }
+
   async deleteExpense(id: string): Promise<{ success: boolean }> {
     return this.request<{ success: boolean }>(`/expenses/${id}`, { method: 'DELETE' })
   }
@@ -179,6 +200,13 @@ export class MobileApiClient {
   async createIncome(income: Partial<Income>): Promise<Income> {
     return this.request<Income>('/incomes', {
       method: 'POST',
+      body: JSON.stringify(income),
+    })
+  }
+
+  async updateIncome(id: string, income: Partial<Income>): Promise<Income> {
+    return this.request<Income>(`/incomes/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(income),
     })
   }
@@ -366,14 +394,15 @@ export class MobileApiClient {
   }
 
   // --- AI SMART SCORE & CHAT ---
-  async getSmartScore(year: number, month: number): Promise<{
+  async getSmartScore(year?: number, month?: number): Promise<{
     score: number
     summary: string
     metrics: { savingsRate: number; expenseVariability: number; budgetAdherence: number; incomeStability: number }
   } | null> {
+    const payload = year && month ? { year, month } : {}
     const res = await this.request<{ score: any }>('/smart-score/recalculate', {
       method: 'POST',
-      body: JSON.stringify({ year, month }),
+      body: JSON.stringify(payload),
     })
     return res.score
   }

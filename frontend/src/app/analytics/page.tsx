@@ -236,28 +236,39 @@ function AnalyticsContent() {
   }
 
   function generateDailyPattern() {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const dayTotals: Record<number, { total: number; count: number }> = {}
-    
-    // Initialize all days
-    for (let i = 0; i < 7; i++) {
-      dayTotals[i] = { total: 0, count: 0 }
+    const now = new Date()
+    const currentDow = now.getDay() // 0 = Sun, 1 = Mon ...
+    const diffToMonday = currentDow === 0 ? -6 : 1 - currentDow
+    const mondayDate = new Date(now)
+    mondayDate.setDate(now.getDate() + diffToMonday)
+    mondayDate.setHours(0, 0, 0, 0)
+
+    const formatDayDate = (d: Date) => {
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
     }
-    
-    // Calculate totals for each day of week
-    expenses.forEach(expense => {
-      const dayOfWeek = parseAppDate(expense.date).getDay() // 0 = Sunday, 6 = Saturday
-      dayTotals[dayOfWeek].total += expense.amount
-      dayTotals[dayOfWeek].count += 1
+
+    const todayStr = formatDayDate(now)
+    const expenseByDate: Record<string, number> = {}
+    expenses.forEach(exp => {
+      const d = parseAppDate(exp.date)
+      const dStr = formatDayDate(d)
+      expenseByDate[dStr] = (expenseByDate[dStr] || 0) + exp.amount
     })
-    
-    // Return average spending per day
-    return days.map((day, index) => ({
-      day,
-      amount: dayTotals[index].count > 0 
-        ? Math.round(dayTotals[index].total / dayTotals[index].count)
-        : 0
-    }))
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    return days.map((day, index) => {
+      const targetDate = new Date(mondayDate)
+      targetDate.setDate(mondayDate.getDate() + index)
+      const targetDateStr = formatDayDate(targetDate)
+      const isFuture = targetDateStr > todayStr
+      return {
+        day,
+        amount: isFuture ? 0 : (expenseByDate[targetDateStr] || 0)
+      }
+    })
   }
 
   function generatePaymentMethodData() {

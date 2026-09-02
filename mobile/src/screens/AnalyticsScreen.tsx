@@ -451,7 +451,7 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
           <View style={styles.cardHeader}>
             <View>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Daily Spending Pattern</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>Average spending by day of week (All time)</Text>
+              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>This week's daily spending (Mon – Sun)</Text>
             </View>
             <View style={[styles.chartIconBadge, { backgroundColor: '#EC4899' }]}>
               <Activity color="#FFFFFF" size={16} />

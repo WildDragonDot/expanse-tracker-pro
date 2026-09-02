@@ -402,6 +402,9 @@ export async function updateUser(id: string, data: Partial<{
   profileImage: string
   salary: number
   currency: string
+  billingCycleStartDay: number
+  upiId: string
+  themePreference: string
 }>) {
   return prisma.user.update({
     where: { id },
@@ -415,6 +418,7 @@ export async function updateUser(id: string, data: Partial<{
       profileImage: true,
       salary: true,
       currency: true,
+      billingCycleStartDay: true,
       notificationSettings: true,
       createdAt: true,
     }
@@ -532,6 +536,34 @@ export async function updateExpense(id: string, userId: string, data: Partial<{
   tags: string[]
   notes: string
 }>) {
+  const current = await prisma.expense.findFirst({ where: { id, userId } })
+  let updatedNotes = data.notes !== undefined ? data.notes : (current?.notes || '')
+  if (current) {
+    const changes: string[] = []
+    if (data.amount !== undefined && data.amount !== current.amount) {
+      changes.push(`Amount: ₹${current.amount.toLocaleString()} ➔ ₹${data.amount.toLocaleString()}`)
+    }
+    if (data.title && data.title !== current.title) {
+      changes.push(`Title: "${current.title}" ➔ "${data.title}"`)
+    }
+    if (data.category && data.category !== current.category) {
+      changes.push(`Category: ${current.category} ➔ ${data.category}`)
+    }
+    if (data.paymentMode && data.paymentMode !== current.paymentMode) {
+      changes.push(`Mode: ${current.paymentMode} ➔ ${data.paymentMode}`)
+    }
+    if (data.bank && data.bank !== current.bank) {
+      changes.push(`Bank: ${current.bank} ➔ ${data.bank}`)
+    }
+    if (changes.length > 0) {
+      const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+      const historyEntry = `[Edited on ${timestamp}: ${changes.join(', ')}]`
+      if (!updatedNotes.includes(historyEntry)) {
+        updatedNotes = updatedNotes ? `${updatedNotes}\n${historyEntry}` : historyEntry
+      }
+    }
+  }
+
   return prisma.expense.update({
     where: { 
       id,
@@ -545,7 +577,7 @@ export async function updateExpense(id: string, userId: string, data: Partial<{
       ...(data.bank && { bank: data.bank }),
       ...(data.paymentMode && { paymentMode: data.paymentMode }),
       ...(data.tags && { tags: data.tags }),
-      ...(data.notes !== undefined && { notes: data.notes }),
+      notes: updatedNotes,
     }
   })
 }
@@ -602,6 +634,25 @@ export async function updateIncome(id: string, userId: string, data: Partial<{
   amount: number
   notes: string
 }>) {
+  const current = await prisma.income.findFirst({ where: { id, userId } })
+  let updatedNotes = data.notes !== undefined ? data.notes : (current?.notes || '')
+  if (current) {
+    const changes: string[] = []
+    if (data.amount !== undefined && data.amount !== current.amount) {
+      changes.push(`Amount: ₹${current.amount.toLocaleString()} ➔ ₹${data.amount.toLocaleString()}`)
+    }
+    if (data.source && data.source !== current.source) {
+      changes.push(`Source: "${current.source}" ➔ "${data.source}"`)
+    }
+    if (changes.length > 0) {
+      const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+      const historyEntry = `[Edited on ${timestamp}: ${changes.join(', ')}]`
+      if (!updatedNotes.includes(historyEntry)) {
+        updatedNotes = updatedNotes ? `${updatedNotes}\n${historyEntry}` : historyEntry
+      }
+    }
+  }
+
   return prisma.income.update({
     where: { 
       id,
@@ -611,7 +662,7 @@ export async function updateIncome(id: string, userId: string, data: Partial<{
       ...(data.date && { date: parseAppDate(data.date) }),
       ...(data.source && { source: data.source }),
       ...(data.amount && { amount: data.amount }),
-      ...(data.notes !== undefined && { notes: data.notes }),
+      notes: updatedNotes,
     }
   })
 }
@@ -1115,7 +1166,11 @@ export async function getFinancialSummary(
   let period: BillingPeriod
 
   if (year && month) {
-    period = getBillingPeriodForMonth(month, year, billingDay)
+    if (year === now.getFullYear() && month === (now.getMonth() + 1)) {
+      period = getCurrentBillingPeriod(billingDay, now)
+    } else {
+      period = getBillingPeriodForMonth(month, year, billingDay)
+    }
   } else {
     period = getCurrentBillingPeriod(billingDay, now)
   }
@@ -1384,20 +1439,50 @@ export async function getAnalyticsInsights(userId: string, months: number = 6) {
       color: ANALYTICS_CATEGORY_COLORS[idx % ANALYTICS_CATEGORY_COLORS.length],
     }))
 
-  // 7. Daily spending pattern — all-time average spend per weekday, from real expense history
+  // 7. Daily spending pattern — current week daily spending (Monday to Sunday)
+  // Upcoming days of current week reflect 0 spend until reached
   const allExpenses = await prisma.expense.findMany({ where: { userId }, select: { amount: true, date: true } })
-  const weekdayTotals = [0, 0, 0, 0, 0, 0, 0]
-  const weekdayDateSets: Set<string>[] = [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()]
-  for (const exp of allExpenses) {
-    const d = new Date(exp.date)
-    const dow = d.getDay()
-    weekdayTotals[dow] += exp.amount
-    weekdayDateSets[dow].add(d.toISOString().split('T')[0])
+  const getLocalDateStr = (d: Date) => {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(d)
+    } catch {
+      return d.toISOString().split('T')[0]
+    }
   }
-  const dailySpendingPattern = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label, idx) => ({
-    label,
-    amount: weekdayDateSets[idx].size > 0 ? Math.round(weekdayTotals[idx] / weekdayDateSets[idx].size) : 0,
-  }))
+
+  const todayStr = getLocalDateStr(now)
+  const istFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' })
+  const dayNameShort = istFormatter.format(now)
+  const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+  const currentDow = dayMap[dayNameShort] ?? now.getDay()
+  const diffToMonday = currentDow === 0 ? -6 : 1 - currentDow
+
+  const mondayDate = new Date(now)
+  mondayDate.setDate(now.getDate() + diffToMonday)
+
+  const expenseByDate = new Map<string, number>()
+  for (const exp of allExpenses) {
+    const dStr = getLocalDateStr(new Date(exp.date))
+    expenseByDate.set(dStr, (expenseByDate.get(dStr) || 0) + exp.amount)
+  }
+
+  const weekDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const dailySpendingPattern = weekDayLabels.map((label, idx) => {
+    const targetDate = new Date(mondayDate)
+    targetDate.setDate(mondayDate.getDate() + idx)
+    const targetDateStr = getLocalDateStr(targetDate)
+    const isFuture = targetDateStr > todayStr
+    const amount = isFuture ? 0 : (expenseByDate.get(targetDateStr) || 0)
+    return {
+      label,
+      amount,
+    }
+  })
 
   return {
     currentMonth: {

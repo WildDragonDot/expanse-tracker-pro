@@ -139,6 +139,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const updated = { ...user, ...data }
     setUser(updated)
     await AsyncStorage.setItem('@user_data', JSON.stringify(updated))
+    try {
+      await api.updateProfile(data)
+    } catch (e) {
+      console.warn('Failed to sync profile update to backend:', e)
+    }
   }
 
   return (

@@ -7,34 +7,46 @@ export const dynamic = 'force-dynamic'
 
 export const POST = withAuth(async (request: NextRequest, { userId }) => {
   try {
-    const { year, month } = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const { year, month } = body || {}
 
-    if (!year || !month || month < 1 || month > 12) {
-      return NextResponse.json(
-        { error: 'Valid year and month are required' },
-        { status: 400 }
-      )
+    let summary: any
+    let effectiveYear = year
+    let effectiveMonth = month
+
+    if (year && month) {
+      if (month < 1 || month > 12) {
+        return NextResponse.json(
+          { error: 'Valid year and month are required' },
+          { status: 400 }
+        )
+      }
+      summary = await getFinancialSummary(userId, year, month)
+    } else {
+      // Calculate on active billing cycle!
+      summary = await getFinancialSummary(userId)
+      effectiveYear = summary.billingPeriod.year
+      effectiveMonth = summary.billingPeriod.month
     }
 
     // Calculate smart score based on financial data (shared formula — see computeHealthScore)
-    const summary = await getFinancialSummary(userId, year, month)
     const { score, metrics } = computeHealthScore(summary)
 
     const smartScore = await prisma.smartScore.upsert({
       where: {
-        userId_year_month: { userId, year, month }
+        userId_year_month: { userId, year: effectiveYear, month: effectiveMonth }
       },
       update: {
         score,
-        summary: `Financial health score for ${year}-${month.toString().padStart(2, '0')}`,
+        summary: `Financial health score for ${summary.billingPeriod.label}`,
         metrics
       },
       create: {
         userId,
-        year,
-        month,
+        year: effectiveYear,
+        month: effectiveMonth,
         score,
-        summary: `Financial health score for ${year}-${month.toString().padStart(2, '0')}`,
+        summary: `Financial health score for ${summary.billingPeriod.label}`,
         metrics
       }
     })

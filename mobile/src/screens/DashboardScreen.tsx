@@ -146,9 +146,12 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
         )
 
         setUpcomingBill(dashSummary.upcomingBill || null)
+        if (dashSummary.healthScore !== undefined) {
+          setHealthScore(dashSummary.healthScore)
+        }
       }
 
-      if (score) {
+      if (score && score.score !== undefined) {
         setHealthScore(score.score)
       }
     } finally {
@@ -656,6 +659,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
         transaction={selectedTx}
         currencySymbol={currencySymbol}
         onClose={() => setSelectedTx(null)}
+        onUpdate={loadData}
       />
 
       <CategoryDetailsModal
