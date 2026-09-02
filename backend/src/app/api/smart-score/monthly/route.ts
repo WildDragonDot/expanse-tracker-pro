@@ -9,28 +9,36 @@ export const dynamic = 'force-dynamic'
 export const GET = withAuth(async (request: NextRequest, { userId }) => {
   try {
     const { searchParams } = new URL(request.url)
-    const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString())
-    const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1).toString())
+    const hasYear = searchParams.has('year')
+    const hasMonth = searchParams.has('month')
+    let targetYear: number | undefined
+    let targetMonth: number | undefined
 
-    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
-      return NextResponse.json(
-        { error: 'Invalid year or month' },
-        { status: 400 }
-      )
+    if (hasYear && hasMonth) {
+      targetYear = parseInt(searchParams.get('year')!)
+      targetMonth = parseInt(searchParams.get('month')!)
+      if (isNaN(targetYear) || isNaN(targetMonth) || targetMonth < 1 || targetMonth > 12) {
+        return NextResponse.json(
+          { error: 'Invalid year or month' },
+          { status: 400 }
+        )
+      }
     }
 
     // Always compute real-time score dynamically from current user data
-    const { score, summary, metrics } = await calculateSmartScore(userId, year, month)
+    const { score, summary, metrics } = await calculateSmartScore(userId, targetYear, targetMonth)
+    const effectiveYear = targetYear || new Date().getFullYear()
+    const effectiveMonth = targetMonth || (new Date().getMonth() + 1)
 
     // Save to database cache
     const saved = await prisma.smartScore.upsert({
       where: {
-        userId_year_month: { userId, year, month },
+        userId_year_month: { userId, year: effectiveYear, month: effectiveMonth },
       },
       create: {
         userId,
-        year,
-        month,
+        year: effectiveYear,
+        month: effectiveMonth,
         score,
         summary,
         metrics: metrics as any,

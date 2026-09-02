@@ -4,6 +4,7 @@ import { prisma } from '@/lib/database'
 import { sendEmail } from '@/lib/email'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getCurrentBillingPeriod } from '@/lib/billingCycle'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,12 +26,21 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    let effectiveFrom = dateFrom
+    let effectiveTo = dateTo
+    if (!effectiveFrom || !effectiveTo) {
+      const billingDay = user.billingCycleStartDay || 1
+      const period = getCurrentBillingPeriod(billingDay, new Date())
+      effectiveFrom = period.startDate.toISOString()
+      effectiveTo = period.endDate.toISOString()
+    }
+
     // Build query filters
     const where: any = {
       userId,
       date: {
-        gte: new Date(dateFrom),
-        lte: new Date(dateTo)
+        gte: new Date(effectiveFrom),
+        lte: new Date(effectiveTo)
       }
     }
 

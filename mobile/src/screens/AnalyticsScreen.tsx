@@ -133,6 +133,10 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
   const dailySpendingLabels = insights.dailySpendingPattern.map((d) => d.label)
   const dailySpendingValues = insights.dailySpendingPattern.map((d) => d.amount)
 
+  const cycleLabel = (insights.currentMonth as any)?.billingPeriod?.label
+    ? ((insights.currentMonth as any).billingPeriod.billingDay > 1 ? `Active Cycle: ${(insights.currentMonth as any).billingPeriod.label}` : 'Current Month Overview')
+    : (user?.billingCycleStartDay && user.billingCycleStartDay > 1 ? `Active Cycle: Day ${user.billingCycleStartDay} Reset` : 'Current Month Overview')
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderBar title="Analytics" onProfilePress={() => navigation?.navigate('Settings')} />
@@ -142,6 +146,13 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
+        {/* Cycle Pill Header */}
+        <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ backgroundColor: 'rgba(6, 182, 212, 0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(6, 182, 212, 0.25)' }}>
+            <Text style={{ color: '#06B6D4', fontSize: 12, fontWeight: '700' }}>📅 {cycleLabel}</Text>
+          </View>
+        </View>
+
         {!hasAnyData && (
           <View style={[styles.noticeBanner, { backgroundColor: colors.surfaceGlass, borderColor: colors.surfaceGlassBorder }]}>
             <Text style={[styles.noticeText, { color: colors.textSecondary }]}>

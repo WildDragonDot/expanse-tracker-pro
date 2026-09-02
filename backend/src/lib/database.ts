@@ -29,6 +29,12 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { sendEmail, emailTemplates } from './email'
 import { parseAppDate } from './dateUtils'
+import {
+  getCurrentBillingPeriod,
+  getBillingPeriodForMonth,
+  formatBillingPeriod,
+  BillingPeriod,
+} from './billingCycle'
 
 // Global Prisma instance - singleton pattern
 // Development mein hot reload ke liye global object use karte hain
@@ -1090,23 +1096,46 @@ async function checkBudgetWarnings(userId: string, category: string, newExpenseA
 }
 
 // Analytics services
-export async function getFinancialSummary(userId: string, year: number, month: number) {
-  const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0)
-  const endDate = new Date(year, month, 0, 23, 59, 59, 999)
+export async function getFinancialSummary(
+  userId: string,
+  year?: number,
+  month?: number,
+  customBillingDay?: number
+) {
+  let billingDay = customBillingDay
+  if (!billingDay) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { billingCycleStartDay: true },
+    })
+    billingDay = user?.billingCycleStartDay || 1
+  }
+
+  const now = new Date()
+  let period: BillingPeriod
+
+  if (year && month) {
+    period = getBillingPeriodForMonth(month, year, billingDay)
+  } else {
+    period = getCurrentBillingPeriod(billingDay, now)
+  }
+
+  const startDate = period.startDate
+  const endDate = period.endDate
 
   const [expenses, incomes] = await Promise.all([
     prisma.expense.findMany({
       where: {
         userId,
-        date: { gte: startDate, lte: endDate }
-      }
+        date: { gte: startDate, lte: endDate },
+      },
     }),
     prisma.income.findMany({
       where: {
         userId,
-        date: { gte: startDate, lte: endDate }
-      }
-    })
+        date: { gte: startDate, lte: endDate },
+      },
+    }),
   ])
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0)
@@ -1122,7 +1151,7 @@ export async function getFinancialSummary(userId: string, year: number, month: n
   }, {} as Record<string, number>)
 
   const topCategories = Object.entries(categoryBreakdown)
-    .sort(([,a], [,b]) => b - a)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
     .map(([category, amount]) => ({ category, amount }))
 
@@ -1134,6 +1163,14 @@ export async function getFinancialSummary(userId: string, year: number, month: n
     topCategories,
     expenseCount: expenses.length,
     incomeCount: incomes.length,
+    billingPeriod: {
+      startDate: period.startDate.toISOString(),
+      endDate: period.endDate.toISOString(),
+      label: formatBillingPeriod(period),
+      billingDay,
+      month: period.month,
+      year: period.year,
+    },
   }
 }
 
@@ -1202,44 +1239,75 @@ const ANALYTICS_CATEGORY_COLORS = ['#8B5CF6', '#10B981', '#06B6D4', '#F59E0B', '
  * - GET /api/analytics/insights
  */
 export async function getAnalyticsInsights(userId: string, months: number = 6) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { billingCycleStartDay: true },
+  })
+  const billingDay = user?.billingCycleStartDay || 1
   const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth() + 1
+  const currentPeriod = getCurrentBillingPeriod(billingDay, now)
 
-  // 1. Monthly trend (income/expenses/savings/savingsRate) for the last N months
-  const monthlyTrend: { label: string; year: number; month: number; income: number; expenses: number; savings: number; savingsRate: number }[] = []
+  // 1. Monthly trend (income/expenses/savings/savingsRate) for the last N cycles
+  const monthlyTrend: {
+    label: string
+    year: number
+    month: number
+    income: number
+    expenses: number
+    savings: number
+    savingsRate: number
+    cycleLabel: string
+  }[] = []
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(currentYear, currentMonth - 1 - i, 1)
-    const monthSummary = await getFinancialSummary(userId, d.getFullYear(), d.getMonth() + 1)
+    let targetMonth = currentPeriod.month - i
+    let targetYear = currentPeriod.year
+    while (targetMonth <= 0) {
+      targetMonth += 12
+      targetYear -= 1
+    }
+    const monthSummary = await getFinancialSummary(userId, targetYear, targetMonth, billingDay)
+    const periodForMonth = getBillingPeriodForMonth(targetMonth, targetYear, billingDay)
+
     monthlyTrend.push({
-      label: d.toLocaleDateString('en-US', { month: 'short' }),
-      year: d.getFullYear(),
-      month: d.getMonth() + 1,
+      label: billingDay === 1 ? monthNames[targetMonth - 1] : `${monthNames[periodForMonth.startDate.getMonth()]} ${billingDay}`,
+      year: targetYear,
+      month: targetMonth,
       income: monthSummary.totalIncome,
       expenses: monthSummary.totalExpenses,
       savings: monthSummary.savings,
       savingsRate: monthSummary.savingsRate,
+      cycleLabel: formatBillingPeriod(periodForMonth),
     })
   }
 
-  const currentSummary = await getFinancialSummary(userId, currentYear, currentMonth)
+  const currentSummary = await getFinancialSummary(userId, undefined, undefined, billingDay)
   const { score: healthScore } = computeHealthScore(currentSummary)
 
-  // 2. Category breakdown for the current month, joined with any real budget limit
+  // 2. Category breakdown for the active cycle, joined with any real budget limit
   const [currentExpenses, currentIncomes, currentBudgets] = await Promise.all([
     prisma.expense.findMany({
       where: {
         userId,
-        date: { gte: new Date(currentYear, currentMonth - 1, 1), lte: new Date(currentYear, currentMonth, 0, 23, 59, 59, 999) },
+        date: { gte: currentPeriod.startDate, lte: currentPeriod.endDate },
       },
     }),
     prisma.income.findMany({
       where: {
         userId,
-        date: { gte: new Date(currentYear, currentMonth - 1, 1), lte: new Date(currentYear, currentMonth, 0, 23, 59, 59, 999) },
+        date: { gte: currentPeriod.startDate, lte: currentPeriod.endDate },
       },
     }),
-    prisma.monthlyBudget.findMany({ where: { userId, month: currentMonth, year: currentYear, isActive: true } }),
+    prisma.monthlyBudget.findMany({
+      where: {
+        userId,
+        month: currentPeriod.month,
+        year: currentPeriod.year,
+        isActive: true,
+      },
+    }),
   ])
 
   const categoryAgg = new Map<string, { amount: number; count: number }>()
@@ -1272,7 +1340,11 @@ export async function getAnalyticsInsights(userId: string, months: number = 6) {
   const paymentMethods = Array.from(paymentMethodAgg.entries())
     .sort(([, a], [, b]) => b - a)
     .slice(0, 6)
-    .map(([label, amount], idx) => ({ label, amount, color: ANALYTICS_CATEGORY_COLORS[idx % ANALYTICS_CATEGORY_COLORS.length] }))
+    .map(([label, amount], idx) => ({
+      label,
+      amount,
+      color: ANALYTICS_CATEGORY_COLORS[idx % ANALYTICS_CATEGORY_COLORS.length],
+    }))
 
   // 4. Payment types — group the same real paymentMode values into 3 broad buckets
   let digitalTotal = 0, bankCardTotal = 0, cashTotal = 0
@@ -1288,16 +1360,17 @@ export async function getAnalyticsInsights(userId: string, months: number = 6) {
     { name: 'Cash', value: cashTotal, color: '#F59E0B' },
   ].filter((t) => t.value > 0)
 
-  // 5. Weekly spending within the current month (Week 1-4, day 29+ folded into Week 4)
+  // 5. Weekly spending within the active billing cycle (approx 30 days divided into 4 weekly chunks)
   const weeklyBuckets = [0, 0, 0, 0]
   for (const exp of currentExpenses) {
-    const day = new Date(exp.date).getDate()
-    const weekIdx = Math.min(3, Math.floor((day - 1) / 7))
+    const expDate = new Date(exp.date)
+    const diffDays = Math.floor((expDate.getTime() - currentPeriod.startDate.getTime()) / (1000 * 60 * 60 * 24))
+    const weekIdx = Math.min(3, Math.max(0, Math.floor(diffDays / 7)))
     weeklyBuckets[weekIdx] += exp.amount
   }
   const weeklySpending = weeklyBuckets.map((amount, idx) => ({ label: `Week ${idx + 1}`, amount }))
 
-  // 6. Income sources for the current month
+  // 6. Income sources for the active cycle
   const incomeSourceAgg = new Map<string, number>()
   for (const inc of currentIncomes) {
     incomeSourceAgg.set(inc.source, (incomeSourceAgg.get(inc.source) || 0) + inc.amount)
@@ -1305,7 +1378,11 @@ export async function getAnalyticsInsights(userId: string, months: number = 6) {
   const incomeSources = Array.from(incomeSourceAgg.entries())
     .sort(([, a], [, b]) => b - a)
     .slice(0, 6)
-    .map(([name, value], idx) => ({ name, value, color: ANALYTICS_CATEGORY_COLORS[idx % ANALYTICS_CATEGORY_COLORS.length] }))
+    .map(([name, value], idx) => ({
+      name,
+      value,
+      color: ANALYTICS_CATEGORY_COLORS[idx % ANALYTICS_CATEGORY_COLORS.length],
+    }))
 
   // 7. Daily spending pattern — all-time average spend per weekday, from real expense history
   const allExpenses = await prisma.expense.findMany({ where: { userId }, select: { amount: true, date: true } })
@@ -1329,6 +1406,7 @@ export async function getAnalyticsInsights(userId: string, months: number = 6) {
       savings: currentSummary.savings,
       savingsRate: currentSummary.savingsRate,
       healthScore,
+      billingPeriod: currentSummary.billingPeriod,
     },
     monthlyTrend,
     categoryBreakdown,

@@ -69,6 +69,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
     monthlyIncome: 0,
     monthlyExpense: 0,
     savingsRate: 0,
+    cycleLabel: 'This month',
     healthStatus: 'No activity logged yet',
     recentTransactions: [] as TransactionItem[],
   })
@@ -107,10 +108,9 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
 
   const loadData = async () => {
     try {
-      const now = new Date()
       const [dashSummary, score] = await Promise.all([
         api.getDashboardSummary().catch(() => null),
-        api.getSmartScore(now.getFullYear(), now.getMonth() + 1).catch(() => null),
+        api.getSmartScore().catch(() => null),
       ])
 
       if (dashSummary) {
@@ -118,12 +118,16 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
         // (recentTransactions, upcomingBill, etc.) — never let a missing field crash the screen.
         const recentTransactions = (dashSummary.recentTransactions || []) as TransactionItem[]
         const topCategories = dashSummary.topCategories || []
+        const cycleLabel = dashSummary.billingPeriod?.label
+          ? (dashSummary.billingPeriod.billingDay > 1 ? `Cycle: ${dashSummary.billingPeriod.label}` : 'This month')
+          : (user?.billingCycleStartDay && user.billingCycleStartDay > 1 ? `Cycle: Day ${user.billingCycleStartDay} Reset` : 'This month')
 
         setSummary({
           currentBalance: dashSummary.totalBalance || 0,
           monthlyIncome: dashSummary.totalIncome || 0,
           monthlyExpense: dashSummary.totalExpenses || 0,
           savingsRate: dashSummary.savingsRate || 0,
+          cycleLabel,
           healthStatus: dashSummary.totalIncome > 0 || dashSummary.totalExpenses > 0
             ? (dashSummary.savingsRate >= 20 ? 'Healthy financial status' : dashSummary.savingsRate >= 0 ? 'Stable, keep tracking' : 'Spending more than you earn')
             : 'No activity logged yet',
@@ -276,7 +280,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   {currencySymbol}{(summary.monthlyIncome || 0).toLocaleString()}
                 </Text>
 
-                <Text style={[styles.growthTextGreen, { color: colors.textSecondary }]}>This month</Text>
+                <Text numberOfLines={1} style={[styles.growthTextGreen, { color: colors.textSecondary }]}>{summary.cycleLabel}</Text>
               </TouchableOpacity>
 
               {/* Expenses Card */}
@@ -311,7 +315,7 @@ export const DashboardScreen = ({ navigation }: { navigation: any }) => {
                   {currencySymbol}{(summary.monthlyExpense || 0).toLocaleString()}
                 </Text>
 
-                <Text style={[styles.growthTextRed, { color: colors.textSecondary }]}>This month</Text>
+                <Text numberOfLines={1} style={[styles.growthTextRed, { color: colors.textSecondary }]}>{summary.cycleLabel}</Text>
               </TouchableOpacity>
             </View>
 

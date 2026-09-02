@@ -8,17 +8,24 @@ export const dynamic = 'force-dynamic'
 export const GET = withAuth(async (request: NextRequest, { userId }) => {
   try {
     const { searchParams } = new URL(request.url)
-    const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString())
-    const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1).toString())
+    const hasYear = searchParams.has('year')
+    const hasMonth = searchParams.has('month')
 
-    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
-      return NextResponse.json(
-        { error: 'Invalid year or month' },
-        { status: 400 }
-      )
+    let summary: any
+    if (hasYear && hasMonth) {
+      const year = parseInt(searchParams.get('year')!)
+      const month = parseInt(searchParams.get('month')!)
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        return NextResponse.json(
+          { error: 'Invalid year or month' },
+          { status: 400 }
+        )
+      }
+      summary = await getFinancialSummary(userId, year, month)
+    } else {
+      // Use the active billing cycle for this specific user
+      summary = await getFinancialSummary(userId)
     }
-
-    const summary = await getFinancialSummary(userId, year, month)
 
     // Extra fields below are additive (existing consumers of this endpoint keep working
     // unchanged) and power the mobile dashboard, which otherwise has nothing real to show.

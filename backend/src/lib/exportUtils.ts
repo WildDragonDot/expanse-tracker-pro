@@ -1,12 +1,14 @@
 // Enhanced Export utilities for Excel, PDF, JSON, and sharing
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getCurrentBillingPeriod } from './billingCycle'
 
 export interface ExportFilters {
   dateFrom?: string
   dateTo?: string
   category?: string
-  type?: 'day' | 'month' | 'year'
+  type?: 'day' | 'month' | 'year' | 'cycle'
+  billingDay?: number
 }
 
 export function exportToExcel(data: any[], filename: string, filters?: ExportFilters) {
@@ -207,7 +209,7 @@ export function exportDetailedReport(expenses: any[], incomes: any[], filters?: 
   }
 }
 
-export function getDateRangeFilters(type: 'day' | 'month' | 'year', date?: Date) {
+export function getDateRangeFilters(type: 'day' | 'month' | 'year' | 'cycle', date?: Date, billingDay?: number) {
   const targetDate = date || new Date()
   let dateFrom: string
   let dateTo: string
@@ -217,11 +219,29 @@ export function getDateRangeFilters(type: 'day' | 'month' | 'year', date?: Date)
       dateFrom = targetDate.toISOString().split('T')[0]
       dateTo = dateFrom
       break
+    case 'cycle':
+      if (billingDay && billingDay > 1) {
+        const period = getCurrentBillingPeriod(billingDay, targetDate)
+        dateFrom = period.startDate.toISOString().split('T')[0]
+        dateTo = period.endDate.toISOString().split('T')[0]
+      } else {
+        const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+        const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
+        dateFrom = startOfMonth.toISOString().split('T')[0]
+        dateTo = endOfMonth.toISOString().split('T')[0]
+      }
+      break
     case 'month':
-      const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
-      const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
-      dateFrom = startOfMonth.toISOString().split('T')[0]
-      dateTo = endOfMonth.toISOString().split('T')[0]
+      if (billingDay && billingDay > 1) {
+        const period = getCurrentBillingPeriod(billingDay, targetDate)
+        dateFrom = period.startDate.toISOString().split('T')[0]
+        dateTo = period.endDate.toISOString().split('T')[0]
+      } else {
+        const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+        const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
+        dateFrom = startOfMonth.toISOString().split('T')[0]
+        dateTo = endOfMonth.toISOString().split('T')[0]
+      }
       break
     case 'year':
       const startOfYear = new Date(targetDate.getFullYear(), 0, 1)

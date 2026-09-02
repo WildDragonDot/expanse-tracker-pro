@@ -145,6 +145,14 @@ export class MobileApiClient {
       upcomingBill: BillOccurrence | null
       recentTransactions: Array<{ id: string; title: string; amount: number; type: 'expense' | 'income'; date: string; category: string }>
       topCategories: Array<{ category: string; amount: number }>
+      billingPeriod?: {
+        startDate: string
+        endDate: string
+        label: string
+        billingDay: number
+        month: number
+        year: number
+      }
     }>('/analytics/summary')
   }
 

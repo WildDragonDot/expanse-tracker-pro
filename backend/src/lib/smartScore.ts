@@ -1,5 +1,5 @@
 import { prisma } from './database'
-import { startOfMonth, endOfMonth } from './dateUtils'
+import { getBillingPeriodForMonth, getCurrentBillingPeriod } from './billingCycle'
 
 interface ScoreMetrics {
   savingsRate: number
@@ -9,16 +9,26 @@ interface ScoreMetrics {
   highRiskSpending: number
 }
 
-export async function calculateSmartScore(userId: string, year: number, month: number) {
-  const start = startOfMonth(year, month)
-  const end = endOfMonth(year, month)
+export async function calculateSmartScore(userId: string, year?: number, month?: number) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  const billingDay = user?.billingCycleStartDay || 1
+  const now = new Date()
 
-  const [expenses, incomes, subscriptions, udhar, user] = await Promise.all([
+  let period
+  if (year && month) {
+    period = getBillingPeriodForMonth(month, year, billingDay)
+  } else {
+    period = getCurrentBillingPeriod(billingDay, now)
+  }
+
+  const start = period.startDate
+  const end = period.endDate
+
+  const [expenses, incomes, subscriptions, udhar] = await Promise.all([
     prisma.expense.findMany({ where: { userId, date: { gte: start, lte: end } } }),
     prisma.income.findMany({ where: { userId, date: { gte: start, lte: end } } }),
     prisma.subscription.findMany({ where: { userId, active: true } }),
     prisma.udhar.findMany({ where: { userId } }),
-    prisma.user.findUnique({ where: { id: userId } }),
   ])
 
   const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0)
