@@ -16,7 +16,7 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 SERVER_USER="ubuntu"
-SERVER_IP="44.195.0.15"
+SERVER_IP="34.200.236.88"
 SSH_KEY="$HOME/.ssh/id_rsa_no_pass"
 REMOTE_DIR="/home/ubuntu/expanse-tracker-pro"
 DOMAIN="https://expensetracker.chandandev.online"

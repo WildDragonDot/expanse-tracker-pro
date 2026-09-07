@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is operating on their own document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Top-level root collections (accessible by doc owner)
+    match /expenses/{expenseId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /incomes/{incomeId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /categories/{catId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /banks/{bankId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /paymentModes/{modeId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /monthlyBudgets/{budgetId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /subscriptions/{subId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /udhar/{udharId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /savingsGoals/{goalId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /shoppingItems/{itemId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /splitGroups/{groupId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+
+    // User Subcollections (Nested structure for security & offline cache)
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      match /expenses/{expenseId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /incomes/{incomeId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /udhar/{udharId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /subscriptions/{subId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /billOccurrences/{billId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /monthlyBudgets/{budgetId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /shoppingCategories/{catId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /shoppingItems/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /shoppingLists/{listId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /planningCategories/{catId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /expensePlanning/{planId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /categories/{catId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /banks/{bankId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /paymentModes/{modeId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /savingsGoals/{goalId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /splitGroups/{groupId} {
+        allow read, write: if isOwner(userId);
+        match /expenses/{expenseId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+      match /smartScores/{scoreId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}

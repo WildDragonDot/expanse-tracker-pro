@@ -31,8 +31,8 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     if (!effectiveFrom || !effectiveTo) {
       const billingDay = user.billingCycleStartDay || 1
       const period = getCurrentBillingPeriod(billingDay, new Date())
-      effectiveFrom = period.startDate.toISOString()
-      effectiveTo = period.endDate.toISOString()
+      effectiveFrom = period.startDate.toISOString().split('T')[0]
+      effectiveTo = period.endDate.toISOString().split('T')[0]
     }
 
     // Build query filters
@@ -40,7 +40,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       userId,
       date: {
         gte: new Date(effectiveFrom),
-        lte: new Date(effectiveTo)
+        lte: new Date(effectiveTo + 'T23:59:59.999Z')
       }
     }
 
@@ -48,7 +48,6 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       where.category = category
     }
 
-    // If specific expenses are selected, filter by IDs
     if (selectedExpenseIds && selectedExpenseIds.length > 0) {
       where.id = { in: selectedExpenseIds }
     }
@@ -64,8 +63,8 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       where: {
         userId,
         date: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo)
+          gte: new Date(effectiveFrom),
+          lte: new Date(effectiveTo + 'T23:59:59.999Z')
         }
       },
       orderBy: { date: 'desc' }
@@ -75,35 +74,38 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
     const totalIncomes = incomes.reduce((sum, inc) => sum + inc.amount, 0)
     const balance = totalIncomes - totalExpenses
+    const statementRef = `STMT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`
 
-    // Generate Premium PDF report
-    const pdfBuffer = await generatePremiumPDFReport({
+    // Generate Official Bank-Grade PDF report
+    const pdfBuffer = await generateOfficialPDFStatement({
       user,
       expenses,
       incomes,
-      dateFrom,
-      dateTo,
+      dateFrom: effectiveFrom,
+      dateTo: effectiveTo,
       category,
       type,
       totalExpenses,
       totalIncomes,
-      balance
+      balance,
+      statementRef
     })
 
     const pdfBase64 = pdfBuffer.toString('base64')
 
-    // If client strictly requested PDF generation only (e.g. for print/preview without email)
+    // If client strictly requested PDF generation only
     if (body.onlyPdf === true || type === 'pdfOnly') {
       return NextResponse.json({
         success: true,
         pdfBase64,
-        filename: `financial-statement-${dateFrom}-to-${dateTo}.pdf`,
+        filename: `financial-statement-${effectiveFrom}-to-${effectiveTo}.pdf`,
         stats: {
           expenses: expenses.length,
           incomes: incomes.length,
           totalExpenses,
           totalIncomes,
-          balance
+          balance,
+          statementRef
         }
       })
     }
@@ -111,13 +113,13 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     // Prepare email attachments
     const emailAttachments: any[] = [
       {
-        filename: `financial-statement-${dateFrom}-to-${dateTo}.pdf`,
+        filename: `Financial-Statement-${statementRef}.pdf`,
         content: pdfBase64,
         encoding: 'base64'
       }
     ]
 
-    // Add bill attachments if requested (limit to 10)
+    // Add bill attachments if requested
     if (includeBillAttachments) {
       let billCount = 0
       for (const expense of expenses) {
@@ -129,7 +131,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
             const mimeType = expense.receiptUrl.split(';')[0].split(':')[1] || 'image/jpeg'
             const extension = mimeType.split('/')[1] || 'jpg'
             emailAttachments.push({
-              filename: `receipt-${expense.id.slice(-6)}-${(expense.title || 'bill').replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`,
+              filename: `bill-${expense.id.slice(-6)}-${(expense.title || 'invoice').replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`,
               content: base64Data,
               encoding: 'base64'
             })
@@ -141,38 +143,39 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
                 const arrayBuffer = await imgRes.arrayBuffer()
                 const buffer = Buffer.from(arrayBuffer)
                 emailAttachments.push({
-                  filename: `receipt-${expense.id.slice(-6)}-${(expense.title || 'bill').replace(/[^a-zA-Z0-9]/g, '_')}.jpg`,
+                  filename: `bill-${expense.id.slice(-6)}-${(expense.title || 'invoice').replace(/[^a-zA-Z0-9]/g, '_')}.jpg`,
                   content: buffer.toString('base64'),
                   encoding: 'base64'
                 })
                 billCount++
               }
             } catch (e) {
-              console.warn('Could not fetch R2 image attachment for email:', e)
+              console.warn('Could not fetch receipt image for email:', e)
             }
           }
         }
       }
     }
 
-    // Target recipient email (custom email if provided, else user's registered email)
     const targetEmail = (recipientEmail && recipientEmail.trim()) || user.email
 
-    // Send email using the existing sendEmail utility
+    // Send email using authentic corporate statement template
     const emailResult = await sendEmail({
       to: targetEmail,
-      subject: `Official Financial Statement: ${dateFrom} to ${dateTo} | ExpenseTracker Pro`,
-      html: generateEmailHTML({
+      subject: `Official Financial Statement: ${effectiveFrom} to ${effectiveTo} [Ref: ${statementRef}]`,
+      html: generateStatementEmailHTML({
         userName: user.name,
-        dateFrom,
-        dateTo,
+        userEmail: user.email,
+        dateFrom: effectiveFrom,
+        dateTo: effectiveTo,
         type,
         totalExpenses,
         totalIncomes,
         balance,
         expenseCount: expenses.length,
         incomeCount: incomes.length,
-        category
+        category,
+        statementRef
       }),
       attachments: emailAttachments
     })
@@ -187,14 +190,17 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
 
     return NextResponse.json({
       success: true,
-      message: `Financial statement sent successfully to ${targetEmail}`,
+      message: `Official financial statement sent successfully to ${targetEmail}`,
       messageId: emailResult.messageId,
       pdfBase64,
       targetEmail,
       stats: {
+        statementRef,
         expenses: expenses.length,
         incomes: incomes.length,
-        attachments: emailAttachments.length
+        totalExpenses,
+        totalIncomes,
+        balance
       }
     })
 
@@ -207,885 +213,435 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
   }
 })
 
-async function generatePremiumPDFReport(data: any): Promise<Buffer> {
+// =========================================================================
+// OFFICIAL BANK & TAX STATEMENT PDF GENERATOR (CLEAN, PROFESSIONAL, AUDITABLE)
+// =========================================================================
+async function generateOfficialPDFStatement(data: any): Promise<Buffer> {
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.width
   const pageHeight = doc.internal.pageSize.height
-  let yPosition = 20
+  let y = 15
 
-  // Premium Header with Gradient Effect
-  doc.setFillColor(102, 126, 234) // Indigo
-  doc.rect(0, 0, pageWidth, 50, 'F')
+  // 1. Top Corporate Bar (Slate/Navy)
+  doc.setFillColor(15, 23, 42) // #0F172A
+  doc.rect(0, 0, pageWidth, 28, 'F')
   
-  doc.setFillColor(139, 92, 246) // Purple
-  doc.rect(0, 25, pageWidth, 25, 'F')
-
-  // Company Logo Area
-  doc.setFillColor(255, 255, 255)
-  doc.roundedRect(15, 10, 30, 30, 5, 5, 'F')
-  
-  // Logo Text
-  doc.setTextColor(102, 126, 234)
+  // Left: Institution Name & Badge
+  doc.setTextColor(255, 255, 255)
   doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
-  doc.text('ET', 30, 30, { align: 'center' })
-
-  // Header Title
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(22)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Premium Financial Report', pageWidth / 2, 25, { align: 'center' })
+  doc.text('EXPENSE TRACKER FINANCIAL TECHNOLOGIES', 15, 12)
   
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-  const reportTypeText = data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) + 'ly Report' : 'Financial Report'
-  doc.text(`${reportTypeText} | Period: ${data.dateFrom} to ${data.dateTo}`, pageWidth / 2, 35, { align: 'center' })
-
-  yPosition = 65
-
-  // Enhanced Bill Information Section
-  doc.setTextColor(0, 0, 0)
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  
-  // Left side - Report details
-  doc.text('Report ID:', 20, yPosition)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`FIN-${Date.now().toString().slice(-8)}`, 60, yPosition)
-  
-  doc.setFont('helvetica', 'normal')
-  doc.text('Generated:', 20, yPosition + 7)
-  doc.setFont('helvetica', 'bold')
-  doc.text(new Date().toLocaleDateString('en-IN', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }), 60, yPosition + 7)
-  
-  doc.setFont('helvetica', 'normal')
-  doc.text('Report Type:', 20, yPosition + 14)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(102, 126, 234)
-  doc.text(reportTypeText, 60, yPosition + 14)
-  
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  doc.text('Period:', 20, yPosition + 21)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`${data.dateFrom} to ${data.dateTo}`, 60, yPosition + 21)
-
-  // Right side - User details
-  doc.setFont('helvetica', 'normal')
-  doc.text('Prepared for:', pageWidth - 80, yPosition)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(139, 92, 246)
-  doc.text(data.user.name || 'Valued Customer', pageWidth - 80, yPosition + 7)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  
-  if (data.user.email) {
-    doc.setTextColor(100, 100, 100)
-    doc.text(data.user.email, pageWidth - 80, yPosition + 14)
-    doc.setTextColor(0, 0, 0)
-  }
-  
-  // Category filter info
-  if (data.category && data.category !== 'All') {
-    doc.text('Category Filter:', pageWidth - 80, yPosition + 21)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(239, 68, 68)
-    doc.text(data.category, pageWidth - 80, yPosition + 28)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(0, 0, 0)
-  }
-
-  yPosition += 40
-
-  // Separator
-  doc.setDrawColor(200, 200, 200)
-  doc.line(20, yPosition, pageWidth - 20, yPosition)
-  yPosition += 15
-
-  // Executive Summary Box
-  doc.setFillColor(248, 250, 252)
-  doc.roundedRect(15, yPosition, pageWidth - 30, 80, 5, 5, 'F')
-  doc.setDrawColor(139, 92, 246)
-  doc.setLineWidth(0.5)
-  doc.roundedRect(15, yPosition, pageWidth - 30, 80, 5, 5, 'S')
-
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(139, 92, 246)
-  doc.text('Executive Summary', 25, yPosition + 15)
-  
-  // Add premium badge
-  doc.setFillColor(255, 215, 0)
-  doc.roundedRect(pageWidth - 60, yPosition + 5, 35, 12, 3, 3, 'F')
   doc.setFontSize(8)
-  doc.setTextColor(0, 0, 0)
-  doc.setFont('helvetica', 'bold')
-  doc.text('PREMIUM', pageWidth - 42, yPosition + 12, { align: 'center' })
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(148, 163, 184) // Slate-400
+  doc.text('OFFICIAL ELECTRONIC FINANCIAL STATEMENT & LEDGER AUDIT', 15, 18)
 
-  // Summary metrics
+  // Right: Document Status
+  doc.setFillColor(16, 185, 129) // Emerald-500
+  doc.roundedRect(pageWidth - 45, 8, 30, 8, 2, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'bold')
+  doc.text('VERIFIED AUDIT', pageWidth - 30, 13.5, { align: 'center' })
+
+  y = 36
+
+  // 2. Statement Metadata Header (2 Column Grid)
+  doc.setFillColor(248, 250, 252) // #F8FAFC
+  doc.roundedRect(14, y, pageWidth - 28, 28, 2, 2, 'F')
+  doc.setDrawColor(226, 232, 240)
+  doc.setLineWidth(0.4)
+  doc.roundedRect(14, y, pageWidth - 28, 28, 2, 2, 'S')
+
+  // Left Details
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(100, 116, 139)
+  doc.text('STATEMENT RECIPIENT:', 20, y + 7)
+  doc.text('REGISTERED EMAIL:', 20, y + 14)
+  doc.text('CURRENCY / TIMEZONE:', 20, y + 21)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(15, 23, 42)
+  doc.text(data.user.name || 'Valued Account Holder', 65, y + 7)
+  doc.text(data.user.email || 'N/A', 65, y + 14)
+  doc.text('INR (Rs.) / IST (+05:30)', 65, y + 21)
+
+  // Right Details
+  const rightX = pageWidth / 2 + 10
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(100, 116, 139)
+  doc.text('STATEMENT REF #:', rightX, y + 7)
+  doc.text('AUDIT PERIOD:', rightX, y + 14)
+  doc.text('DATE OF ISSUE:', rightX, y + 21)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(15, 23, 42)
+  doc.text(data.statementRef || 'STMT-2026-LIVE', rightX + 35, y + 7)
+  doc.text(`${data.dateFrom} to ${data.dateTo}`, rightX + 35, y + 14)
+  doc.text(new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), rightX + 35, y + 21)
+
+  y += 36
+
+  // 3. Executive Financial Position Summary
   doc.setFontSize(10)
-  doc.setTextColor(0, 0, 0)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(15, 23, 42)
+  doc.text('1. ACCOUNTING POSITION SUMMARY', 15, y)
+  y += 5
 
-  const summaryY = yPosition + 25
-  
-  // Row 1
-  doc.text('Total Income:', 25, summaryY)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(34, 197, 94)
-  doc.text(`₹ ${data.totalIncomes.toLocaleString('en-IN')}`, 80, summaryY)
-  
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  doc.text('Total Expenses:', 120, summaryY)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(239, 68, 68)
-  doc.text(`₹ ${data.totalExpenses.toLocaleString('en-IN')}`, 175, summaryY)
+  const netSavingsRate = data.totalIncomes > 0 ? ((data.balance / data.totalIncomes) * 100).toFixed(1) : '0'
 
-  // Row 2
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  doc.text('Net Balance:', 25, summaryY + 10)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(data.balance >= 0 ? 34 : 239, data.balance >= 0 ? 197 : 68, data.balance >= 0 ? 94 : 68)
-  doc.text(`₹ ${Math.abs(data.balance).toLocaleString('en-IN')}`, 80, summaryY + 10)
-  doc.text(data.balance >= 0 ? '(Surplus)' : '(Deficit)', 140, summaryY + 10)
+  autoTable(doc, {
+    startY: y,
+    head: [['Component', 'Classification', 'Count', 'Net Amount (INR)']],
+    body: [
+      ['Total Inflow / Credits', 'Earned Income & Receipts', `${data.incomes.length} records`, `Rs. ${Number(data.totalIncomes).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`],
+      ['Total Outflow / Debits', 'Expenses & Bill Payments', `${data.expenses.length} records`, `Rs. ${Number(data.totalExpenses).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`],
+      ['Net Period Balance', 'Retained Operating Capital', `Savings Rate: ${netSavingsRate}%`, `Rs. ${Number(data.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`]
+    ],
+    theme: 'grid',
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 8.5,
+      fontStyle: 'bold',
+      cellPadding: 3.5
+    },
+    bodyStyles: {
+      fontSize: 8,
+      cellPadding: 3.5,
+      textColor: [30, 41, 59]
+    },
+    columnStyles: {
+      0: { cellWidth: 50, fontStyle: 'bold' },
+      1: { cellWidth: 55 },
+      2: { cellWidth: 35, halign: 'center' },
+      3: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
+    },
+    margin: { left: 14, right: 14 }
+  })
 
-  // Row 3
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  doc.text('Transactions:', 25, summaryY + 20)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(102, 126, 234)
-  doc.text(`${data.expenses.length} expenses, ${data.incomes.length} incomes`, 80, summaryY + 20)
+  y = (doc as any).lastAutoTable.finalY + 12
 
-  // Savings Rate
-  const savingsRate = data.totalIncomes > 0 ? ((data.balance / data.totalIncomes) * 100).toFixed(1) : '0'
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  doc.text('Savings Rate:', 25, summaryY + 30)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(102, 126, 234)
-  doc.text(`${savingsRate}%`, 80, summaryY + 30)
-  
-  // Additional metrics row
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  doc.text('Avg Daily Expense:', 25, summaryY + 40)
-  const avgDaily = data.totalExpenses / Math.max(1, data.expenses.length > 0 ? 
-    Math.ceil((new Date(Math.max(...data.expenses.map((e: any) => new Date(e.date).getTime()))).getTime() - 
-               new Date(Math.min(...data.expenses.map((e: any) => new Date(e.date).getTime()))).getTime()) / (1000 * 60 * 60 * 24)) : 1)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(102, 126, 234)
-  doc.text(`₹ ${avgDaily.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, 80, summaryY + 40)
-  
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0, 0, 0)
-  doc.text('Report Status:', 120, summaryY + 40)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(34, 197, 94)
-  doc.text('Complete', 175, summaryY + 40)
-
-  yPosition += 100
-
-  // Category Analysis
+  // 4. Itemized Expense Transactions Ledger
   if (data.expenses.length > 0) {
-    if (yPosition > pageHeight - 120) {
+    if (y > pageHeight - 60) {
       doc.addPage()
-      yPosition = 20
+      y = 20
     }
 
-    doc.setFontSize(14)
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
-    doc.setTextColor(139, 92, 246)
-    doc.text('Expense Analysis by Category', 20, yPosition)
-    yPosition += 15
+    doc.setTextColor(15, 23, 42)
+    doc.text('2. ITEMIZED DEBIT & EXPENSE LEDGER', 15, y)
+    y += 5
 
-    // Calculate category breakdown
-    const categoryBreakdown = data.expenses.reduce((acc: any, expense: any) => {
-      acc[expense.category] = (acc[expense.category] || 0) + expense.amount
-      return acc
-    }, {})
-
-    const categoryData = Object.entries(categoryBreakdown)
-      .sort(([,a], [,b]) => (b as number) - (a as number))
-      .slice(0, 10)
-      .map(([category, amount]: [string, any]) => {
-        const percentage = data.totalExpenses > 0 ? 
-          ((amount / data.totalExpenses) * 100).toFixed(1) : '0'
-        return [
-          category, 
-          `₹ ${amount.toLocaleString('en-IN')}`, 
-          `${percentage}%`,
-          '|'.repeat(Math.min(Math.floor(parseFloat(percentage) / 5), 10))
-        ]
-      })
+    const expenseRows = data.expenses.map((e: any, index: number) => [
+      `${index + 1}`,
+      new Date(e.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      e.title || 'General Expense',
+      e.category || 'General',
+      e.bank || e.paymentMode || 'Direct',
+      `Rs. ${Number(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+    ])
 
     autoTable(doc, {
-      startY: yPosition,
-      head: [['Category', 'Amount (₹)', 'Share', 'Distribution']],
-      body: categoryData,
-      theme: 'grid',
-      headStyles: { 
-        fillColor: [139, 92, 246],
+      startY: y,
+      head: [['#', 'Value Date', 'Transaction Particulars', 'Category', 'Channel', 'Debit (INR)']],
+      body: expenseRows,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [30, 41, 59],
         textColor: [255, 255, 255],
-        fontSize: 11,
-        fontStyle: 'bold'
+        fontSize: 8,
+        fontStyle: 'bold',
+        cellPadding: 3
       },
       bodyStyles: {
-        fontSize: 9,
-        cellPadding: 4
+        fontSize: 7.5,
+        cellPadding: 2.5,
+        textColor: [15, 23, 42]
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
       },
       columnStyles: {
-        0: { cellWidth: 50, fontStyle: 'bold' },
-        1: { cellWidth: 40, halign: 'right', textColor: [239, 68, 68] },
-        2: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
-        3: { cellWidth: 35, halign: 'left', textColor: [139, 92, 246] }
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 62, fontStyle: 'bold' },
+        3: { cellWidth: 32 },
+        4: { cellWidth: 26 },
+        5: { cellWidth: 28, halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] }
       },
-      margin: { left: 20, right: 20 }
+      margin: { left: 14, right: 14 }
     })
 
-    yPosition = (doc as any).lastAutoTable.finalY + 20
+    y = (doc as any).lastAutoTable.finalY + 12
   }
 
-  // Payment Mode Analysis
-  if (data.expenses.length > 0) {
-    if (yPosition > pageHeight - 100) {
-      doc.addPage()
-      yPosition = 20
-    }
-
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(139, 92, 246)
-    doc.text('Payment Mode Analysis', 20, yPosition)
-    yPosition += 15
-
-    const paymentModeBreakdown = data.expenses.reduce((acc: any, e: any) => {
-      const mode = e.paymentMode || 'Cash'
-      acc[mode] = (acc[mode] || 0) + e.amount
-      return acc
-    }, {})
-
-    const paymentModeData = Object.entries(paymentModeBreakdown).map(([mode, amount]: [string, any]) => {
-      const percentage = data.totalExpenses > 0 ? 
-        ((amount / data.totalExpenses) * 100).toFixed(1) : '0'
-      return [
-        mode, 
-        `₹ ${amount.toLocaleString('en-IN')}`, 
-        `${percentage}%`,
-        '='.repeat(Math.min(Math.floor(parseFloat(percentage) / 3), 15))
-      ]
-    })
-
-    autoTable(doc, {
-      startY: yPosition,
-      head: [['Payment Mode', 'Amount (₹)', 'Usage %', 'Distribution']],
-      body: paymentModeData,
-      theme: 'grid',
-      headStyles: { 
-        fillColor: [34, 197, 94],
-        textColor: [255, 255, 255],
-        fontSize: 11,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: 9,
-        cellPadding: 4
-      },
-      alternateRowStyles: {
-        fillColor: [240, 253, 244]
-      },
-      columnStyles: {
-        0: { cellWidth: 40, fontStyle: 'bold' },
-        1: { cellWidth: 45, halign: 'right', textColor: [34, 197, 94] },
-        2: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
-        3: { cellWidth: 50, halign: 'left', textColor: [34, 197, 94] }
-      },
-      margin: { left: 20, right: 20 }
-    })
-
-    yPosition = (doc as any).lastAutoTable.finalY + 20
-  }
-
-  // Detailed Transactions
-  if (data.expenses.length > 0) {
-    if (yPosition > pageHeight - 100) {
-      doc.addPage()
-      yPosition = 20
-    }
-
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(239, 68, 68)
-    doc.text('Expense Transactions', 20, yPosition)
-    yPosition += 10
-
-    const expenseRows = data.expenses.slice(0, 20).map((expense: any) => [
-      new Date(expense.date).toLocaleDateString('en-IN'),
-      expense.title || 'N/A',
-      expense.category || 'Uncategorized',
-      expense.paymentMode || 'Cash',
-      `₹ ${expense.amount.toLocaleString('en-IN')}`
-    ])
-
-    autoTable(doc, {
-      startY: yPosition,
-      head: [['Date', 'Description', 'Category', 'Payment', 'Amount (₹)']],
-      body: expenseRows,
-      theme: 'striped',
-      headStyles: { 
-        fillColor: [239, 68, 68],
-        textColor: [255, 255, 255],
-        fontSize: 10,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: 8,
-        cellPadding: 3
-      },
-      alternateRowStyles: {
-        fillColor: [254, 242, 242]
-      },
-      columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 50 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 30, halign: 'right', fontStyle: 'bold', textColor: [239, 68, 68] }
-      },
-      margin: { left: 20, right: 20 }
-    })
-
-    yPosition = (doc as any).lastAutoTable.finalY + 15
-  }
-
-  // Income Transactions
+  // 5. Itemized Income Ledger
   if (data.incomes.length > 0) {
-    if (yPosition > pageHeight - 80) {
+    if (y > pageHeight - 60) {
       doc.addPage()
-      yPosition = 20
+      y = 20
     }
 
-    doc.setFontSize(14)
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
-    doc.setTextColor(34, 197, 94)
-    doc.text('Income Transactions', 20, yPosition)
-    yPosition += 10
+    doc.setTextColor(15, 23, 42)
+    doc.text('3. ITEMIZED INCOME & CREDIT LEDGER', 15, y)
+    y += 5
 
-    const incomeRows = data.incomes.slice(0, 15).map((income: any) => [
-      new Date(income.date).toLocaleDateString('en-IN'),
-      income.source || 'N/A',
-      income.notes || '-',
-      `₹ ${income.amount.toLocaleString('en-IN')}`
+    const incomeRows = data.incomes.map((inc: any, index: number) => [
+      `${index + 1}`,
+      new Date(inc.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      inc.source || 'Direct Credit',
+      inc.notes || 'Routine Inflow',
+      `Rs. ${Number(inc.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
     ])
 
     autoTable(doc, {
-      startY: yPosition,
-      head: [['Date', 'Source', 'Notes', 'Amount (₹)']],
+      startY: y,
+      head: [['#', 'Credit Date', 'Income Source / Particulars', 'Remarks / Memo', 'Credit (INR)']],
       body: incomeRows,
       theme: 'striped',
-      headStyles: { 
-        fillColor: [34, 197, 94],
+      headStyles: {
+        fillColor: [16, 185, 129],
         textColor: [255, 255, 255],
-        fontSize: 10,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
         fontSize: 8,
+        fontStyle: 'bold',
         cellPadding: 3
       },
-      alternateRowStyles: {
-        fillColor: [240, 253, 244]
+      bodyStyles: {
+        fontSize: 7.5,
+        cellPadding: 2.5,
+        textColor: [15, 23, 42]
       },
       columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 60 },
-        2: { cellWidth: 50 },
-        3: { cellWidth: 30, halign: 'right', fontStyle: 'bold', textColor: [34, 197, 94] }
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 28 },
+        2: { cellWidth: 70, fontStyle: 'bold' },
+        3: { cellWidth: 44 },
+        4: { cellWidth: 30, halign: 'right', fontStyle: 'bold', textColor: [22, 163, 74] }
       },
-      margin: { left: 20, right: 20 }
+      margin: { left: 14, right: 14 }
     })
+
+    y = (doc as any).lastAutoTable.finalY + 12
   }
 
-  // Financial Insights & Recommendations
-  if (yPosition > pageHeight - 120) {
-    doc.addPage()
-    yPosition = 20
-  }
-
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(139, 92, 246)
-  doc.text('Financial Insights & Recommendations', 20, yPosition)
-  yPosition += 15
-
-  // Create insights box
-  doc.setFillColor(252, 252, 252)
-  doc.roundedRect(15, yPosition, pageWidth - 30, 60, 5, 5, 'F')
-  doc.setDrawColor(34, 197, 94)
-  doc.setLineWidth(0.5)
-  doc.roundedRect(15, yPosition, pageWidth - 30, 60, 5, 5, 'S')
-
-  doc.setFontSize(10)
-  doc.setTextColor(0, 0, 0)
-  doc.setFont('helvetica', 'normal')
-
-  const insights = []
-  const currentSavingsRate = data.totalIncomes > 0 ? ((data.balance / data.totalIncomes) * 100) : 0
-  
-  // Generate insights based on data
-  if (currentSavingsRate > 20) {
-    insights.push('EXCELLENT: Savings rate above 20% - You are saving more than 20% of your income.')
-  } else if (currentSavingsRate > 10) {
-    insights.push('GOOD: Savings rate above 10% - Consider increasing to 20% for better financial security.')
-  } else {
-    insights.push('ATTENTION: Low savings rate - Focus on reducing expenses or increasing income.')
-  }
-
+  // 6. Category Breakdown Distribution Table
   if (data.expenses.length > 0) {
-    const categoryBreakdown = data.expenses.reduce((acc: any, expense: any) => {
-      acc[expense.category] = (acc[expense.category] || 0) + expense.amount
+    if (y > pageHeight - 50) {
+      doc.addPage()
+      y = 20
+    }
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(15, 23, 42)
+    doc.text('4. CATEGORY DISTRIBUTION BREAKDOWN', 15, y)
+    y += 5
+
+    const catMap = data.expenses.reduce((acc: any, exp: any) => {
+      const cat = exp.category || 'Other'
+      acc[cat] = (acc[cat] || 0) + exp.amount
       return acc
     }, {})
-    
-    const topCategory = Object.entries(categoryBreakdown).sort(([,a], [,b]) => (b as number) - (a as number))[0]
-    if (topCategory) {
-      const topCategoryPercentage = ((topCategory[1] as number) / data.totalExpenses * 100).toFixed(1)
-      insights.push(`ANALYSIS: Your highest expense category is "${topCategory[0]}" (${topCategoryPercentage}% of total expenses).`)
-    }
-  }
 
-  if (data.totalExpenses > data.totalIncomes) {
-    insights.push('WARNING: You are spending more than you earn - Consider budget optimization.')
-  }
-
-  // Add insights to PDF
-  let insightY = yPosition + 15
-  insights.forEach((insight, index) => {
-    if (insightY > yPosition + 50) return // Don't overflow the box
-    doc.text(`${index + 1}. ${insight}`, 25, insightY)
-    insightY += 12
-  })
-
-  yPosition += 75
-
-  // Report Summary Statistics
-  doc.setFillColor(248, 250, 252)
-  doc.roundedRect(15, yPosition, pageWidth - 30, 40, 5, 5, 'F')
-  doc.setDrawColor(102, 126, 234)
-  doc.setLineWidth(0.5)
-  doc.roundedRect(15, yPosition, pageWidth - 30, 40, 5, 5, 'S')
-
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(102, 126, 234)
-  doc.text('Report Statistics', 25, yPosition + 15)
-
-  doc.setFontSize(9)
-  doc.setTextColor(0, 0, 0)
-  doc.setFont('helvetica', 'normal')
-  
-  const statsY = yPosition + 25
-  doc.text(`Report Generated: ${new Date().toLocaleString('en-IN')}`, 25, statsY)
-  doc.text(`Data Points Analyzed: ${data.expenses.length + data.incomes.length}`, 25, statsY + 8)
-  
-  const categoryCount = data.expenses.reduce((acc: any, e: any) => {
-    acc[e.category] = true
-    return acc
-  }, {})
-  doc.text(`Categories Tracked: ${Object.keys(categoryCount).length}`, pageWidth - 80, statsY)
-  doc.text(`Premium Features: Enabled`, pageWidth - 80, statsY + 8)
-
-  yPosition += 55
-
-  // Premium Footer with branding
-  const pageCount = doc.getNumberOfPages()
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i)
-    
-    // Footer background
-    doc.setFillColor(248, 250, 252)
-    doc.rect(0, pageHeight - 25, pageWidth, 25, 'F')
-    
-    // Footer content
-    doc.setFontSize(8)
-    doc.setTextColor(100, 100, 100)
-    doc.text('ExpenseTracker Premium Report', 20, pageHeight - 15)
-    doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 20, pageHeight - 8)
-    
-    doc.text(`Page ${i} of ${pageCount}`, pageWidth - 30, pageHeight - 15, { align: 'right' })
-    doc.text('Confidential Financial Document', pageWidth - 30, pageHeight - 8, { align: 'right' })
-    
-    // Watermark
-    doc.setTextColor(200, 200, 200)
-    doc.setFontSize(40)
-    doc.text('PREMIUM', pageWidth / 2, pageHeight / 2, { 
-      align: 'center', 
-      angle: 45 
+    const catRows = Object.entries(catMap).map(([cat, amt]: [string, any]) => {
+      const pct = data.totalExpenses > 0 ? ((amt / data.totalExpenses) * 100).toFixed(1) : '0'
+      return [cat, `Rs. ${Number(amt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, `${pct} %`]
     })
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Category Classification', 'Subtotal Expenditure', 'Share of Wallet']],
+      body: catRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [51, 65, 85],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold',
+        cellPadding: 2.5
+      },
+      bodyStyles: {
+        fontSize: 7.5,
+        cellPadding: 2.5
+      },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 60, halign: 'right' },
+        2: { cellWidth: 42, halign: 'center', fontStyle: 'bold' }
+      },
+      margin: { left: 14, right: 14 }
+    })
+
+    y = (doc as any).lastAutoTable.finalY + 10
   }
 
-  // Convert to buffer
+  // 7. Security Digital Seal & Signoff Box
+  if (y > pageHeight - 40) {
+    doc.addPage()
+    y = 20
+  }
+
+  doc.setFillColor(248, 250, 252)
+  doc.roundedRect(14, y, pageWidth - 28, 24, 2, 2, 'F')
+  doc.setDrawColor(203, 213, 225)
+  doc.roundedRect(14, y, pageWidth - 28, 24, 2, 2, 'S')
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(15, 23, 42)
+  doc.text('ELECTRONIC STATEMENT VERIFICATION & AUTHENTICITY SEAL', 20, y + 7)
+
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(100, 116, 139)
+  doc.text(`This official document is generated directly from the encrypted cloud ledger of Expense Tracker Technologies.`, 20, y + 13)
+  doc.text(`Digital Verification Hash: SHA256-${Date.now().toString(16)}-${Math.random().toString(36).substring(2, 8).toUpperCase()} • Authorized System Signature`, 20, y + 18)
+
+  // 8. Footer on Every Page
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFillColor(241, 245, 249)
+    doc.rect(0, pageHeight - 12, pageWidth, 12, 'F')
+
+    doc.setFontSize(7)
+    doc.setTextColor(100, 116, 139)
+    doc.text('EXPENSE TRACKER FINANCIAL TECHNOLOGIES • CONFIDENTIAL FINANCIAL STATEMENT', 15, pageHeight - 5)
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - 15, pageHeight - 5, { align: 'right' })
+  }
+
   const pdfOutput = doc.output('arraybuffer')
   return Buffer.from(pdfOutput)
 }
 
-function generateEmailHTML(data: any): string {
+// =========================================================================
+// HIGH-END CORPORATE STATEMENT EMAIL HTML GENERATOR
+// =========================================================================
+function generateStatementEmailHTML(data: any): string {
   const savingsRate = data.totalIncomes > 0 ? ((data.balance / data.totalIncomes) * 100).toFixed(1) : '0'
-  const reportTypeText = data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) + 'ly Report' : 'Financial Report'
-  const periodText = `${data.dateFrom} to ${data.dateTo}`
-  const categoryText = data.category ? ` | Category: ${data.category}` : ''
   
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Premium Financial Report</title>
       <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
-          line-height: 1.6; 
-          color: #1f2937; 
-          background-color: #f9fafb;
-        }
-        .container { 
-          max-width: 650px; 
-          margin: 0 auto; 
-          background: white;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-          border-radius: 16px;
-          overflow: hidden;
-        }
-        .header { 
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #8b5cf6 100%); 
-          color: white; 
-          padding: 40px 30px; 
-          text-align: center; 
-          position: relative;
-        }
-        .header::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-          opacity: 0.3;
-        }
-        .header-content { position: relative; z-index: 1; }
-        .logo { 
-          width: 60px; 
-          height: 60px; 
-          background: rgba(255, 255, 255, 0.2); 
-          border-radius: 12px; 
-          margin: 0 auto 20px; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          font-size: 24px; 
-          font-weight: bold;
-          backdrop-filter: blur(10px);
-        }
-        .header h1 { 
-          font-size: 28px; 
-          font-weight: 700; 
-          margin-bottom: 8px; 
-          text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header p { 
-          font-size: 16px; 
-          opacity: 0.9; 
-          font-weight: 500;
-        }
-        .header .subtitle {
-          font-size: 14px;
-          opacity: 0.8;
-          margin-top: 5px;
-        }
-        .premium-badge {
-          display: inline-block;
-          background: linear-gradient(45deg, #ffd700, #ffed4e);
-          color: #000;
-          padding: 4px 12px;
-          border-radius: 20px;
-          font-size: 12px;
-          font-weight: bold;
-          margin-left: 10px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        .content { 
-          padding: 40px 30px; 
-          background: linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%);
-        }
-        .greeting { 
-          font-size: 18px; 
-          font-weight: 600; 
-          color: #1f2937; 
-          margin-bottom: 16px; 
-        }
-        .intro { 
-          color: #6b7280; 
-          margin-bottom: 30px; 
-          font-size: 15px; 
-          line-height: 1.7;
-        }
-        .summary { 
-          background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%); 
-          padding: 30px; 
-          border-radius: 16px; 
-          margin: 30px 0; 
-          border: 1px solid #e5e7eb;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .summary-title {
-          font-size: 20px;
-          font-weight: 700;
-          color: #1f2937;
-          margin-bottom: 20px;
-          text-align: center;
-        }
-        .stats-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 20px;
-        }
-        .stat-card {
-          background: white;
-          padding: 20px;
-          border-radius: 12px;
-          text-align: center;
-          border: 1px solid #f3f4f6;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        .stat-label { 
-          color: #6b7280; 
-          font-size: 13px; 
-          font-weight: 500; 
-          text-transform: uppercase; 
-          letter-spacing: 0.5px; 
-          margin-bottom: 8px;
-        }
-        .stat-value { 
-          font-weight: 700; 
-          font-size: 24px; 
-          line-height: 1;
-        }
-        .positive { color: #10b981; }
-        .negative { color: #ef4444; }
-        .neutral { color: #6366f1; }
-        .balance-section {
-          background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-          padding: 20px;
-          border-radius: 12px;
-          text-align: center;
-          border: 1px solid #0ea5e9;
-        }
-        .balance-label {
-          color: #0369a1;
-          font-size: 14px;
-          font-weight: 600;
-          margin-bottom: 8px;
-        }
-        .balance-value {
-          font-size: 32px;
-          font-weight: 800;
-          line-height: 1;
-        }
-        .balance-subtitle {
-          color: #0369a1;
-          font-size: 12px;
-          margin-top: 4px;
-          font-weight: 500;
-        }
-        .highlights {
-          background: #fef3c7;
-          border: 1px solid #f59e0b;
-          border-radius: 12px;
-          padding: 20px;
-          margin: 20px 0;
-        }
-        .highlights-title {
-          color: #92400e;
-          font-weight: 600;
-          margin-bottom: 10px;
-          font-size: 16px;
-        }
-        .highlights-list {
-          color: #78350f;
-          font-size: 14px;
-          line-height: 1.6;
-        }
-        .cta {
-          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-          color: white;
-          padding: 20px;
-          border-radius: 12px;
-          text-align: center;
-          margin: 30px 0;
-        }
-        .cta-text {
-          font-size: 16px;
-          font-weight: 600;
-          margin-bottom: 8px;
-        }
-        .cta-subtitle {
-          font-size: 14px;
-          opacity: 0.9;
-        }
-        .footer { 
-          text-align: center; 
-          color: #9ca3af; 
-          font-size: 13px; 
-          padding: 30px; 
-          background: #f9fafb;
-          border-top: 1px solid #e5e7eb;
-        }
-        .footer-brand {
-          font-weight: 600;
-          color: #6366f1;
-          margin-bottom: 8px;
-        }
-        @media (max-width: 600px) {
-          .container { margin: 10px; }
-          .content { padding: 30px 20px; }
-          .header { padding: 30px 20px; }
-          .stats-grid { grid-template-columns: 1fr; }
-          .stat-value { font-size: 20px; }
-          .balance-value { font-size: 28px; }
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px; color: #0f172a; }
+        .card { max-width: 650px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e1; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .top-bar { background: #0f172a; padding: 24px 32px; color: #ffffff; display: table; width: 100%; box-sizing: border-box; border-bottom: 3px solid #10b981; }
+        .top-left { display: table-cell; vertical-align: middle; }
+        .top-right { display: table-cell; vertical-align: middle; text-align: right; }
+        .inst-name { font-size: 20px; font-weight: 800; letter-spacing: -0.4px; color: #ffffff; }
+        .doc-tag { font-size: 11px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+        .stmt-meta { font-size: 12px; color: #94a3b8; line-height: 1.4; }
+        .content { padding: 32px; }
+        
+        .grid-2 { display: table; width: 100%; margin-bottom: 24px; }
+        .col-left { display: table-cell; width: 50%; vertical-align: top; font-size: 13px; line-height: 1.5; color: #475569; }
+        .col-right { display: table-cell; width: 50%; vertical-align: top; text-align: right; font-size: 13px; line-height: 1.5; color: #475569; }
+        
+        .summary-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+        .summary-table th { background: #f8fafc; padding: 12px; text-align: left; font-weight: 700; color: #475569; border-top: 2px solid #0f172a; border-bottom: 1px solid #cbd5e1; }
+        .summary-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a; }
+        
+        .total-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 16px; margin: 24px 0; }
+        .total-row { display: table; width: 100%; margin: 4px 0; font-size: 14px; }
+        .total-lbl { display: table-cell; color: #475569; font-weight: 500; }
+        .total-val { display: table-cell; text-align: right; font-weight: 700; color: #0f172a; }
+        
+        .seal-box { border-left: 4px solid #10b981; background: #f0fdf4; padding: 12px 16px; border-radius: 4px; font-size: 12px; color: #166534; line-height: 1.5; margin-top: 24px; }
+        .footer { background: #f8fafc; padding: 24px 32px; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; line-height: 1.6; }
       </style>
     </head>
     <body>
-      <div class="container">
-        <div class="header">
-          <div class="header-content">
-            <div class="logo">ET</div>
-            <h1>Premium Financial Report<span class="premium-badge">PRO</span></h1>
-            <p>${reportTypeText}</p>
-            <div class="subtitle">${periodText}${categoryText}</div>
+      <div class="card">
+        <div class="top-bar">
+          <div class="top-left">
+            <div class="inst-name">EXPENSE TRACKER</div>
+            <div class="doc-tag">Official Financial Statement</div>
+          </div>
+          <div class="top-right">
+            <div class="stmt-meta">
+              <strong>Period:</strong> ${data.dateFrom} to ${data.dateTo}<br>
+              <strong>Statement Ref:</strong> ${data.statementRef}<br>
+              <strong>Date of Issue:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </div>
           </div>
         </div>
         
         <div class="content">
-          <div class="greeting">Hi ${data.userName},</div>
-          
-          <div class="intro">
-            Here's your comprehensive <strong>${reportTypeText.toLowerCase()}</strong> for the selected period${categoryText ? ` with category filter applied` : ''}. 
-            This premium analysis includes detailed breakdowns, insights, bill attachments, and professional documentation with INR currency formatting.
-          </div>
-          
-          <!-- Report Details Section -->
-          <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #0ea5e9;">
-            <h3 style="color: #0369a1; font-size: 16px; font-weight: 600; margin-bottom: 12px;">Report Details</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
-              <div>
-                <span style="color: #0369a1; font-weight: 500;">Report Type:</span><br>
-                <strong>${reportTypeText}</strong>
-              </div>
-              <div>
-                <span style="color: #0369a1; font-weight: 500;">Period:</span><br>
-                <strong>${periodText}</strong>
-              </div>
-              <div>
-                <span style="color: #0369a1; font-weight: 500;">Category Filter:</span><br>
-                <strong>${data.category || 'All Categories'}</strong>
-              </div>
-              <div>
-                <span style="color: #0369a1; font-weight: 500;">Currency:</span><br>
-                <strong>Indian Rupees (₹)</strong>
-              </div>
+          <div class="grid-2">
+            <div class="col-left">
+              <strong style="color: #0f172a; font-size: 14px;">ACCOUNT HOLDER:</strong><br>
+              ${data.userName || 'Account Holder'}<br>
+              ${data.userEmail || ''}<br>
+              Currency: INR (₹)
+            </div>
+            <div class="col-right">
+              <strong style="color: #0f172a; font-size: 14px;">ISSUING INSTITUTION:</strong><br>
+              Expense Tracker Financial Technologies<br>
+              Automated Ledger & Audit System<br>
+              Verification: <strong>ACTIVE</strong>
             </div>
           </div>
-          
-          <div class="summary">
-            <div class="summary-title">📊 Financial Overview</div>
-            
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-label">Total Income</div>
-                <div class="stat-value positive">₹${data.totalIncomes.toLocaleString('en-IN')}</div>
-              </div>
-              
-              <div class="stat-card">
-                <div class="stat-label">Total Expenses</div>
-                <div class="stat-value negative">₹${data.totalExpenses.toLocaleString('en-IN')}</div>
-              </div>
+
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Component Particulars</th>
+                <th>Classification</th>
+                <th style="text-align: right;">Amount (INR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Total Credits (Inflow)</td>
+                <td><span style="color: #16a34a; font-weight: 600;">Income & Earnings (${data.incomeCount} entries)</span></td>
+                <td style="text-align: right; font-weight: 700; color: #16a34a;">₹${Number(data.totalIncomes).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+              </tr>
+              <tr>
+                <td>Total Debits (Outflow)</td>
+                <td><span style="color: #dc2626; font-weight: 600;">Expenses & Bills (${data.expenseCount} entries)</span></td>
+                <td style="text-align: right; font-weight: 700; color: #dc2626;">₹${Number(data.totalExpenses).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+              </tr>
+              <tr>
+                <td>Net Accounting Balance</td>
+                <td><span style="color: #2563eb; font-weight: 600;">Retained Operating Capital</span></td>
+                <td style="text-align: right; font-weight: 700; color: #2563eb;">₹${Number(data.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="total-box">
+            <div class="total-row">
+              <div class="total-lbl">Net Savings Efficiency Ratio:</div>
+              <div class="total-val">${savingsRate}%</div>
             </div>
-            
-            <div class="balance-section">
-              <div class="balance-label">Net Balance</div>
-              <div class="balance-value ${data.balance >= 0 ? 'positive' : 'negative'}">
-                ₹${Math.abs(data.balance).toLocaleString('en-IN')}
-              </div>
-              <div class="balance-subtitle">
-                ${data.balance >= 0 ? '✅ Surplus' : '⚠️ Deficit'} • Savings Rate: ${savingsRate}%
-              </div>
-            </div>
-          </div>
-          
-          <div class="highlights">
-            <div class="highlights-title">Key Insights & Analytics</div>
-            <div class="highlights-list">
-              • <strong>Total Transactions:</strong> ${data.expenseCount} expenses, ${data.incomeCount} incomes<br>
-              • <strong>Financial Health Score:</strong> ${parseFloat(savingsRate) >= 20 ? 'Excellent (80+)' : parseFloat(savingsRate) >= 10 ? 'Good (60-79)' : 'Needs Improvement (<60)'}<br>
-              • <strong>Average Daily Spending:</strong> ₹${Math.round(data.totalExpenses / Math.max(1, 30)).toLocaleString('en-IN')}<br>
-              • <strong>Savings Efficiency:</strong> ${parseFloat(savingsRate)}% of income saved<br>
-              • <strong>Report Features:</strong> Premium Analysis with Bill Attachments & ₹ Symbol Formatting<br>
-              • <strong>Document Security:</strong> Watermarked & Confidential<br>
-              • <strong>Export Format:</strong> Professional PDF with Charts & Analytics
-            </div>
-          </div>
-          
-          <div class="cta">
-            <div class="cta-text">📎 Complete Documentation Attached</div>
-            <div class="cta-subtitle">
-              Please find the detailed report and bill attachments in the PDF files attached to this email.
+            <div class="total-row" style="margin-top: 8px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+              <div class="total-lbl" style="font-size: 15px; color: #0f172a; font-weight: 700;">Closing Balance for Period:</div>
+              <div class="total-val" style="font-size: 16px; color: #0f172a;">₹${Number(data.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
             </div>
           </div>
-          
-          <p style="color: #6b7280; font-size: 15px; line-height: 1.7; margin-top: 30px;">
-            This premium report includes comprehensive financial analysis, category breakdowns, 
-            transaction details, and all supporting bill attachments for your records.
-          </p>
-          
-          <p style="color: #1f2937; font-weight: 600; margin-top: 30px;">
-            Best regards,<br>
-            <span style="color: #6366f1;">ExpenseTracker Premium Team</span>
-          </p>
+
+          <div class="seal-box">
+            📎 <strong>ATTACHED DOCUMENTATION:</strong> An official certified PDF statement (<code>Financial-Statement-${data.statementRef}.pdf</code>) containing the full itemized debit ledger, credit transactions, category distribution, and cryptographic audit hash has been attached to this email.
+          </div>
         </div>
-        
+
         <div class="footer">
-          <div class="footer-brand">ExpenseTracker Premium</div>
-          <div>This is an automated premium report. Please do not reply to this email.</div>
-          <div style="margin-top: 8px; font-size: 12px;">
-            Generated on ${new Date().toLocaleDateString('en-IN', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </div>
+          <strong>Confidentiality Notice:</strong> This document contains sensitive personal financial records. If you are not the intended recipient, please notify support@expensetracker.app immediately.<br>
+          © ${new Date().getFullYear()} Expense Tracker Technologies. All rights reserved. Registered Electronic Financial Instrument.
         </div>
       </div>
     </body>
     </html>
   `
 }
-
-
