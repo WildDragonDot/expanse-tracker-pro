@@ -485,4 +485,92 @@ export const emailTemplates = {
       </html>
     `,
   }),
+
+  /**
+   * Official Recurring Bill / Subscription Payment Reminder
+   */
+  billReminder: (name: string, bill: { title: string; amount: number; dueDate: string; category: string; frequency?: string; isAutoDebit?: boolean }) => ({
+    subject: `🔔 Official Payment Advisory: ${bill.title} [₹${Number(bill.amount).toLocaleString('en-IN')}] Due on ${bill.dueDate}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; margin: 0; padding: 24px; color: #f8fafc; }
+          .card { max-width: 600px; margin: 0 auto; background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); }
+          .header { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 28px 32px; border-bottom: 2px solid #38bdf8; }
+          .badge { display: inline-block; background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; margin-bottom: 12px; }
+          .header-title { font-size: 22px; font-weight: 800; color: #ffffff; margin: 0; }
+          .header-sub { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+          .content { padding: 32px; color: #e2e8f0; }
+          .amount-box { background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0; }
+          .amount-lbl { font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+          .amount-val { font-size: 32px; font-weight: 900; color: #38bdf8; margin: 6px 0; }
+          .due-badge { display: inline-block; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 20px; }
+          .detail-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+          .detail-table td { padding: 12px 8px; border-bottom: 1px solid #334155; }
+          .detail-table td:first-child { color: #94a3b8; font-weight: 500; }
+          .detail-table td:last-child { color: #ffffff; font-weight: 700; text-align: right; }
+          .autodebit-notice { background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #34d399; margin: 16px 0; line-height: 1.5; }
+          .btn-primary { display: block; background: #38bdf8; color: #0f172a !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 14px; text-align: center; margin-top: 24px; box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3); }
+          .footer { background: #0f172a; padding: 20px 32px; font-size: 11px; color: #64748b; border-top: 1px solid #334155; line-height: 1.6; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="header">
+            <div class="badge">Automated Bill Reminder</div>
+            <h1 class="header-title">Payment Due Notice</h1>
+            <div class="header-sub">Expense Tracker Autonomous Schedule System</div>
+          </div>
+          <div class="content">
+            <p style="font-size: 15px; margin-top: 0;">Hello <strong>${name}</strong>,</p>
+            <p style="font-size: 14px; color: #94a3b8; line-height: 1.6;">
+              This is a scheduled financial notification regarding your upcoming <strong>${bill.title}</strong> payment.
+            </p>
+
+            <div class="amount-box">
+              <div class="amount-lbl">Scheduled Due Amount</div>
+              <div class="amount-val">₹${Number(bill.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+              <div class="due-badge">Due Date: ${bill.dueDate}</div>
+            </div>
+
+            <table class="detail-table">
+              <tr>
+                <td>Bill / Subscription</td>
+                <td>${bill.title}</td>
+              </tr>
+              <tr>
+                <td>Category</td>
+                <td>${bill.category || 'Utilities'}</td>
+              </tr>
+              <tr>
+                <td>Frequency</td>
+                <td>${(bill.frequency || 'Monthly').toUpperCase()}</td>
+              </tr>
+              <tr>
+                <td>Payment Method</td>
+                <td>${bill.isAutoDebit ? 'Auto-Debit (Mandate Enabled)' : 'Manual 1-Click Pay'}</td>
+              </tr>
+            </table>
+
+            ${
+              bill.isAutoDebit
+                ? `<div class="autodebit-notice">⚡ <strong>Auto-Debit Active:</strong> Please maintain sufficient balance in your linked bank account before the due date to avoid bounce charges.</div>`
+                : ''
+            }
+
+            <a href="https://expensetracker.chandandev.online" class="btn-primary">Open App & Mark as Paid</a>
+          </div>
+          <div class="footer">
+            <strong>Expense Tracker Multi-Channel Notification Engine</strong><br>
+            Delivered securely via Brevo / Mailgun Verified Financial Transport.<br>
+            © ${new Date().getFullYear()} Expense Tracker Technologies. Ref ID: BILL-REM-${Date.now().toString().slice(-6)}
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  }),
 }
