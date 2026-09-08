@@ -34,6 +34,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 import { AnalyticsSkeleton } from '../components/SkeletonLoader'
 import { api } from '../services/api'
+import { AdBanner } from '../components/AdBanner'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CHART_WIDTH = SCREEN_WIDTH - 64
@@ -475,6 +476,9 @@ export const AnalyticsScreen = ({ navigation }: { navigation?: any }) => {
 
           <SvgLineChart labels={months} series={savingsRateSeries} width={CHART_WIDTH} height={190} yAxisSuffix="%" textColor={colors.textMuted} />
         </View>
+
+        {/* Google AdMob Banner */}
+        <AdBanner />
       </ScrollView>
 
       {/* Category Drilldown Modal */}

@@ -6,12 +6,16 @@ import * as NavigationBar from 'expo-navigation-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AuthProvider } from './src/context/AuthContext'
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext'
+import { AdMobService } from './src/services/admob'
 import { AppNavigator } from './src/navigation/AppNavigator'
 
 function RootApp() {
   const { theme } = useAppTheme()
 
   useEffect(() => {
+    // Initialize Google AdMob SDK and preload interstitial/rewarded ads
+    AdMobService.initialize().catch((err) => console.log('AdMob init error:', err))
+
     if (Platform.OS === 'android') {
       try {
         const navBar = NavigationBar as any

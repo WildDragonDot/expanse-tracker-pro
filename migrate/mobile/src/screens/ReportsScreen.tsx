@@ -52,6 +52,8 @@ import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
 import { ReportsSkeleton } from '../components/SkeletonLoader'
 import { api } from '../services/api'
+import { AdBanner } from '../components/AdBanner'
+import { AdMobService } from '../services/admob'
 
 // Helper: Format Date object to local YYYY-MM-DD string without UTC timezone shift
 function formatLocalDate(d: Date): string {
@@ -387,6 +389,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
             dialogTitle: `Export CSV: ${filename}`,
             UTI: 'public.comma-separated-values-text',
           })
+          AdMobService.showInterstitial().catch(() => {})
           return
         }
       }
@@ -395,6 +398,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
         message: csv,
         title: filename,
       })
+      AdMobService.showInterstitial().catch(() => {})
     } catch {
       Alert.alert('Error', 'Unable to export CSV.')
     }
@@ -425,6 +429,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
           // Open native System Print & PDF Spooler directly
           try {
             await Print.printAsync({ uri: fileUri })
+            AdMobService.showInterstitial().catch(() => {})
           } catch (printErr: any) {
             console.warn('Direct print fallback to sharing:', printErr)
             if (await Sharing.isAvailableAsync()) {
@@ -433,6 +438,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                 dialogTitle: `Download / Save Statement: ${filename}`,
                 UTI: 'com.adobe.pdf',
               })
+              AdMobService.showInterstitial().catch(() => {})
             }
           }
         } else {
@@ -468,6 +474,7 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
       })
 
       setShowEmailModal(false)
+      AdMobService.showInterstitial().catch(() => {})
       if (res.success) {
         Alert.alert(
           'Email Dispatched! 📄',
@@ -964,6 +971,9 @@ export const ReportsScreen = ({ navigation }: { navigation?: any }) => {
                 ))}
               </View>
             )}
+
+            {/* Google AdMob Sleek Bottom Banner */}
+            <AdBanner />
           </>
         )}
       </ScrollView>

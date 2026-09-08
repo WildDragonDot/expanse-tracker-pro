@@ -29,6 +29,7 @@ import { useAppTheme } from '../context/ThemeContext'
 import { UdharSkeleton } from '../components/SkeletonLoader'
 import { api } from '../services/api'
 import { UdharRecord } from '../types'
+import { AdBanner } from '../components/AdBanner'
 
 export const UdharScreen = ({ navigation }: { navigation: any }) => {
   const { user } = useAuth()
@@ -248,6 +249,9 @@ export const UdharScreen = ({ navigation }: { navigation: any }) => {
             )
           })
         )}
+
+        {/* Google AdMob Banner */}
+        <AdBanner />
       </ScrollView>
 
       {/* Floating Add FAB */}
