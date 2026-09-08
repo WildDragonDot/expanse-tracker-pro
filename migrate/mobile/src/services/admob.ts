@@ -25,6 +25,11 @@ class AdMobManager {
     if (this.initialized) return
 
     try {
+      await mobileAds().setRequestConfiguration({
+        // Developer test device ID to allow ads to load immediately on your phone
+        testDeviceIdentifiers: ['51367FD2D8353C3E285EC2F85BE06EDB', 'EMULATOR'],
+      })
+
       const adapterStatuses = await mobileAds().initialize()
       this.initialized = true
       console.log('✅ Google Mobile Ads SDK Initialized:', adapterStatuses)

@@ -39,6 +39,8 @@ import { InfoTooltipModal, TooltipData } from '../components/InfoTooltipModal'
 import { api } from '../services/api'
 import { BillOccurrence } from '../types'
 import { formatTransactionDate, formatLocalDateTime } from '../utils/dateUtils'
+import { AdBanner } from '../components/AdBanner'
+import { AdMobService } from '../services/admob'
 
 const CATEGORY_COLORS = ['#8B5CF6', '#10B981', '#06B6D4', '#F59E0B', '#F43F5E']
 

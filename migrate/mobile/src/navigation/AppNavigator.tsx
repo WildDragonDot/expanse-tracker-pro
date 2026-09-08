@@ -31,6 +31,7 @@ import { NotificationsScreen } from '../screens/NotificationsScreen'
 import { SavingsGoalsScreen } from '../screens/SavingsGoalsScreen'
 import { SplitExpensesScreen } from '../screens/SplitExpensesScreen'
 import { MoreFeaturesDrawer } from '../components/MoreFeaturesDrawer'
+import { AdBanner } from '../components/AdBanner'
 
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()

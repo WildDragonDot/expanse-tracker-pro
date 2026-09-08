@@ -15,6 +15,7 @@ import { Mail, Lock, Eye, EyeOff, TrendingUp } from 'lucide-react-native'
 import { GoogleSignInCancelledError } from '../services/firebase'
 import { useAuth } from '../context/AuthContext'
 import { useAppTheme } from '../context/ThemeContext'
+import { AdBanner } from '../components/AdBanner'
 
 export const LoginScreen = ({ navigation }: { navigation: any }) => {
   const { login, loginWithGoogle, loading: authLoading } = useAuth()

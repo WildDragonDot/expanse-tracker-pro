@@ -43,7 +43,6 @@ export const AdBanner: React.FC<AdBannerProps> = ({
           setAdFailed(false)
         }}
         onAdFailedToLoad={(error) => {
-          console.log('⚠️ Banner Ad failed to load:', error.message)
           setAdFailed(true)
         }}
       />
